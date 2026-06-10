@@ -334,13 +334,8 @@ impl MainScreenState {
             }
             KeyCode::Left => {
                 match self.active_panel {
-                    Panel::Sets => {
-                        // Switch focus to Groups without changing selection
-                        self.active_panel = Panel::Groups;
-                    }
-                    Panel::Groups => {
-                        self.group_list.select_previous();
-                    }
+                    Panel::Sets => self.active_panel = Panel::Groups,
+                    Panel::Groups => { /* already on the leftmost panel */ }
                 }
                 MainScreenAction::None
             }
@@ -354,10 +349,7 @@ impl MainScreenState {
                             self.active_panel = Panel::Sets;
                         }
                     }
-                    Panel::Sets => {
-                        let n = self.visible_sets(data).len();
-                        self.set_list.select_next(n);
-                    }
+                    Panel::Sets => { /* already on the rightmost panel */ }
                 }
                 MainScreenAction::None
             }
