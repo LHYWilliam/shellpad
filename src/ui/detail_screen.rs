@@ -200,7 +200,12 @@ impl DetailScreenState {
             let style = Style::default()
                 .fg(Color::Yellow)
                 .add_modifier(Modifier::BOLD);
-            items.push(ListItem::new(Line::from(Span::styled(label, style))));
+            let preview = ListItem::new(Line::from(Span::styled(label, style)));
+            if let Some(pos) = self.insert_at {
+                items.insert(pos.min(items.len()), preview);
+            } else {
+                items.push(preview);
+            }
         }
 
         let mut list_state = ratatui::widgets::ListState::default()
@@ -261,11 +266,17 @@ impl DetailScreenState {
 
         // Live preview of pending command edit
         if let Some(idx) = self.editing_command {
-            let label = format!("  #{}▶ {}", idx, self.edit_input.content);
+            let pos = self.insert_at.unwrap_or(idx);
+            let label = format!("  #{}▶ {}", pos, self.edit_input.content);
             let style = Style::default()
                 .fg(Color::Yellow)
                 .add_modifier(Modifier::BOLD);
-            items.push(ListItem::new(Line::from(Span::styled(label, style))));
+            let preview = ListItem::new(Line::from(Span::styled(label, style)));
+            if let Some(insert_pos) = self.insert_at {
+                items.insert(insert_pos.min(items.len()), preview);
+            } else {
+                items.push(preview);
+            }
         }
 
         let mut list_state = ratatui::widgets::ListState::default()
