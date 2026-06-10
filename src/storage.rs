@@ -1,7 +1,7 @@
 use crate::config::{data_file_path, temp_file_path};
 use crate::models::AppData;
 use std::fs;
-use std::io;
+use std::io::{self, Write};
 use std::path::Path;
 
 /// Load application data from the default config file.
@@ -56,8 +56,28 @@ fn save_app_data_to(data: &AppData, path: &Path, tmp: &Path) -> io::Result<()> {
     let json = serde_json::to_string_pretty(data)
         .map_err(io::Error::other)?;
 
-    fs::write(tmp, &json)?;
-    fs::rename(tmp, path)?;
+    // Write to temp file and fsync (ensure data reaches disk before rename)
+    let mut file = fs::File::create(tmp)?;
+    file.write_all(json.as_bytes())?;
+    file.sync_all()?;
+    drop(file);
+
+    // Atomic rename. Fall back to copy+remove on cross-filesystem.
+    if let Err(e) = fs::rename(tmp, path) {
+        if e.kind() == io::ErrorKind::CrossesDevices {
+            fs::copy(tmp, path)?;
+            let _ = fs::remove_file(tmp);
+        } else {
+            return Err(e);
+        }
+    }
+
+    // Sync parent directory metadata so the rename is durable
+    if let Some(parent) = path.parent() {
+        if let Ok(dir) = fs::File::open(parent) {
+            let _ = dir.sync_all();
+        }
+    }
 
     Ok(())
 }

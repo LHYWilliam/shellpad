@@ -22,33 +22,45 @@ impl TextInput {
 
     /// Handle a character input.
     pub fn insert_char(&mut self, c: char) {
-        self.content.insert(self.cursor, c);
-        self.cursor += 1;
+        let pos = self.content.floor_char_boundary(self.cursor);
+        self.content.insert(pos, c);
+        self.cursor = pos + c.len_utf8();
     }
 
     /// Delete the character before the cursor (backspace).
     pub fn delete_before(&mut self) {
-        if self.cursor > 0 {
-            self.cursor -= 1;
-            self.content.remove(self.cursor);
+        let pos = self.content.floor_char_boundary(self.cursor);
+        if pos > 0 {
+            let prev = self.content[..pos - 1].floor_char_boundary(pos - 1);
+            self.content.remove(prev);
+            self.cursor = prev;
         }
     }
 
     /// Delete the character at the cursor (delete).
     pub fn delete_at(&mut self) {
-        if self.cursor < self.content.len() {
-            self.content.remove(self.cursor);
+        let pos = self.content.floor_char_boundary(self.cursor);
+        if pos < self.content.len() {
+            self.content.remove(pos);
+            self.cursor = pos;
         }
     }
 
     pub fn move_cursor_left(&mut self) {
-        self.cursor = self.cursor.saturating_sub(1);
+        if self.cursor > 0 {
+            self.cursor = self.content[..self.cursor - 1].floor_char_boundary(self.cursor - 1);
+        }
     }
 
     pub fn move_cursor_right(&mut self) {
-        if self.cursor < self.content.len() {
-            self.cursor += 1;
+        let len = self.content.len();
+        if self.cursor >= len {
+            return;
         }
+        let pos = self.content.floor_char_boundary(self.cursor);
+        let ch = self.content[pos..].chars().next();
+        let char_len = ch.map_or(1, |c| c.len_utf8());
+        self.cursor = (pos + char_len).min(len);
     }
 
     pub fn move_cursor_to_start(&mut self) {
