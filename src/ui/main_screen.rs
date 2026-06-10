@@ -302,8 +302,7 @@ impl MainScreenState {
                 }
                 KeyCode::Enter => {
                     self.search_mode = false;
-                    self.search_query.clear();
-                    self.active_panel = Panel::Groups;
+                    self.active_panel = Panel::Sets;
                     MainScreenAction::None
                 }
                 KeyCode::Char(c) => {
@@ -323,7 +322,7 @@ impl MainScreenState {
         }
 
         match key.code {
-            KeyCode::Up | KeyCode::Char('k') => {
+            KeyCode::Up | KeyCode::Char('k') | KeyCode::Char('K') => {
                 match self.active_panel {
                     Panel::Groups => self.group_list.select_previous(),
                     Panel::Sets => {
@@ -336,7 +335,7 @@ impl MainScreenState {
                 }
                 MainScreenAction::None
             }
-            KeyCode::Down | KeyCode::Char('j') => {
+            KeyCode::Down | KeyCode::Char('j') | KeyCode::Char('J') => {
                 match self.active_panel {
                     Panel::Groups => self.group_list.select_next(data.groups.len()),
                     Panel::Sets => {

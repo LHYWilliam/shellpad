@@ -310,6 +310,7 @@ impl App {
                     }
                     self.main_screen.set_list.reset();
                     if self.data.groups.is_empty() {
+                        self.main_screen.group_list.reset();
                         self.main_screen.active_panel = Panel::Groups;
                     }
                     self.auto_save();
