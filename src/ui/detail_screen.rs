@@ -195,17 +195,14 @@ impl DetailScreenState {
             })
             .collect();
 
-        if self.editing_variable.is_some() {
+        if let Some(idx) = self.editing_variable {
             let label = format!("  ▶ {}", self.edit_input.content);
             let style = Style::default()
                 .fg(Color::Yellow)
                 .add_modifier(Modifier::BOLD);
             let preview = ListItem::new(Line::from(Span::styled(label, style)));
-            if let Some(pos) = self.insert_at {
-                items.insert(pos.min(items.len()), preview);
-            } else {
-                items.push(preview);
-            }
+            let pos = self.insert_at.unwrap_or(idx.min(items.len()));
+            items.insert(pos, preview);
         }
 
         let mut list_state = ratatui::widgets::ListState::default()
@@ -278,11 +275,8 @@ impl DetailScreenState {
                 .fg(Color::Yellow)
                 .add_modifier(Modifier::BOLD);
             let preview = ListItem::new(Line::from(Span::styled(label, style)));
-            if let Some(insert_pos) = self.insert_at {
-                items.insert(insert_pos.min(items.len()), preview);
-            } else {
-                items.push(preview);
-            }
+            let insert_pos = self.insert_at.unwrap_or(idx.min(items.len()));
+            items.insert(insert_pos, preview);
         }
 
         let mut list_state = ratatui::widgets::ListState::default()
@@ -529,13 +523,25 @@ impl DetailScreenState {
                 self.edit_input.insert_char(c);
             }
             KeyCode::Backspace => {
-                self.edit_input.delete_before();
+                let eq = self.edit_input.content.find('=');
+                let protect = eq.map_or(0, |p| p + 1);
+                if self.edit_input.cursor > protect {
+                    self.edit_input.delete_before();
+                }
             }
             KeyCode::Delete => {
-                self.edit_input.delete_at();
+                let eq = self.edit_input.content.find('=');
+                let protect = eq.map_or(0, |p| p + 1);
+                if self.edit_input.cursor > protect {
+                    self.edit_input.delete_at();
+                }
             }
             KeyCode::Left => {
-                self.edit_input.move_cursor_left();
+                let eq = self.edit_input.content.find('=');
+                let protect = eq.map_or(0, |p| p + 1);
+                if self.edit_input.cursor > protect {
+                    self.edit_input.move_cursor_left();
+                }
             }
             KeyCode::Right => {
                 self.edit_input.move_cursor_right();
