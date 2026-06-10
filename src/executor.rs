@@ -25,7 +25,7 @@ pub enum ExecutionEvent {
     /// The current command has finished.
     Finished {
         index: usize,
-        status: ExitStatus,
+        success: bool,
         duration_ms: u128,
     },
     /// All commands in the set have been executed.
@@ -125,7 +125,7 @@ pub fn execute_set(
                     });
                     let _ = tx.send(ExecutionEvent::Finished {
                         index,
-                        status: ExitStatus::default(),
+                        success: false,
                         duration_ms: cmd_start.elapsed().as_millis(),
                     });
                     failed += 1;
@@ -157,7 +157,7 @@ pub fn execute_set(
             if tx
                 .send(ExecutionEvent::Finished {
                     index,
-                    status: exit_status,
+                    success,
                     duration_ms: duration,
                 })
                 .is_err()

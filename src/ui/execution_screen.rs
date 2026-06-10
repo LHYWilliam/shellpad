@@ -96,11 +96,11 @@ impl ExecutionScreenState {
                 }
                 ExecutionEvent::Finished {
                     index,
-                    status,
+                    success,
                     duration_ms,
                 } => {
                     if index < self.cmd_states.len() {
-                        self.cmd_states[index].status = if status.success() {
+                        self.cmd_states[index].status = if success {
                             self.succeeded += 1;
                             CmdStatus::Success
                         } else {
