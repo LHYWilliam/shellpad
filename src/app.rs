@@ -124,9 +124,12 @@ impl App {
     }
 
     fn render_variable_input(&self, frame: &mut Frame, area: Rect) {
+        let count = self.variable_inputs.len();
+        if count == 0 {
+            return;
+        }
         let width = area.width.min(60).saturating_sub(4);
-        let count = self.variable_inputs.len().max(1) as u16;
-        let height = count + 6;
+        let height = count as u16 + 4; // top border + n rows + hint + bottom border
         let x = area.x + (area.width.saturating_sub(width)) / 2;
         let y = area.y + (area.height.saturating_sub(height)) / 2;
         let dialog = Rect::new(x, y, width, height);
@@ -141,37 +144,30 @@ impl App {
         frame.render_widget(&block, dialog);
 
         let inner = block.inner(dialog);
-        for (i, input) in self.variable_inputs.iter().enumerate() {
+
+        for i in 0..count {
             let focus = i == self.variable_focus;
-            let label_style = if focus {
-                Style::default().fg(Color::Yellow)
-            } else {
-                Style::default().fg(Color::White)
-            };
-            let label = format!(" {} =", self.variable_names[i]);
+            let color = if focus { Color::Yellow } else { Color::White };
+            let row = Rect::new(inner.x, inner.y + i as u16, inner.width, 1);
+            let display = format!(" {} = {}", self.variable_names[i], self.variable_inputs[i].content);
             frame.render_widget(
-                Paragraph::new(Line::from(Span::styled(label, label_style))),
-                Rect::new(inner.x, inner.y + i as u16, inner.width / 2, 1),
+                Paragraph::new(Line::from(Span::styled(display, Style::default().fg(color)))),
+                row,
             );
-            let val_area = Rect::new(
-                inner.x + inner.width / 2,
-                inner.y + i as u16,
-                inner.width.saturating_sub(inner.width / 2),
-                1,
-            );
-            input.render(frame, val_area, focus, "");
-        }
-        let hint = format!(
-            " [Enter] Execute  [Esc] Cancel  [Tab] Next  [{}] Edit",
-            if self.variable_inputs.is_empty() {
-                "—"
-            } else {
-                "↑↓"
+            if focus {
+                let cursor_offset = 1 + self.variable_names[i].len() as u16 + 3
+                    + self.variable_inputs[i].cursor as u16;
+                frame.set_cursor_position((inner.x + cursor_offset, inner.y + i as u16));
             }
-        );
+        }
+
+        let hint_y = inner.y + count as u16;
         frame.render_widget(
-            Paragraph::new(Line::from(hint)).style(Style::default().fg(Color::DarkGray)),
-            Rect::new(inner.x, inner.y + count + 1, inner.width, 1),
+            Paragraph::new(Line::from(Span::styled(
+                " [Enter] Execute  [Esc] Cancel  [Tab/Down] Next  [Up] Prev",
+                Style::default().fg(Color::DarkGray),
+            ))),
+            Rect::new(inner.x, hint_y, inner.width, 1),
         );
     }
 
