@@ -1,5 +1,5 @@
 use crate::models::AppData;
-use crate::ui::components::ScrollableList;
+use crate::ui::components::{handle_text_input, ScrollableList, TextInput};
 use ratatui::layout::{Constraint, Layout, Rect};
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
@@ -13,7 +13,7 @@ pub enum MainScreenAction {
     NewSet(usize),                // group_index
     DeleteSet(usize, usize),      // (group_index, set_index)
     NewGroup,
-    RenameGroup(usize),
+    RenameGroup(usize, String),
     DeleteGroup(usize),
     Quit,
     Help,
@@ -31,6 +31,8 @@ pub struct MainScreenState {
     pub active_panel: Panel,
     pub search_mode: bool,
     pub search_query: String,
+    pub rename_mode: bool,
+    pub rename_input: TextInput,
 }
 
 impl MainScreenState {
@@ -41,6 +43,8 @@ impl MainScreenState {
             active_panel: Panel::Groups,
             search_mode: false,
             search_query: String::new(),
+            rename_mode: false,
+            rename_input: TextInput::new(String::new()),
         }
     }
 
@@ -95,6 +99,17 @@ impl MainScreenState {
 
         // Status bar
         self.render_status_bar(frame, status_area);
+
+        // Rename input overlay
+        if self.rename_mode {
+            let input_area = Rect::new(
+                left_area.x,
+                status_area.y.saturating_sub(1),
+                left_area.width,
+                1,
+            );
+            self.rename_input.render(frame, input_area, true, "Rename:");
+        }
     }
 
     fn render_group_panel(&self, frame: &mut Frame, area: Rect, data: &AppData) {
@@ -246,6 +261,26 @@ impl MainScreenState {
     ) -> MainScreenAction {
         use crossterm::event::KeyCode;
 
+        // Rename mode (takes priority over search)
+        if self.rename_mode {
+            return match key.code {
+                KeyCode::Enter => {
+                    let name = self.rename_input.content.clone();
+                    let gi = self.group_list.selected;
+                    self.rename_mode = false;
+                    MainScreenAction::RenameGroup(gi, name)
+                }
+                KeyCode::Esc => {
+                    self.rename_mode = false;
+                    MainScreenAction::None
+                }
+                _ => {
+                    handle_text_input(&mut self.rename_input, key);
+                    MainScreenAction::None
+                }
+            };
+        }
+
         // Search mode
         if self.search_mode {
             return match key.code {
@@ -371,7 +406,9 @@ impl MainScreenState {
             }
             KeyCode::Char('R') => {
                 if let Some(gi) = self.selected_group_idx(data) {
-                    return MainScreenAction::RenameGroup(gi);
+                    let current = data.groups[gi].name.clone();
+                    self.rename_mode = true;
+                    self.rename_input = TextInput::new(current);
                 }
                 MainScreenAction::None
             }

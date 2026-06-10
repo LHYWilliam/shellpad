@@ -3,7 +3,7 @@ use crate::executor::{execute_set, ExecutionEvent};
 use crate::mode::AppMode;
 use crate::models::{AppData, CommandSet, ShellType};
 use crate::storage;
-use crate::ui::components::TextInput;
+use crate::ui::components::{handle_text_input, TextInput};
 use crate::ui::detail_screen::{DetailScreenAction, DetailScreenState};
 use crate::ui::execution_screen::{ExecutionScreenAction, ExecutionScreenState};
 use crate::ui::help_screen::draw_help;
@@ -295,11 +295,9 @@ impl App {
                 self.main_screen.set_list.reset();
                 self.auto_save();
             }
-            MainScreenAction::RenameGroup(gi) => {
+            MainScreenAction::RenameGroup(gi, new_name) => {
                 if gi < self.data.groups.len() {
-                    let cur = &self.data.groups[gi].name;
-                    let new = format!("{} (renamed)", cur);
-                    self.data.groups[gi].name = new;
+                    self.data.groups[gi].name = new_name;
                     self.auto_save();
                 }
             }
@@ -425,19 +423,6 @@ impl App {
         if let Err(e) = storage::save_app_data(&self.data) {
             eprintln!("Auto-save failed: {}", e);
         }
-    }
-}
-
-fn handle_text_input(input: &mut TextInput, key: crossterm::event::KeyEvent) {
-    match key.code {
-        KeyCode::Char(c) => input.insert_char(c),
-        KeyCode::Backspace => input.delete_before(),
-        KeyCode::Delete => input.delete_at(),
-        KeyCode::Left => input.move_cursor_left(),
-        KeyCode::Right => input.move_cursor_right(),
-        KeyCode::Home => input.move_cursor_to_start(),
-        KeyCode::End => input.move_cursor_to_end(),
-        _ => {}
     }
 }
 

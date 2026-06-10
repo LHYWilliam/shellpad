@@ -242,3 +242,18 @@ impl ScrollableList {
         self.offset = 0;
     }
 }
+
+/// Handle common text input key events.
+pub fn handle_text_input(input: &mut TextInput, key: crossterm::event::KeyEvent) {
+    use crossterm::event::KeyCode;
+    match key.code {
+        KeyCode::Char(c) => input.insert_char(c),
+        KeyCode::Backspace => input.delete_before(),
+        KeyCode::Delete => input.delete_at(),
+        KeyCode::Left => input.move_cursor_left(),
+        KeyCode::Right => input.move_cursor_right(),
+        KeyCode::Home => input.move_cursor_to_start(),
+        KeyCode::End => input.move_cursor_to_end(),
+        _ => {}
+    }
+}
