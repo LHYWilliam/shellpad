@@ -308,7 +308,13 @@ impl MainScreenState {
             KeyCode::Up | KeyCode::Char('k') => {
                 match self.active_panel {
                     Panel::Groups => self.group_list.select_previous(),
-                    Panel::Sets => self.set_list.select_previous(),
+                    Panel::Sets => {
+                        if self.visible_sets(data).is_empty() {
+                            self.active_panel = Panel::Groups;
+                        } else {
+                            self.set_list.select_previous();
+                        }
+                    }
                 }
                 MainScreenAction::None
             }
@@ -317,7 +323,11 @@ impl MainScreenState {
                     Panel::Groups => self.group_list.select_next(data.groups.len()),
                     Panel::Sets => {
                         let n = self.visible_sets(data).len();
-                        self.set_list.select_next(n);
+                        if n == 0 {
+                            self.active_panel = Panel::Groups;
+                        } else {
+                            self.set_list.select_next(n);
+                        }
                     }
                 }
                 MainScreenAction::None
@@ -337,8 +347,12 @@ impl MainScreenState {
             KeyCode::Right => {
                 match self.active_panel {
                     Panel::Groups => {
-                        // Switch focus to Sets
-                        self.active_panel = Panel::Sets;
+                        let has_sets = self.selected_group_idx(data)
+                            .map(|gi| !data.groups[gi].sets.is_empty())
+                            .unwrap_or(false);
+                        if has_sets {
+                            self.active_panel = Panel::Sets;
+                        }
                     }
                     Panel::Sets => {
                         let n = self.visible_sets(data).len();
