@@ -453,6 +453,7 @@ impl MainScreenState {
                 self.search_mode = true;
                 self.search_query.clear();
                 self.set_list.reset();
+                self.active_panel = Panel::Sets;
                 MainScreenAction::None
             }
             KeyCode::Char('?') | KeyCode::Char('h') | KeyCode::Char('H') => {
