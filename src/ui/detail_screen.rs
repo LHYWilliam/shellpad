@@ -90,12 +90,18 @@ impl DetailScreenState {
         let [name_row, group_row, shell_row, mode_row] = rows.areas(area);
 
         // Name
-        let name_style = if self.focus == DetailFocus::Name && !self.editing_name {
+        let is_name_focused = self.focus == DetailFocus::Name;
+        let name_style = if is_name_focused {
             Style::default().fg(Color::Yellow)
         } else {
             Style::default().fg(Color::White)
         };
-        let name_text = format!(" Name: {}", self.set.name);
+        let display_name = if self.editing_name {
+            self.name_input.content.as_str()
+        } else {
+            self.set.name.as_str()
+        };
+        let name_text = format!(" Name: {}", display_name);
         frame.render_widget(
             Paragraph::new(Line::from(Span::styled(name_text, name_style))),
             name_row,
