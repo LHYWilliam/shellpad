@@ -134,17 +134,17 @@ impl MainScreenState {
         let inner = block.inner(area);
         frame.render_widget(&block, area);
 
+        let avail = inner.width as usize;
         let mut items: Vec<ListItem> = data
             .groups
             .iter()
             .enumerate()
             .map(|(i, g)| {
-                let prefix = if i == self.group_list.selected {
-                    "▶ "
-                } else {
-                    "  "
-                };
-                let label = format!("{}{} ({})", prefix, g.name, g.sets.len());
+                let marker = if i == self.group_list.selected { "▶ " } else { "  " };
+                let name = format!("{}{}", marker, g.name);
+                let count = format!("({})", g.sets.len());
+                let pad = avail.saturating_sub(name.len() + count.len());
+                let label = format!("{}{:>pad$}{}", name, "", count, pad = pad);
                 let style = if i == self.group_list.selected {
                     Style::default()
                         .fg(Color::Black)
