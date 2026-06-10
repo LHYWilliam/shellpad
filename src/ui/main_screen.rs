@@ -213,17 +213,23 @@ impl MainScreenState {
         let items: Vec<ListItem> = sets
             .iter()
             .enumerate()
-            .map(|(i, &(_, _, set))| {
+            .map(|(i, &(gi, _, set))| {
                 let shell_label = set.shell.label();
                 let mode_label = match set.exec_mode {
                     crate::models::ExecMode::StopOnError => "🛑",
                     crate::models::ExecMode::ContinueOnError => "⏩",
                 };
                 let cmd_count = set.commands.len();
-                let label = format!(
+                let mut label = format!(
                     " {}  {}  [{}] ({} cmd)",
                     mode_label, set.name, shell_label, cmd_count
                 );
+                if self.search_mode {
+                    let gname = data.groups.get(gi).map(|g| g.name.as_str()).unwrap_or("?");
+                    let avail = inner.width as usize;
+                    let pad = avail.saturating_sub(label.len() + gname.len() + 1);
+                    label = format!("{}{:>pad$}{}", label, "", gname, pad = pad);
+                }
                 let is_selected = i == self.set_list.selected
                     && self.active_panel == Panel::Sets;
                 let style = if is_selected {
