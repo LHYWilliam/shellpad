@@ -97,18 +97,26 @@ impl MainScreenState {
         let sets = self.visible_sets(data);
         self.render_set_panel(frame, right_area, data, &sets);
 
-        // Status bar
-        self.render_status_bar(frame, status_area);
-
-        // Rename input overlay
+        // Status bar (or rename input when in rename mode)
         if self.rename_mode {
-            let input_area = Rect::new(
-                left_area.x,
-                status_area.y.saturating_sub(1),
-                left_area.width,
-                1,
+            let prefix = " Rename: ";
+            let ren = &self.rename_input;
+            let display = format!("{}{}", prefix, ren.content);
+            let style = if ren.content.is_empty() {
+                Style::default().fg(Color::DarkGray)
+            } else {
+                Style::default().fg(Color::White)
+            };
+            frame.render_widget(
+                Paragraph::new(Line::from(Span::styled(display, style))),
+                status_area,
             );
-            self.rename_input.render(frame, input_area, true, "Rename:");
+            frame.set_cursor_position((
+                status_area.x + prefix.len() as u16 + ren.cursor as u16,
+                status_area.y,
+            ));
+        } else {
+            self.render_status_bar(frame, status_area);
         }
     }
 
