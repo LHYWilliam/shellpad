@@ -143,7 +143,8 @@ impl MainScreenState {
                 let marker = if i == self.group_list.selected { "▶ " } else { "  " };
                 let name = format!("{}{}", marker, g.name);
                 let count = format!("({})", g.sets.len());
-                let pad = avail.saturating_sub(name.len() + count.len());
+                let name_width = unicode_width::UnicodeWidthStr::width(name.as_str());
+                let pad = avail.saturating_sub(name_width + count.len());
                 let label = format!("{}{:>pad$}{}", name, "", count, pad = pad);
                 let style = if i == self.group_list.selected {
                     Style::default()
