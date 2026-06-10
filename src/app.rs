@@ -11,7 +11,7 @@ use crate::ui::main_screen::{MainScreenAction, MainScreenState, Panel};
 use crossterm::event::{self, Event, KeyCode, KeyEventKind};
 use ratatui::layout::{Alignment, Rect};
 use ratatui::style::{Color, Style};
-use ratatui::text::Line;
+use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Clear, Paragraph};
 use ratatui::Frame;
 use std::io;
@@ -35,6 +35,7 @@ pub struct App {
     variable_input_mode: bool,
     variable_inputs: Vec<TextInput>,
     variable_names: Vec<String>,
+    variable_focus: usize,
     pending_set: Option<(usize, usize)>, // (group_index, set_index)
 }
 
@@ -53,6 +54,7 @@ impl App {
             variable_input_mode: false,
             variable_inputs: Vec::new(),
             variable_names: Vec::new(),
+            variable_focus: 0,
             pending_set: None,
         }
     }
@@ -140,9 +142,15 @@ impl App {
 
         let inner = block.inner(dialog);
         for (i, input) in self.variable_inputs.iter().enumerate() {
+            let focus = i == self.variable_focus;
+            let label_style = if focus {
+                Style::default().fg(Color::Yellow)
+            } else {
+                Style::default().fg(Color::White)
+            };
             let label = format!(" {} =", self.variable_names[i]);
             frame.render_widget(
-                Paragraph::new(Line::from(label)).style(Style::default().fg(Color::White)),
+                Paragraph::new(Line::from(Span::styled(label, label_style))),
                 Rect::new(inner.x, inner.y + i as u16, inner.width / 2, 1),
             );
             let val_area = Rect::new(
@@ -151,7 +159,7 @@ impl App {
                 inner.width.saturating_sub(inner.width / 2),
                 1,
             );
-            input.render(frame, val_area, true, "");
+            input.render(frame, val_area, focus, "");
         }
         let hint = format!(
             " [Enter] Execute  [Esc] Cancel  [Tab] Next  [{}] Edit",
@@ -211,6 +219,9 @@ impl App {
                     }
                 }
                 self.variable_input_mode = false;
+                self.variable_inputs.clear();
+                self.variable_names.clear();
+                self.auto_save();
                 self.do_execute();
             }
             KeyCode::Esc => {
@@ -219,16 +230,22 @@ impl App {
                 self.variable_names.clear();
                 self.pending_set = None;
             }
-            KeyCode::Tab => {
-                // Cycle to next input
-                if let Some(first) = self.variable_inputs.first().cloned() {
-                    self.variable_inputs.push(first);
-                    self.variable_inputs.remove(0);
+            KeyCode::Tab | KeyCode::Down => {
+                let n = self.variable_inputs.len();
+                if n > 0 {
+                    self.variable_focus = (self.variable_focus + 1) % n;
+                }
+            }
+            KeyCode::Up => {
+                let n = self.variable_inputs.len();
+                if n > 0 {
+                    self.variable_focus = (self.variable_focus + n - 1) % n;
                 }
             }
             _ => {
-                if let Some(input) = self.variable_inputs.last_mut() {
-                    handle_text_input(input, key);
+                let n = self.variable_inputs.len();
+                if n > 0 && self.variable_focus < n {
+                    handle_text_input(&mut self.variable_inputs[self.variable_focus], key);
                 }
             }
         }
@@ -252,6 +269,7 @@ impl App {
                         .collect();
                     self.variable_names =
                         set.variables.iter().map(|v| v.name.clone()).collect();
+                    self.variable_focus = 0;
                     self.pending_set = Some((gi, si));
                 } else {
                     self.pending_set = Some((gi, si));
