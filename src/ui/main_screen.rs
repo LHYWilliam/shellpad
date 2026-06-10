@@ -31,9 +31,6 @@ pub struct MainScreenState {
     pub active_panel: Panel,
     pub search_mode: bool,
     pub search_query: String,
-    pub show_delete_dialog: bool,
-    pub delete_target: Option<(usize, usize)>,
-    pub delete_dialog_is_set: bool, // true = deleting a set, false = deleting a group
 }
 
 impl MainScreenState {
@@ -44,9 +41,6 @@ impl MainScreenState {
             active_panel: Panel::Groups,
             search_mode: false,
             search_query: String::new(),
-            show_delete_dialog: false,
-            delete_target: None,
-            delete_dialog_is_set: true,
         }
     }
 
@@ -233,7 +227,7 @@ impl MainScreenState {
 
     fn render_status_bar(&self, frame: &mut Frame, area: Rect) {
         let text = Line::from(Span::styled(
-            " [↑/↓] Nav  [←/→] Panel  [Enter] Run  [e] Edit  [n] New  [d] Delete  [g] Group  [/] Search  [?] Help  [q] Quit",
+            " [↑/↓] Nav  [←/→] Panel  [Enter] Run  [e] Edit  [n] New  [d] Del set  [Shift+D] Del group  [g] Group  [/] Search  [?] Help  [q] Quit",
             Style::default().fg(Color::DarkGray),
         ));
         frame.render_widget(Paragraph::new(text), area);
@@ -246,31 +240,6 @@ impl MainScreenState {
         data: &AppData,
     ) -> MainScreenAction {
         use crossterm::event::KeyCode;
-
-        // If delete dialog is showing, handle that first
-        if self.show_delete_dialog {
-            return match key.code {
-                KeyCode::Tab | KeyCode::Char('y') | KeyCode::Char('Y') => {
-                    self.show_delete_dialog = false;
-                    let target = self.delete_target.take();
-                    if let Some((gi, si)) = target {
-                        if self.delete_dialog_is_set {
-                            MainScreenAction::DeleteSet(gi, si)
-                        } else {
-                            MainScreenAction::DeleteGroup(gi)
-                        }
-                    } else {
-                        MainScreenAction::None
-                    }
-                }
-                KeyCode::Esc | KeyCode::Char('n') | KeyCode::Char('N') => {
-                    self.show_delete_dialog = false;
-                    self.delete_target = None;
-                    MainScreenAction::None
-                }
-                _ => MainScreenAction::None,
-            };
-        }
 
         // Search mode
         if self.search_mode {
@@ -375,11 +344,15 @@ impl MainScreenState {
                     MainScreenAction::None
                 }
             }
-            KeyCode::Char('d') | KeyCode::Char('D') => {
+            KeyCode::Char('d') => {
                 if let Some((gi, si)) = self.selected_set_idx(data) {
-                    self.show_delete_dialog = true;
-                    self.delete_target = Some((gi, si));
-                    self.delete_dialog_is_set = true;
+                    return MainScreenAction::DeleteSet(gi, si);
+                }
+                MainScreenAction::None
+            }
+            KeyCode::Char('D') => {
+                if let Some(gi) = self.selected_group_idx(data) {
+                    return MainScreenAction::DeleteGroup(gi);
                 }
                 MainScreenAction::None
             }
