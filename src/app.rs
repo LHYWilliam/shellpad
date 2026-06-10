@@ -347,6 +347,8 @@ impl App {
                     && idx < ds.set.variables.len()
                 {
                     ds.set.variables.remove(idx);
+                    let last = ds.set.variables.len().saturating_sub(1);
+                    ds.variable_list.selected = ds.variable_list.selected.min(last);
                 }
             }
             DetailScreenAction::DeleteCommand(idx) => {
@@ -357,6 +359,8 @@ impl App {
                     for (i, c) in ds.set.commands.iter_mut().enumerate() {
                         c.position = i;
                     }
+                    let last = ds.set.commands.len().saturating_sub(1);
+                    ds.command_list.selected = ds.command_list.selected.min(last);
                 }
             }
         }
