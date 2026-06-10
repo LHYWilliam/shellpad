@@ -397,11 +397,15 @@ impl DetailScreenState {
                 match self.focus {
                     DetailFocus::Variables => {
                         self.edit_input = TextInput::new(String::new());
-                        self.editing_variable = Some(self.set.variables.len());
+                        let insert_at = (self.variable_list.selected + 1)
+                            .min(self.set.variables.len());
+                        self.editing_variable = Some(insert_at);
                     }
                     DetailFocus::Commands => {
                         self.edit_input = TextInput::new(String::new());
-                        self.editing_command = Some(self.set.commands.len());
+                        let insert_at = (self.command_list.selected + 1)
+                            .min(self.set.commands.len());
+                        self.editing_command = Some(insert_at);
                     }
                     _ => {}
                 }
@@ -472,14 +476,11 @@ impl DetailScreenState {
                 if let Some(eq_pos) = input.find('=') {
                     let name = input[..eq_pos].trim().to_string();
                     let value = input[eq_pos + 1..].trim().to_string();
-                    let var = Variable {
-                        name,
-                        default_value: value,
-                    };
+                    let var = Variable { name, default_value: value };
                     if idx < self.set.variables.len() {
                         self.set.variables[idx] = var;
                     } else {
-                        self.set.variables.push(var);
+                        self.set.variables.insert(idx, var);
                     }
                 } else if !input.is_empty() {
                     let var = Variable {
@@ -489,9 +490,10 @@ impl DetailScreenState {
                     if idx < self.set.variables.len() {
                         self.set.variables[idx] = var;
                     } else {
-                        self.set.variables.push(var);
+                        self.set.variables.insert(idx, var);
                     }
                 }
+                self.variable_list.selected = idx.min(self.set.variables.len().saturating_sub(1));
                 self.editing_variable = None;
             }
             KeyCode::Esc => {
@@ -535,12 +537,14 @@ impl DetailScreenState {
                 if idx < self.set.commands.len() {
                     self.set.commands[idx] = command;
                 } else {
-                    self.set.commands.push(command);
+                    self.set.commands.insert(idx, command);
                 }
                 // Re-index positions
                 for (i, c) in self.set.commands.iter_mut().enumerate() {
                     c.position = i;
                 }
+                self.command_list.selected = idx
+                    .min(self.set.commands.len().saturating_sub(1));
                 self.editing_command = None;
             }
             KeyCode::Esc => {
