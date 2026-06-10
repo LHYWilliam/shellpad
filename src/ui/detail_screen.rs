@@ -221,7 +221,7 @@ impl DetailScreenState {
         let inner = cmd_block.inner(area);
         frame.render_widget(&cmd_block, area);
 
-        let items: Vec<ListItem> = self
+        let mut items: Vec<ListItem> = self
             .set
             .commands
             .iter()
@@ -248,6 +248,15 @@ impl DetailScreenState {
             })
             .collect();
 
+        // Live preview of pending command edit
+        if let Some(idx) = self.editing_command {
+            let label = format!("  #{}▶ {}", idx, self.edit_input.content);
+            let style = Style::default()
+                .fg(Color::Yellow)
+                .add_modifier(Modifier::BOLD);
+            items.push(ListItem::new(Line::from(Span::styled(label, style))));
+        }
+
         let mut list_state = ratatui::widgets::ListState::default()
             .with_selected(if self.set.commands.is_empty() {
                 None
@@ -262,13 +271,18 @@ impl DetailScreenState {
     }
 
     fn render_status_bar(&self, frame: &mut Frame, area: Rect) {
-        let status = match self.focus {
-            DetailFocus::Name => "[Enter] Edit name  [Tab] Next",
-            DetailFocus::Group => "[←/→] Change group  [Tab] Next",
-            DetailFocus::Shell => "[←/→] Change shell  [Tab] Next",
-            DetailFocus::ExecMode => "[←/→] Change mode  [Tab] Next",
-            DetailFocus::Variables => "[a] Add  [e] Edit  [d] Delete  [Tab] Next",
-            DetailFocus::Commands => "[a] Add  [e] Edit  [d] Delete  [Tab] Next",
+        let is_editing = self.editing_variable.is_some() || self.editing_command.is_some();
+        let status: String = if is_editing {
+            format!(" Editing: {}  [Enter] Confirm  [Esc] Cancel", self.edit_input.content)
+        } else {
+            match self.focus {
+                DetailFocus::Name => "[Enter] Edit name  [Tab] Next".into(),
+                DetailFocus::Group => "[←/→] Change group  [Tab] Next".into(),
+                DetailFocus::Shell => "[←/→] Change shell  [Tab] Next".into(),
+                DetailFocus::ExecMode => "[←/→] Change mode  [Tab] Next".into(),
+                DetailFocus::Variables => "[a] Add  [e] Edit  [d] Delete  [Tab] Next".into(),
+                DetailFocus::Commands => "[a] Add  [e] Edit  [d] Delete  [Tab] Next".into(),
+            }
         };
         frame.render_widget(
             Paragraph::new(Line::from(Span::styled(
