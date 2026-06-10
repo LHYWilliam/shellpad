@@ -19,9 +19,16 @@ pub enum MainScreenAction {
     Help,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Panel {
+    Groups,
+    Sets,
+}
+
 pub struct MainScreenState {
     pub group_list: ScrollableList,
     pub set_list: ScrollableList,
+    pub active_panel: Panel,
     pub search_mode: bool,
     pub search_query: String,
     pub show_delete_dialog: bool,
@@ -34,6 +41,7 @@ impl MainScreenState {
         Self {
             group_list: ScrollableList::new(),
             set_list: ScrollableList::new(),
+            active_panel: Panel::Groups,
             search_mode: false,
             search_query: String::new(),
             show_delete_dialog: false,
@@ -96,9 +104,14 @@ impl MainScreenState {
     }
 
     fn render_group_panel(&self, frame: &mut Frame, area: Rect, data: &AppData) {
+        let border_color = if self.active_panel == Panel::Groups {
+            Color::Yellow
+        } else {
+            Color::Cyan
+        };
         let block = Block::default()
             .borders(Borders::ALL)
-            .border_style(Style::default().fg(Color::Cyan))
+            .border_style(Style::default().fg(border_color))
             .title(" Groups ");
 
         let inner = block.inner(area);
@@ -165,9 +178,14 @@ impl MainScreenState {
             format!(" {} ", group_name)
         };
 
+        let border_color = if self.active_panel == Panel::Sets {
+            Color::Yellow
+        } else {
+            Color::Cyan
+        };
         let block = Block::default()
             .borders(Borders::ALL)
-            .border_style(Style::default().fg(Color::Cyan))
+            .border_style(Style::default().fg(border_color))
             .title(title);
 
         let inner = block.inner(area);
@@ -215,7 +233,7 @@ impl MainScreenState {
 
     fn render_status_bar(&self, frame: &mut Frame, area: Rect) {
         let text = Line::from(Span::styled(
-            " [↑/↓] Nav  [Enter] Run  [e] Edit  [n] New  [d] Delete  [g] Group  [/] Search  [?] Help  [q] Quit",
+            " [↑/↓] Nav  [←/→] Panel  [Enter] Run  [e] Edit  [n] New  [d] Delete  [g] Group  [/] Search  [?] Help  [q] Quit",
             Style::default().fg(Color::DarkGray),
         ));
         frame.render_widget(Paragraph::new(text), area);
@@ -261,20 +279,24 @@ impl MainScreenState {
                     self.search_mode = false;
                     self.search_query.clear();
                     self.set_list.reset();
+                    self.active_panel = Panel::Groups;
                     MainScreenAction::None
                 }
                 KeyCode::Enter => {
                     self.search_mode = false;
                     self.search_query.clear();
+                    self.active_panel = Panel::Groups;
                     MainScreenAction::None
                 }
                 KeyCode::Char(c) => {
                     self.search_query.push(c);
+                    self.active_panel = Panel::Sets;
                     self.set_list.reset();
                     MainScreenAction::None
                 }
                 KeyCode::Backspace => {
                     self.search_query.pop();
+                    self.active_panel = Panel::Sets;
                     self.set_list.reset();
                     MainScreenAction::None
                 }
@@ -284,37 +306,44 @@ impl MainScreenState {
 
         match key.code {
             KeyCode::Up | KeyCode::Char('k') => {
-                // Navigate right panel if has items, else left panel
-                let set_count = self.visible_sets(data).len();
-                if set_count > 0 {
-                    self.set_list.select_previous();
-                } else {
-                    self.group_list.select_previous();
+                match self.active_panel {
+                    Panel::Groups => self.group_list.select_previous(),
+                    Panel::Sets => self.set_list.select_previous(),
                 }
                 MainScreenAction::None
             }
             KeyCode::Down | KeyCode::Char('j') => {
-                let set_count = self.visible_sets(data).len();
-                if set_count > 0 {
-                    self.set_list.select_next(set_count);
-                } else {
-                    self.group_list.select_next(data.groups.len());
+                match self.active_panel {
+                    Panel::Groups => self.group_list.select_next(data.groups.len()),
+                    Panel::Sets => {
+                        let n = self.visible_sets(data).len();
+                        self.set_list.select_next(n);
+                    }
                 }
                 MainScreenAction::None
             }
             KeyCode::Left => {
-                // Focus left panel (groups)
-                self.group_list.select_previous();
-                if !data.groups.is_empty() {
-                    self.group_list.selected = self.group_list.selected.min(data.groups.len() - 1);
+                match self.active_panel {
+                    Panel::Sets => {
+                        // Switch focus to Groups without changing selection
+                        self.active_panel = Panel::Groups;
+                    }
+                    Panel::Groups => {
+                        self.group_list.select_previous();
+                    }
                 }
-                self.set_list.reset();
                 MainScreenAction::None
             }
             KeyCode::Right => {
-                // Focus right panel (sets)
-                if !data.groups.is_empty() {
-                    self.set_list.reset();
+                match self.active_panel {
+                    Panel::Groups => {
+                        // Switch focus to Sets
+                        self.active_panel = Panel::Sets;
+                    }
+                    Panel::Sets => {
+                        let n = self.visible_sets(data).len();
+                        self.set_list.select_next(n);
+                    }
                 }
                 MainScreenAction::None
             }

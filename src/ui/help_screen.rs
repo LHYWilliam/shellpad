@@ -32,7 +32,7 @@ pub fn draw_help(frame: &mut Frame, area: Rect) {
         Line::from(""),
         Line::from("  Main Screen:").style(Style::default().fg(cyan)),
         Line::from("    ↑/↓           Navigate list"),
-        Line::from("    ←/→           Fold / expand groups"),
+        Line::from("    ←/→           Switch between panels"),
         Line::from("    Enter         Execute selected command set"),
         Line::from("    e             Edit selected command set"),
         Line::from("    n             New command set"),

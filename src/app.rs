@@ -7,7 +7,7 @@ use crate::ui::components::TextInput;
 use crate::ui::detail_screen::{DetailScreenAction, DetailScreenState};
 use crate::ui::execution_screen::{ExecutionScreenAction, ExecutionScreenState};
 use crate::ui::help_screen::draw_help;
-use crate::ui::main_screen::{MainScreenAction, MainScreenState};
+use crate::ui::main_screen::{MainScreenAction, MainScreenState, Panel};
 use crossterm::event::{self, Event, KeyCode, KeyEventKind};
 use ratatui::layout::{Alignment, Rect};
 use ratatui::style::{Color, Style};
@@ -308,6 +308,9 @@ impl App {
                             self.data.groups.len().saturating_sub(1);
                     }
                     self.main_screen.set_list.reset();
+                    if self.data.groups.is_empty() {
+                        self.main_screen.active_panel = Panel::Groups;
+                    }
                     self.auto_save();
                 }
             }
