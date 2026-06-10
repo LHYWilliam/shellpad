@@ -307,8 +307,22 @@ impl MainScreenState {
                     MainScreenAction::None
                 }
                 KeyCode::Enter => {
+                    let results = data.filter_sets(&self.search_query);
+                    if let Some((gi, si, _)) = results.get(self.set_list.selected) {
+                        self.group_list.selected = *gi;
+                        self.set_list.selected = *si;
+                    }
                     self.search_mode = false;
                     self.active_panel = Panel::Sets;
+                    MainScreenAction::None
+                }
+                KeyCode::Up | KeyCode::Char('k') | KeyCode::Char('K') => {
+                    self.set_list.select_previous();
+                    MainScreenAction::None
+                }
+                KeyCode::Down | KeyCode::Char('j') | KeyCode::Char('J') => {
+                    let n = data.filter_sets(&self.search_query).len();
+                    self.set_list.select_next(n);
                     MainScreenAction::None
                 }
                 KeyCode::Char(c) => {
