@@ -1,5 +1,7 @@
 use crate::config::{MIN_TERMINAL_HEIGHT, MIN_TERMINAL_WIDTH};
 use crate::executor::{execute_set, ExecutionEvent};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 use crate::mode::AppMode;
 use crate::models::{AppData, CommandSet, ShellType};
 use crate::storage;
@@ -31,6 +33,9 @@ pub struct App {
     execution_rx: Option<mpsc::Receiver<ExecutionEvent>>,
     execution_handle: Option<thread::JoinHandle<()>>,
 
+    // Kill signal for the execution thread (set true to abort running commands)
+    kill_signal: Arc<AtomicBool>,
+
     // Variable input overlay (shown before execution)
     variable_input_mode: bool,
     variable_inputs: Vec<TextInput>,
@@ -54,6 +59,7 @@ impl App {
             running: true,
             execution_rx: None,
             execution_handle: None,
+            kill_signal: Arc::new(AtomicBool::new(false)),
             variable_input_mode: false,
             variable_inputs: Vec::new(),
             variable_names: Vec::new(),
@@ -390,26 +396,34 @@ impl App {
         }
     }
 
+    /// Signal the execution thread to abort and wait for it to finish.
+    fn kill_execution(&mut self) {
+        self.kill_signal.store(true, Ordering::Relaxed);
+        // Drop the receiver so the thread's send() calls fail
+        self.execution_rx = None;
+        // Join the thread to ensure child is killed before we proceed
+        if let Some(handle) = self.execution_handle.take() {
+            let _ = handle.join();
+        }
+        self.exec_screen = None;
+        // Reset kill signal for next execution
+        self.kill_signal.store(false, Ordering::Relaxed);
+    }
+
     // ---- Execution screen actions ----
 
     fn on_exec_action(&mut self, action: ExecutionScreenAction) {
         match action {
             ExecutionScreenAction::BackToMain => {
-                self.exec_screen = None;
-                self.execution_rx = None;
-                self.execution_handle = None;
+                self.kill_execution();
                 self.mode = AppMode::Main;
             }
             ExecutionScreenAction::Interrupt => {
-                self.exec_screen = None;
-                self.execution_rx = None;
-                self.execution_handle = None;
+                self.kill_execution();
                 self.mode = AppMode::Main;
             }
             ExecutionScreenAction::Reexecute => {
-                self.exec_screen = None;
-                self.execution_rx = None;
-                self.execution_handle = None;
+                self.kill_execution();
                 // Re-trigger execution — verify indices still valid
                 if let Some((gi, si)) = self.pending_set
                     && gi < self.data.groups.len()
@@ -441,7 +455,7 @@ impl App {
         let set_clone = set.clone();
 
         let (tx, rx) = mpsc::channel();
-        let handle = execute_set(&set_clone, &shell, tx);
+        let handle = execute_set(&set_clone, &shell, tx, Arc::clone(&self.kill_signal));
 
         self.exec_screen = Some(ExecutionScreenState::new(set_name, &commands));
         self.execution_rx = Some(rx);

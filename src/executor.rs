@@ -1,7 +1,8 @@
 use crate::models::{CommandSet, ExecMode};
 use std::io::{BufRead, BufReader, Read};
 use std::process::{Child, Command, ExitStatus, Stdio};
-use std::sync::mpsc;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{mpsc, Arc};
 use std::thread;
 
 /// Events emitted by the executor during command set execution.
@@ -87,6 +88,7 @@ pub fn execute_set(
     set: &CommandSet,
     shell: &str,
     tx: mpsc::Sender<ExecutionEvent>,
+    kill_signal: Arc<AtomicBool>,
 ) -> thread::JoinHandle<()> {
     let commands = set.commands.clone();
     let exec_mode = set.exec_mode;
@@ -100,6 +102,11 @@ pub fn execute_set(
         let total = commands.len();
 
         for (index, cmd) in commands.iter().enumerate() {
+            // Check kill signal before starting each command
+            if kill_signal.load(Ordering::Relaxed) {
+                return;
+            }
+
             // Substitute variables
             let resolved = substitute_variables_inner(&cmd.command, &variables);
 
@@ -146,13 +153,21 @@ pub fn execute_set(
                 thread::spawn(move || pipe_reader(stderr, index, tx_err, true));
             }
 
-            // Wait for the process to finish
-            let status = child.wait().ok();
+            // Poll for completion, checking kill signal periodically
+            let success = loop {
+                if kill_signal.load(Ordering::Relaxed) {
+                    let _ = child.kill();
+                    child.wait().ok();
+                    break false;
+                }
+                match child.try_wait() {
+                    Ok(Some(status)) => break status.success(),
+                    Ok(None) => thread::sleep(std::time::Duration::from_millis(50)),
+                    Err(_) => break false,
+                }
+            };
 
             let duration = cmd_start.elapsed().as_millis();
-
-            let exit_status = status.unwrap_or_default();
-            let success = exit_status.success();
 
             if tx
                 .send(ExecutionEvent::Finished {
@@ -202,6 +217,8 @@ fn substitute_variables_inner(template: &str, variables: &[crate::models::Variab
 mod tests {
     use super::*;
     use crate::models::{Command, Variable};
+    use std::sync::atomic::AtomicBool;
+    use std::sync::Arc;
     use uuid::Uuid;
 
     #[test]
@@ -277,7 +294,7 @@ mod tests {
         });
         set.exec_mode = ExecMode::StopOnError;
 
-        let handle = execute_set(&set, "sh", tx.clone());
+        let handle = execute_set(&set, "sh", tx.clone(), Arc::new(AtomicBool::new(false)));
         handle.join().unwrap();
         drop(tx);
 
@@ -305,7 +322,7 @@ mod tests {
         });
         set.exec_mode = ExecMode::ContinueOnError;
 
-        let handle = execute_set(&set, "sh", tx.clone());
+        let handle = execute_set(&set, "sh", tx.clone(), Arc::new(AtomicBool::new(false)));
         handle.join().unwrap();
         drop(tx);
 
@@ -340,7 +357,7 @@ mod tests {
         });
         set.exec_mode = ExecMode::StopOnError;
 
-        let handle = execute_set(&set, "sh", tx.clone());
+        let handle = execute_set(&set, "sh", tx.clone(), Arc::new(AtomicBool::new(false)));
         handle.join().unwrap();
         drop(tx);
 
