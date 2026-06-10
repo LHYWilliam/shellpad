@@ -317,9 +317,10 @@ impl MainScreenState {
                     if let Some((gi, si, _)) = results.get(self.set_list.selected) {
                         self.group_list.selected = *gi;
                         self.set_list.selected = *si;
+                        self.search_mode = false;
+                        self.active_panel = Panel::Sets;
                     }
-                    self.search_mode = false;
-                    self.active_panel = Panel::Sets;
+                    // If no results matched, stay in search mode
                     MainScreenAction::None
                 }
                 KeyCode::Up | KeyCode::Char('k') | KeyCode::Char('K') => {

@@ -42,6 +42,11 @@ fn load_app_data_from(path: &Path) -> Result<AppData, String> {
                 );
                 eprintln!("{}", msg);
                 let _ = fs::rename(path, &bak);
+                if let Some(parent) = path.parent() {
+                    if let Ok(dir) = fs::File::open(parent) {
+                        let _ = dir.sync_all();
+                    }
+                }
                 Err(msg)
             }
         },
@@ -72,15 +77,21 @@ fn save_app_data_to(data: &AppData, path: &Path, tmp: &Path) -> io::Result<()> {
         if e.kind() == io::ErrorKind::CrossesDevices {
             fs::copy(tmp, path)?;
             let _ = fs::remove_file(tmp);
+            // Sync parent directory after copy+remove too
+            if let Some(parent) = path.parent() {
+                if let Ok(dir) = fs::File::open(parent) {
+                    let _ = dir.sync_all();
+                }
+            }
         } else {
             return Err(e);
         }
-    }
-
-    // Sync parent directory metadata so the rename is durable
-    if let Some(parent) = path.parent() {
-        if let Ok(dir) = fs::File::open(parent) {
-            let _ = dir.sync_all();
+    } else {
+        // Sync parent directory metadata so the rename is durable
+        if let Some(parent) = path.parent() {
+            if let Ok(dir) = fs::File::open(parent) {
+                let _ = dir.sync_all();
+            }
         }
     }
 

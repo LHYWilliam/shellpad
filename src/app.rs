@@ -418,7 +418,6 @@ impl App {
                     self.do_execute_with(gi, si);
                 }
             }
-            ExecutionScreenAction::Skip => {}
             ExecutionScreenAction::None => {}
         }
     }
@@ -455,6 +454,13 @@ impl App {
         if let Err(e) = storage::save_app_data(&self.data) {
             eprintln!("Auto-save failed: {}", e);
         }
+    }
+}
+
+impl Drop for App {
+    fn drop(&mut self) {
+        // Final save on shutdown — ignore errors (already logged by auto_save)
+        let _ = storage::save_app_data(&self.data);
     }
 }
 

@@ -25,7 +25,6 @@ pub(crate) struct CmdState {
 pub enum ExecutionScreenAction {
     BackToMain,
     Interrupt,
-    Skip,
     Reexecute,
     None,
 }
@@ -257,7 +256,6 @@ impl ExecutionScreenState {
                 ExecutionScreenAction::Interrupt
             }
             KeyCode::Char('r') if self.completed => ExecutionScreenAction::Reexecute,
-            KeyCode::Char('s') if !self.completed => ExecutionScreenAction::Skip,
             _ => ExecutionScreenAction::None,
         }
     }

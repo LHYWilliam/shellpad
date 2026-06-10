@@ -48,7 +48,9 @@ impl TextInput {
 
     pub fn move_cursor_left(&mut self) {
         if self.cursor > 0 {
-            self.cursor = self.content[..self.cursor - 1].floor_char_boundary(self.cursor - 1);
+            // floor_char_boundary on the prefix (known valid slice) finds prev char start
+            let prev = self.content[..self.cursor].floor_char_boundary(self.cursor - 1);
+            self.cursor = prev;
         }
     }
 
