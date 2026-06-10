@@ -175,8 +175,14 @@ impl DetailScreenState {
             .iter()
             .enumerate()
             .map(|(i, v)| {
-                let label = format!("  {} = {}", v.name, v.default_value);
-                let style = if Some(i) == self.editing_variable {
+                let is_editing = Some(i) == self.editing_variable;
+                let is_insert = self.insert_at.is_some();
+                let label = if is_editing && !is_insert {
+                    format!("  ▶ {}", self.edit_input.content)
+                } else {
+                    format!("  {} = {}", v.name, v.default_value)
+                };
+                let style = if is_editing {
                     Style::default()
                         .fg(Color::Black)
                         .bg(Color::Yellow)
@@ -195,14 +201,17 @@ impl DetailScreenState {
             })
             .collect();
 
+        // Preview row only for new inserts (not for editing existing)
         if let Some(idx) = self.editing_variable {
-            let label = format!("  ▶ {}", self.edit_input.content);
-            let style = Style::default()
-                .fg(Color::Yellow)
-                .add_modifier(Modifier::BOLD);
-            let preview = ListItem::new(Line::from(Span::styled(label, style)));
-            let pos = self.insert_at.unwrap_or(idx.min(items.len()));
-            items.insert(pos, preview);
+            if self.insert_at.is_some() {
+                let label = format!("  ▶ {}", self.edit_input.content);
+                let style = Style::default()
+                    .fg(Color::Yellow)
+                    .add_modifier(Modifier::BOLD);
+                let preview = ListItem::new(Line::from(Span::styled(label, style)));
+                let pos = self.insert_at.unwrap_or(idx.min(items.len()));
+                items.insert(pos, preview);
+            }
         }
 
         let mut list_state = ratatui::widgets::ListState::default()
@@ -241,14 +250,22 @@ impl DetailScreenState {
             .enumerate()
             .map(|(i, cmd)| {
                 let pos = cmd.position;
-                // When previewing an insert, shift positions after the insert point
-                let display_pos = if self.editing_command.is_some() {
-                    self.insert_at.map_or(pos, |ins| if i >= ins { pos + 1 } else { pos })
+                let is_editing = Some(i) == self.editing_command;
+                let is_insert = self.insert_at.is_some();
+                let display_pos = if is_editing {
+                    self.insert_at.unwrap_or(pos)
+                } else if is_insert && i >= self.insert_at.unwrap() {
+                    pos + 1
                 } else {
                     pos
                 };
-                let label = format!("  #{}  {}", display_pos, cmd.command);
-                let style = if Some(i) == self.editing_command {
+                let content = if is_editing && !is_insert {
+                    self.edit_input.content.as_str()
+                } else {
+                    cmd.command.as_str()
+                };
+                let label = format!("  #{}  {}", display_pos, content);
+                let style = if is_editing {
                     Style::default()
                         .fg(Color::Black)
                         .bg(Color::Yellow)
@@ -267,16 +284,18 @@ impl DetailScreenState {
             })
             .collect();
 
-        // Live preview of pending command edit
+        // Preview row only for new inserts (not for editing existing)
         if let Some(idx) = self.editing_command {
-            let pos = self.insert_at.unwrap_or(idx);
-            let label = format!("  #{}▶ {}", pos, self.edit_input.content);
-            let style = Style::default()
-                .fg(Color::Yellow)
-                .add_modifier(Modifier::BOLD);
-            let preview = ListItem::new(Line::from(Span::styled(label, style)));
-            let insert_pos = self.insert_at.unwrap_or(idx.min(items.len()));
-            items.insert(insert_pos, preview);
+            if self.insert_at.is_some() {
+                let pos = self.insert_at.unwrap_or(idx);
+                let label = format!("  #{}▶ {}", pos, self.edit_input.content);
+                let style = Style::default()
+                    .fg(Color::Yellow)
+                    .add_modifier(Modifier::BOLD);
+                let preview = ListItem::new(Line::from(Span::styled(label, style)));
+                let insert_pos = self.insert_at.unwrap_or(idx.min(items.len()));
+                items.insert(insert_pos, preview);
+            }
         }
 
         let mut list_state = ratatui::widgets::ListState::default()
