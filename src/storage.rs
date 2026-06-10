@@ -54,7 +54,7 @@ fn save_app_data_to(data: &AppData, path: &Path, tmp: &Path) -> io::Result<()> {
     }
 
     let json = serde_json::to_string_pretty(data)
-        .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
+        .map_err(io::Error::other)?;
 
     fs::write(tmp, &json)?;
     fs::rename(tmp, path)?;

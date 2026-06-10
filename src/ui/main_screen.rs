@@ -305,7 +305,7 @@ impl MainScreenState {
             KeyCode::Left => {
                 // Focus left panel (groups)
                 self.group_list.select_previous();
-                if data.groups.len() > 0 {
+                if !data.groups.is_empty() {
                     self.group_list.selected = self.group_list.selected.min(data.groups.len() - 1);
                 }
                 self.set_list.reset();

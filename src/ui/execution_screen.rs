@@ -79,8 +79,7 @@ impl ExecutionScreenState {
                         self.scroll = self
                             .cmd_states
                             .len()
-                            .saturating_sub(5)
-                            .max(0);
+                            .saturating_sub(5);
                     }
                 }
                 ExecutionEvent::StdoutLine { index, line } => {

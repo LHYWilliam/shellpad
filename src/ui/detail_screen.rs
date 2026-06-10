@@ -344,20 +344,16 @@ impl DetailScreenState {
                         self.name_input = TextInput::new(self.set.name.clone());
                         self.editing_name = true;
                     }
-                    DetailFocus::Variables => {
-                        if !self.set.variables.is_empty() {
-                            let idx = self.variable_list.selected.min(self.set.variables.len().saturating_sub(1));
-                            let v = &self.set.variables[idx];
-                            self.edit_input = TextInput::new(format!("{}={}", v.name, v.default_value));
-                            self.editing_variable = Some(idx);
-                        }
+                    DetailFocus::Variables if !self.set.variables.is_empty() => {
+                        let idx = self.variable_list.selected.min(self.set.variables.len().saturating_sub(1));
+                        let v = &self.set.variables[idx];
+                        self.edit_input = TextInput::new(format!("{}={}", v.name, v.default_value));
+                        self.editing_variable = Some(idx);
                     }
-                    DetailFocus::Commands => {
-                        if !self.set.commands.is_empty() {
-                            let idx = self.command_list.selected.min(self.set.commands.len().saturating_sub(1));
-                            self.edit_input = TextInput::new(self.set.commands[idx].command.clone());
-                            self.editing_command = Some(idx);
-                        }
+                    DetailFocus::Commands if !self.set.commands.is_empty() => {
+                        let idx = self.command_list.selected.min(self.set.commands.len().saturating_sub(1));
+                        self.edit_input = TextInput::new(self.set.commands[idx].command.clone());
+                        self.editing_command = Some(idx);
                     }
                     _ => {}
                 }
@@ -377,17 +373,13 @@ impl DetailScreenState {
             }
             KeyCode::Char('d' | 'D') => {
                 match self.focus {
-                    DetailFocus::Variables => {
-                        if !self.set.variables.is_empty() {
-                            let idx = self.variable_list.selected.min(self.set.variables.len().saturating_sub(1));
-                            return DetailScreenAction::DeleteVariable(idx);
-                        }
+                    DetailFocus::Variables if !self.set.variables.is_empty() => {
+                        let idx = self.variable_list.selected.min(self.set.variables.len().saturating_sub(1));
+                        return DetailScreenAction::DeleteVariable(idx);
                     }
-                    DetailFocus::Commands => {
-                        if !self.set.commands.is_empty() {
-                            let idx = self.command_list.selected.min(self.set.commands.len().saturating_sub(1));
-                            return DetailScreenAction::DeleteCommand(idx);
-                        }
+                    DetailFocus::Commands if !self.set.commands.is_empty() => {
+                        let idx = self.command_list.selected.min(self.set.commands.len().saturating_sub(1));
+                        return DetailScreenAction::DeleteCommand(idx);
                     }
                     _ => {}
                 }

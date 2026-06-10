@@ -64,21 +64,19 @@ impl App {
             terminal.draw(|f| self.render(f))?;
 
             let timeout = tick_rate;
-            if event::poll(timeout)? {
-                if let Event::Key(key) = event::read()? {
-                    if key.kind == KeyEventKind::Press {
-                        self.handle_key(key);
-                    }
-                }
+            if event::poll(timeout)?
+                && let Event::Key(key) = event::read()?
+                && key.kind == KeyEventKind::Press
+            {
+                self.handle_key(key);
             }
 
             // Collect execution events on each tick
-            if self.mode == AppMode::Execution {
-                if let Some(ref rx) = self.execution_rx {
-                    if let Some(ref mut es) = self.exec_screen {
-                        es.process_events(rx);
-                    }
-                }
+            if self.mode == AppMode::Execution
+                && let Some(ref rx) = self.execution_rx
+                && let Some(ref mut es) = self.exec_screen
+            {
+                es.process_events(rx);
             }
         }
         Ok(())
@@ -201,13 +199,14 @@ impl App {
         match key.code {
             KeyCode::Enter => {
                 // Copy variable values from inputs back to the set
-                if let Some((gi, si)) = self.pending_set {
-                    if gi < self.data.groups.len() && si < self.data.groups[gi].sets.len() {
-                        let set = &mut self.data.groups[gi].sets[si];
-                        for (i, input) in self.variable_inputs.iter().enumerate() {
-                            if i < set.variables.len() {
-                                set.variables[i].default_value = input.content.clone();
-                            }
+                if let Some((gi, si)) = self.pending_set
+                    && gi < self.data.groups.len()
+                    && si < self.data.groups[gi].sets.len()
+                {
+                    let set = &mut self.data.groups[gi].sets[si];
+                    for (i, input) in self.variable_inputs.iter().enumerate() {
+                        if i < set.variables.len() {
+                            set.variables[i].default_value = input.content.clone();
                         }
                     }
                 }
@@ -339,19 +338,19 @@ impl App {
                 self.mode = AppMode::Main;
             }
             DetailScreenAction::DeleteVariable(idx) => {
-                if let Some(ref mut ds) = self.detail_screen {
-                    if idx < ds.set.variables.len() {
-                        ds.set.variables.remove(idx);
-                    }
+                if let Some(ref mut ds) = self.detail_screen
+                    && idx < ds.set.variables.len()
+                {
+                    ds.set.variables.remove(idx);
                 }
             }
             DetailScreenAction::DeleteCommand(idx) => {
-                if let Some(ref mut ds) = self.detail_screen {
-                    if idx < ds.set.commands.len() {
-                        ds.set.commands.remove(idx);
-                        for (i, c) in ds.set.commands.iter_mut().enumerate() {
-                            c.position = i;
-                        }
+                if let Some(ref mut ds) = self.detail_screen
+                    && idx < ds.set.commands.len()
+                {
+                    ds.set.commands.remove(idx);
+                    for (i, c) in ds.set.commands.iter_mut().enumerate() {
+                        c.position = i;
                     }
                 }
             }

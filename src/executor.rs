@@ -68,7 +68,7 @@ fn pipe_reader<R: Read + Send + 'static>(
     is_stderr: bool,
 ) {
     let reader = BufReader::new(reader);
-    for line in reader.lines().flatten() {
+    for line in reader.lines().map_while(Result::ok) {
         let event = if is_stderr {
             ExecutionEvent::StderrLine { index, line }
         } else {
