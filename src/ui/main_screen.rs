@@ -109,6 +109,7 @@ impl MainScreenState {
             .title(" Groups ");
 
         let inner = block.inner(area);
+        frame.render_widget(&block, area);
 
         let mut items: Vec<ListItem> = data
             .groups
@@ -183,6 +184,7 @@ impl MainScreenState {
             .title(title);
 
         let inner = block.inner(area);
+        frame.render_widget(&block, area);
 
         let items: Vec<ListItem> = sets
             .iter()
