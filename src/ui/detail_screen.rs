@@ -244,7 +244,13 @@ impl DetailScreenState {
             .enumerate()
             .map(|(i, cmd)| {
                 let pos = cmd.position;
-                let label = format!("  #{}  {}", pos, cmd.command);
+                // When previewing an insert, shift positions after the insert point
+                let display_pos = if self.editing_command.is_some() {
+                    self.insert_at.map_or(pos, |ins| if i >= ins { pos + 1 } else { pos })
+                } else {
+                    pos
+                };
+                let label = format!("  #{}  {}", display_pos, cmd.command);
                 let style = if Some(i) == self.editing_command {
                     Style::default()
                         .fg(Color::Black)
