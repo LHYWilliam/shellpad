@@ -5,7 +5,8 @@ use std::io::{self, Write};
 use std::path::Path;
 
 /// Load application data from the default config file.
-pub fn load_app_data() -> AppData {
+/// Returns Ok(data) on success, or an error explaining what went wrong.
+pub fn load_app_data() -> Result<AppData, String> {
     let path = data_file_path();
     load_app_data_from(&path)
 }
@@ -19,31 +20,35 @@ pub fn save_app_data(data: &AppData) -> io::Result<()> {
 
 // ---- Internal path-accepting functions (used by tests too) ----
 
-fn load_app_data_from(path: &Path) -> AppData {
+fn load_app_data_from(path: &Path) -> Result<AppData, String> {
     if !path.exists() {
         if let Some(parent) = path.parent() {
-            let _ = fs::create_dir_all(parent);
+            if let Err(e) = fs::create_dir_all(parent) {
+                return Err(format!("Failed to create config directory `{}`: {}", parent.display(), e));
+            }
         }
-        return AppData::empty();
+        return Ok(AppData::empty());
     }
 
     match fs::read_to_string(path) {
         Ok(content) => match serde_json::from_str(&content) {
-            Ok(data) => data,
+            Ok(data) => Ok(data),
             Err(e) => {
-                eprintln!(
+                let bak = path.with_extension("json.bak");
+                let msg = format!(
                     "Corrupted data file at `{}`, backing up to `.bak`: {}",
                     path.display(),
                     e
                 );
-                let bak = path.with_extension("json.bak");
+                eprintln!("{}", msg);
                 let _ = fs::rename(path, &bak);
-                AppData::empty()
+                Err(msg)
             }
         },
         Err(e) => {
-            eprintln!("Failed to read `{}`: {}", path.display(), e);
-            AppData::empty()
+            let msg = format!("Failed to read `{}`: {}", path.display(), e);
+            eprintln!("{}", msg);
+            Err(msg)
         }
     }
 }
@@ -106,7 +111,7 @@ mod tests {
     fn test_load_empty_on_first_run() {
         with_temp_dir(|dir| {
             let path = dir.join("sets.json");
-            let data = load_app_data_from(&path);
+            let data = load_app_data_from(&path).unwrap();
             assert!(data.groups.is_empty());
         });
     }
@@ -125,7 +130,7 @@ mod tests {
             };
 
             save_app_data_to(&data, &path, &tmp).expect("save failed");
-            let loaded = load_app_data_from(&path);
+            let loaded = load_app_data_from(&path).unwrap();
             assert_eq!(data, loaded);
         });
     }
@@ -151,8 +156,8 @@ mod tests {
             let path = dir.join("sets.json");
             fs::write(&path, "this is not json").unwrap();
 
-            let data = load_app_data_from(&path);
-            assert!(data.groups.is_empty());
+            // Corrupted file should return Err and create backup
+            assert!(load_app_data_from(&path).is_err());
 
             let bak = path.with_extension("json.bak");
             assert!(bak.exists());
@@ -173,7 +178,7 @@ mod tests {
             let data2 = AppData { groups: vec![group] };
             save_app_data_to(&data2, &path, &tmp).unwrap();
 
-            let loaded = load_app_data_from(&path);
+            let loaded = load_app_data_from(&path).unwrap();
             assert_eq!(loaded.groups.len(), 1);
             assert_eq!(loaded.groups[0].name, "G");
         });

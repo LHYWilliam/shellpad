@@ -651,25 +651,27 @@ impl DetailScreenState {
     }
 
     fn cycle_shell(&mut self, delta: isize) {
+        // Build a list that includes Custom at the appropriate position
         let variants = ShellType::builtin_variants();
-        let current = variants
-            .iter()
-            .position(|s| std::mem::discriminant(s) == std::mem::discriminant(&self.set.shell))
-            .unwrap_or(0);
-        let next = (current as isize + delta).rem_euclid(variants.len() as isize) as usize;
-        // Preserve Custom variant if currently Custom
-        match &self.set.shell {
-            ShellType::Custom(_) => {
-                if delta > 0 {
-                    self.set.shell = ShellType::Fish;
-                } else {
-                    self.set.shell = ShellType::SystemDefault;
-                }
+        // For Custom shells, find our current shell's position among the full set
+        let current = match &self.set.shell {
+            ShellType::Custom(path) => {
+                // Try to find a matching known shell by path tail, or slot Custom between Fish and wrap
+                let lower = path.to_lowercase();
+                if lower.contains("bash") { return self.set.shell = ShellType::Bash; }
+                if lower.contains("zsh")  { return self.set.shell = ShellType::Zsh; }
+                if lower.contains("fish") { return self.set.shell = ShellType::Fish; }
+                // Unknown custom: treat as after Fish (index 3)
+                3usize
             }
-            _ => {
-                self.set.shell = variants[next].clone();
+            other => {
+                variants.iter().position(|s| std::mem::discriminant(s) == std::mem::discriminant(other))
+                    .unwrap_or(0)
             }
-        }
+        };
+        let n = variants.len() as isize;
+        let next = ((current as isize + delta).rem_euclid(n)) as usize;
+        self.set.shell = variants[next].clone();
     }
 
     fn cycle_exec_mode(&mut self, delta: isize) {

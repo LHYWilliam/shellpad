@@ -39,7 +39,6 @@ pub struct ExecutionScreenState {
     pub failed: usize,
     pub completed: bool,
     pub total_duration_ms: Option<u128>,
-    pub scroll: usize,
 }
 
 impl ExecutionScreenState {
@@ -63,7 +62,6 @@ impl ExecutionScreenState {
             failed: 0,
             completed: false,
             total_duration_ms: None,
-            scroll: 0,
         }
     }
 
@@ -76,10 +74,6 @@ impl ExecutionScreenState {
                         self.cmd_states[index].status = CmdStatus::Running;
                         self.cmd_states[index].command = command;
                         self.current_index = index;
-                        self.scroll = self
-                            .cmd_states
-                            .len()
-                            .saturating_sub(5);
                     }
                 }
                 ExecutionEvent::StdoutLine { index, line } => {
@@ -264,14 +258,6 @@ impl ExecutionScreenState {
             }
             KeyCode::Char('r') if self.completed => ExecutionScreenAction::Reexecute,
             KeyCode::Char('s') if !self.completed => ExecutionScreenAction::Skip,
-            KeyCode::Up => {
-                self.scroll = self.scroll.saturating_sub(1);
-                ExecutionScreenAction::None
-            }
-            KeyCode::Down => {
-                self.scroll = self.scroll.saturating_add(1);
-                ExecutionScreenAction::None
-            }
             _ => ExecutionScreenAction::None,
         }
     }

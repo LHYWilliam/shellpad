@@ -41,7 +41,10 @@ pub struct App {
 
 impl App {
     pub fn new() -> Self {
-        let data = storage::load_app_data();
+        let data = storage::load_app_data().unwrap_or_else(|e| {
+            eprintln!("{}", e);
+            AppData::empty()
+        });
         Self {
             main_screen: MainScreenState::new(),
             detail_screen: None,
@@ -400,8 +403,11 @@ impl App {
                 self.exec_screen = None;
                 self.execution_rx = None;
                 self.execution_handle = None;
-                // Re-trigger execution without variable input
-                if let Some((gi, si)) = self.pending_set {
+                // Re-trigger execution — verify indices still valid
+                if let Some((gi, si)) = self.pending_set
+                    && gi < self.data.groups.len()
+                    && si < self.data.groups[gi].sets.len()
+                {
                     self.do_execute_with(gi, si);
                 }
             }

@@ -90,6 +90,12 @@ impl MainScreenState {
         let horizontal = Layout::horizontal([Constraint::Ratio(1, 3), Constraint::Ratio(2, 3)]);
         let [left_area, right_area] = horizontal.areas(main_area);
 
+        // Update scroll offsets before rendering (approximate inner height = area - 2 for borders)
+        let left_vis = left_area.height.saturating_sub(2) as usize;
+        let right_vis = right_area.height.saturating_sub(2) as usize;
+        self.group_list.update_offset(left_vis);
+        self.set_list.update_offset(right_vis);
+
         // Left panel: groups
         self.render_group_panel(frame, left_area, data);
 
@@ -120,7 +126,7 @@ impl MainScreenState {
         }
     }
 
-    fn render_group_panel(&self, frame: &mut Frame, area: Rect, data: &AppData) {
+    fn render_group_panel(&mut self, frame: &mut Frame, area: Rect, data: &AppData) {
         let border_color = if self.active_panel == Panel::Groups {
             Color::Yellow
         } else {
@@ -167,8 +173,6 @@ impl MainScreenState {
             );
         }
 
-        // Adjust offset
-        let _vis_height = inner.height as usize;
         let mut list_state = ratatui::widgets::ListState::default()
             .with_selected(Some(self.group_list.selected));
         let list = List::new(items).highlight_style(
@@ -456,12 +460,14 @@ impl MainScreenState {
                 self.active_panel = Panel::Sets;
                 MainScreenAction::None
             }
-            KeyCode::Char('?') | KeyCode::Char('h') | KeyCode::Char('H') => {
+            KeyCode::Char('?') => {
+                MainScreenAction::Help
+            }
+            KeyCode::Char('h') | KeyCode::Char('H') => {
                 if key.modifiers.contains(crossterm::event::KeyModifiers::CONTROL) {
-                    MainScreenAction::Help
-                } else {
-                    MainScreenAction::None
+                    return MainScreenAction::Help;
                 }
+                MainScreenAction::None
             }
             KeyCode::Esc | KeyCode::Char('q') => {
                 if key.code == KeyCode::Esc {
