@@ -166,7 +166,7 @@ impl DetailScreenState {
         let inner = var_block.inner(area);
         frame.render_widget(&var_block, area);
 
-        let items: Vec<ListItem> = self
+        let mut items: Vec<ListItem> = self
             .set
             .variables
             .iter()
@@ -191,6 +191,14 @@ impl DetailScreenState {
                 ListItem::new(Line::from(Span::styled(label, style)))
             })
             .collect();
+
+        if self.editing_variable.is_some() {
+            let label = format!("  ▶ {}", self.edit_input.content);
+            let style = Style::default()
+                .fg(Color::Yellow)
+                .add_modifier(Modifier::BOLD);
+            items.push(ListItem::new(Line::from(Span::styled(label, style))));
+        }
 
         let mut list_state = ratatui::widgets::ListState::default()
             .with_selected(if self.set.variables.is_empty() {
