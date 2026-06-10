@@ -323,19 +323,20 @@ impl MainScreenState {
                 MainScreenAction::None
             }
             KeyCode::Enter => {
-                // Execute selected set
-                if let Some((gi, si)) = self.selected_set_idx(data) {
-                    MainScreenAction::ExecuteSet(gi, si)
-                } else {
-                    MainScreenAction::None
+                if self.active_panel == Panel::Sets {
+                    if let Some((gi, si)) = self.selected_set_idx(data) {
+                        return MainScreenAction::ExecuteSet(gi, si);
+                    }
                 }
+                MainScreenAction::None
             }
             KeyCode::Char('e') | KeyCode::Char('E') => {
-                if let Some((gi, si)) = self.selected_set_idx(data) {
-                    MainScreenAction::EditSet(gi, si)
-                } else {
-                    MainScreenAction::None
+                if self.active_panel == Panel::Sets {
+                    if let Some((gi, si)) = self.selected_set_idx(data) {
+                        return MainScreenAction::EditSet(gi, si);
+                    }
                 }
+                MainScreenAction::None
             }
             KeyCode::Char('n') | KeyCode::Char('N') => {
                 if let Some(gi) = self.selected_group_idx(data) {
@@ -345,14 +346,18 @@ impl MainScreenState {
                 }
             }
             KeyCode::Char('d') => {
-                if let Some((gi, si)) = self.selected_set_idx(data) {
-                    return MainScreenAction::DeleteSet(gi, si);
+                if self.active_panel == Panel::Sets {
+                    if let Some((gi, si)) = self.selected_set_idx(data) {
+                        return MainScreenAction::DeleteSet(gi, si);
+                    }
                 }
                 MainScreenAction::None
             }
             KeyCode::Char('D') => {
-                if let Some(gi) = self.selected_group_idx(data) {
-                    return MainScreenAction::DeleteGroup(gi);
+                if self.active_panel == Panel::Groups {
+                    if let Some(gi) = self.selected_group_idx(data) {
+                        return MainScreenAction::DeleteGroup(gi);
+                    }
                 }
                 MainScreenAction::None
             }
