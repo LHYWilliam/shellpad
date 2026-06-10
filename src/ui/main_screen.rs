@@ -69,7 +69,7 @@ impl MainScreenState {
 
     /// Get all sets visible in current view (accounting for search).
     pub fn visible_sets<'a>(&'a self, data: &'a AppData) -> Vec<(usize, usize, &'a crate::models::CommandSet)> {
-        if self.search_mode && !self.search_query.is_empty() {
+        if self.search_mode {
             data.filter_sets(&self.search_query)
         } else if let Some(gi) = self.selected_group_idx(data) {
             data.groups[gi]
@@ -187,7 +187,7 @@ impl MainScreenState {
         data: &AppData,
         sets: &[(usize, usize, &crate::models::CommandSet)],
     ) {
-        let title = if self.search_mode && !self.search_query.is_empty() {
+        let title = if self.search_mode {
             format!(" Search: {} ", self.search_query)
         } else {
             let group_name: &str = self
