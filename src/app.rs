@@ -158,9 +158,16 @@ impl App {
                 row,
             );
             if focus {
-                let cursor_offset = 1 + self.variable_names[i].len() as u16 + 3
-                    + self.variable_inputs[i].cursor as u16;
-                frame.set_cursor_position((inner.x + cursor_offset, inner.y + i as u16));
+                let input = &self.variable_inputs[i];
+                let prefix_w = unicode_width::UnicodeWidthStr::width(" ") +  // leading space
+                    unicode_width::UnicodeWidthStr::width(self.variable_names[i].as_str()) +
+                    unicode_width::UnicodeWidthStr::width(" = ");            // spacing
+                let content_w = unicode_width::UnicodeWidthStr::width(
+                    &input.content[..input.cursor.min(input.content.len())]);
+                frame.set_cursor_position((
+                    inner.x + prefix_w as u16 + content_w as u16,
+                    inner.y + i as u16,
+                ));
             }
         }
 

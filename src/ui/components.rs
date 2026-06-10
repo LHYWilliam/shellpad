@@ -102,10 +102,10 @@ impl TextInput {
         frame.render_widget(paragraph, inner);
 
         if focused {
-            // Set cursor position
-            let cursor_x = inner.x + self.cursor as u16;
-            let cursor_y = inner.y;
-            frame.set_cursor_position((cursor_x, cursor_y));
+            // Set cursor position (display width, not byte offset)
+            let col = unicode_width::UnicodeWidthStr::width(&self.content[..self.cursor.min(self.content.len())]);
+            let cursor_x = inner.x + col as u16;
+            frame.set_cursor_position((cursor_x, inner.y));
         }
     }
 }

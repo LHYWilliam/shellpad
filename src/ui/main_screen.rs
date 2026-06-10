@@ -117,8 +117,10 @@ impl MainScreenState {
                 Paragraph::new(Line::from(Span::styled(display, style))),
                 status_area,
             );
+            let prefix_w = unicode_width::UnicodeWidthStr::width(prefix);
+            let content_w = unicode_width::UnicodeWidthStr::width(&ren.content[..ren.cursor.min(ren.content.len())]);
             frame.set_cursor_position((
-                status_area.x + prefix.len() as u16 + ren.cursor as u16,
+                status_area.x + prefix_w as u16 + content_w as u16,
                 status_area.y,
             ));
         } else {
