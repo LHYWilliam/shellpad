@@ -293,7 +293,8 @@ impl DetailScreenState {
 
         match key.code {
             KeyCode::Tab | KeyCode::Char('\t') => {
-                let next = match self.focus {
+                self.commit_name_edit();
+                self.focus = match self.focus {
                     DetailFocus::Name => DetailFocus::Group,
                     DetailFocus::Group => DetailFocus::Shell,
                     DetailFocus::Shell => DetailFocus::ExecMode,
@@ -301,10 +302,10 @@ impl DetailScreenState {
                     DetailFocus::Variables => DetailFocus::Commands,
                     DetailFocus::Commands => DetailFocus::Name,
                 };
-                self.focus = next;
             }
             KeyCode::BackTab => {
-                let prev = match self.focus {
+                self.commit_name_edit();
+                self.focus = match self.focus {
                     DetailFocus::Name => DetailFocus::Commands,
                     DetailFocus::Group => DetailFocus::Name,
                     DetailFocus::Shell => DetailFocus::Group,
@@ -312,7 +313,6 @@ impl DetailScreenState {
                     DetailFocus::Variables => DetailFocus::ExecMode,
                     DetailFocus::Commands => DetailFocus::Variables,
                 };
-                self.focus = prev;
             }
             KeyCode::Up => {
                 match self.focus {
@@ -548,6 +548,14 @@ impl DetailScreenState {
             _ => {}
         }
         DetailScreenAction::None
+    }
+
+    /// Commit name edit if currently editing, no-op otherwise.
+    fn commit_name_edit(&mut self) {
+        if self.editing_name {
+            self.set.name = self.name_input.content.clone();
+            self.editing_name = false;
+        }
     }
 
     fn cycle_group(&mut self, delta: isize) {
