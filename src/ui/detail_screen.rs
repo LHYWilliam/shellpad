@@ -341,8 +341,15 @@ impl DetailScreenState {
             KeyCode::Enter => {
                 match self.focus {
                     DetailFocus::Name => {
-                        self.name_input = TextInput::new(self.set.name.clone());
-                        self.editing_name = true;
+                        if self.editing_name {
+                            // Second Enter: confirm edit
+                            self.set.name = self.name_input.content.clone();
+                            self.editing_name = false;
+                        } else {
+                            // First Enter: start editing
+                            self.name_input = TextInput::new(self.set.name.clone());
+                            self.editing_name = true;
+                        }
                     }
                     DetailFocus::Variables if !self.set.variables.is_empty() => {
                         let idx = self.variable_list.selected.min(self.set.variables.len().saturating_sub(1));
@@ -397,13 +404,9 @@ impl DetailScreenState {
             _ => {}
         };
 
-        // Handle name editing
+        // Handle name editing (Enter to confirm is handled in the outer match)
         if self.editing_name {
             match key.code {
-                KeyCode::Enter => {
-                    self.set.name = self.name_input.content.clone();
-                    self.editing_name = false;
-                }
                 KeyCode::Char(c) => {
                     self.name_input.insert_char(c);
                 }
