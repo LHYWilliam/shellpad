@@ -198,7 +198,9 @@ impl MainScreenState {
                     " {}  {}  [{}] ({} cmd)",
                     mode_label, set.name, shell_label, cmd_count
                 );
-                let style = if i == self.set_list.selected {
+                let is_selected = i == self.set_list.selected
+                    && self.active_panel == Panel::Sets;
+                let style = if is_selected {
                     Style::default()
                         .fg(Color::Black)
                         .bg(Color::Green)
@@ -210,12 +212,13 @@ impl MainScreenState {
             })
             .collect();
 
+        let selected = if !sets.is_empty() && self.active_panel == Panel::Sets {
+            Some(self.set_list.selected.min(sets.len().saturating_sub(1)))
+        } else {
+            None
+        };
         let mut list_state = ratatui::widgets::ListState::default()
-            .with_selected(if sets.is_empty() {
-                None
-            } else {
-                Some(self.set_list.selected.min(sets.len().saturating_sub(1)))
-            });
+            .with_selected(selected);
         let list = List::new(items).highlight_style(
             Style::default()
                 .fg(Color::Black)
