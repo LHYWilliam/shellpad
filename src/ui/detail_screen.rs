@@ -35,6 +35,8 @@ pub struct DetailScreenState {
     pub editing_command: Option<usize>,
     pub editing_name: bool,
     pub edit_input: TextInput,
+    /// If Some(pos), a new item was created with 'a' and should be inserted at pos.
+    pub insert_at: Option<usize>,
     pub show_cancel_dialog: bool,
     pub delete_var_confirm: bool,
     pub delete_cmd_confirm: bool,
@@ -54,6 +56,7 @@ impl DetailScreenState {
             editing_command: None,
             editing_name: false,
             edit_input: TextInput::new(String::new()),
+            insert_at: None,
             show_cancel_dialog: false,
             delete_var_confirm: false,
             delete_cmd_confirm: false,
@@ -397,15 +400,17 @@ impl DetailScreenState {
                 match self.focus {
                     DetailFocus::Variables => {
                         self.edit_input = TextInput::new(String::new());
-                        let insert_at = (self.variable_list.selected + 1)
+                        let pos = (self.variable_list.selected + 1)
                             .min(self.set.variables.len());
-                        self.editing_variable = Some(insert_at);
+                        self.insert_at = Some(pos);
+                        self.editing_variable = Some(self.set.variables.len());
                     }
                     DetailFocus::Commands => {
                         self.edit_input = TextInput::new(String::new());
-                        let insert_at = (self.command_list.selected + 1)
+                        let pos = (self.command_list.selected + 1)
                             .min(self.set.commands.len());
-                        self.editing_command = Some(insert_at);
+                        self.insert_at = Some(pos);
+                        self.editing_command = Some(self.set.commands.len());
                     }
                     _ => {}
                 }
@@ -477,26 +482,30 @@ impl DetailScreenState {
                     let name = input[..eq_pos].trim().to_string();
                     let value = input[eq_pos + 1..].trim().to_string();
                     let var = Variable { name, default_value: value };
-                    if idx < self.set.variables.len() {
-                        self.set.variables[idx] = var;
+                    if let Some(insert_pos) = self.insert_at.take() {
+                        self.set.variables.insert(insert_pos, var);
+                        self.variable_list.selected = insert_pos;
                     } else {
-                        self.set.variables.insert(idx, var);
+                        self.set.variables[idx] = var;
+                        self.variable_list.selected = idx;
                     }
                 } else if !input.is_empty() {
                     let var = Variable {
                         name: input.trim().to_string(),
                         default_value: String::new(),
                     };
-                    if idx < self.set.variables.len() {
-                        self.set.variables[idx] = var;
+                    if let Some(insert_pos) = self.insert_at.take() {
+                        self.set.variables.insert(insert_pos, var);
+                        self.variable_list.selected = insert_pos;
                     } else {
-                        self.set.variables.insert(idx, var);
+                        self.set.variables[idx] = var;
+                        self.variable_list.selected = idx;
                     }
                 }
-                self.variable_list.selected = idx.min(self.set.variables.len().saturating_sub(1));
                 self.editing_variable = None;
             }
             KeyCode::Esc => {
+                self.insert_at = None;
                 self.editing_variable = None;
             }
             KeyCode::Char(c) => {
@@ -534,20 +543,21 @@ impl DetailScreenState {
                     position: idx,
                     command: cmd,
                 };
-                if idx < self.set.commands.len() {
-                    self.set.commands[idx] = command;
+                if let Some(insert_pos) = self.insert_at.take() {
+                    self.set.commands.insert(insert_pos, command);
+                    self.command_list.selected = insert_pos;
                 } else {
-                    self.set.commands.insert(idx, command);
+                    self.set.commands[idx] = command;
+                    self.command_list.selected = idx;
                 }
                 // Re-index positions
                 for (i, c) in self.set.commands.iter_mut().enumerate() {
                     c.position = i;
                 }
-                self.command_list.selected = idx
-                    .min(self.set.commands.len().saturating_sub(1));
                 self.editing_command = None;
             }
             KeyCode::Esc => {
+                self.insert_at = None;
                 self.editing_command = None;
             }
             KeyCode::Char(c) => {
