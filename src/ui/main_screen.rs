@@ -414,7 +414,8 @@ impl MainScreenState {
                 MainScreenAction::NewGroup
             }
             KeyCode::Char('R') => {
-                if let Some(gi) = self.selected_group_idx(data) {
+                if self.active_panel == Panel::Groups
+                    && let Some(gi) = self.selected_group_idx(data) {
                     let current = data.groups[gi].name.clone();
                     self.rename_mode = true;
                     self.rename_input = TextInput::new(current);
