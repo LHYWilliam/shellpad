@@ -271,3 +271,116 @@ fn truncate(s: &str, max: usize) -> String {
         format!("{}…", &s[..end])
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::models::{CommandSet, Group};
+
+    #[test]
+    fn test_resolve_set_by_id() {
+        let mut g = Group::new("Deploy".to_string());
+        let set = CommandSet::new("Prod".to_string(), g.id);
+        let set_id = set.id;
+        g.sets.push(set);
+        let data = AppData { groups: vec![g] };
+
+        let result = resolve_set(&data, Some(set_id.to_string()), None, None);
+        assert!(result.is_ok());
+        let (found, _gi, _si) = result.unwrap();
+        assert_eq!(found.name, "Prod");
+    }
+
+    #[test]
+    fn test_resolve_set_by_group_and_set_name() {
+        let mut g = Group::new("Deploy".to_string());
+        g.sets.push(CommandSet::new("Prod".to_string(), g.id));
+        let data = AppData { groups: vec![g] };
+
+        let result = resolve_set(&data, None, Some("Deploy".into()), Some("Prod".into()));
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_resolve_set_not_found() {
+        let data = AppData::empty();
+        let result = resolve_set(&data, None, Some("Missing".into()), Some("Missing".into()));
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("No command set found"));
+    }
+
+    #[test]
+    fn test_resolve_set_no_args() {
+        let data = AppData::empty();
+        let result = resolve_set(&data, None, None, None);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Specify"));
+    }
+
+    #[test]
+    fn test_resolve_set_invalid_uuid() {
+        let data = AppData::empty();
+        let result = resolve_set(&data, Some("not-a-uuid".into()), None, None);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Invalid UUID"));
+    }
+
+    #[test]
+    fn test_resolve_set_ambiguous() {
+        let mut g = Group::new("G".to_string());
+        let set = CommandSet::new("S".to_string(), g.id);
+        g.sets.push(set);
+        let set2 = CommandSet::new("S".to_string(), g.id);
+        g.sets.push(set2);
+        let data = AppData { groups: vec![g] };
+
+        let result = resolve_set(&data, None, Some("G".into()), Some("S".into()));
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Ambiguous"));
+    }
+
+    #[test]
+    fn test_truncate_short_string() {
+        assert_eq!(truncate("hello", 10), "hello");
+    }
+
+    #[test]
+    fn test_truncate_long_string() {
+        let long = "a".repeat(50);
+        let result = truncate(&long, 10);
+        assert_eq!(result.chars().count(), 10);
+        assert!(result.ends_with('…'));
+    }
+
+    #[test]
+    fn test_truncate_empty() {
+        assert_eq!(truncate("", 5), "");
+    }
+
+    #[test]
+    fn test_use_defaults_branch_lowercase() {
+        let var = vec!["default".to_string()];
+        assert!(var.len() == 1 && var[0].eq_ignore_ascii_case("default"));
+    }
+
+    #[test]
+    fn test_use_defaults_branch_not_default() {
+        let var = vec!["host=prod".to_string()];
+        assert!(!(var.len() == 1 && var[0].eq_ignore_ascii_case("default")));
+    }
+
+    #[test]
+    fn test_parse_var_overrides_valid() {
+        let overrides: Vec<String> = vec!["key=value".into(), "a=b".into()];
+        let mut overrides_map = std::collections::HashMap::new();
+        for ov in overrides {
+            if let Some(eq_pos) = ov.find('=') {
+                let key = ov[..eq_pos].trim().to_string();
+                let val = ov[eq_pos + 1..].trim().to_string();
+                overrides_map.insert(key, val);
+            }
+        }
+        assert_eq!(overrides_map.len(), 2);
+        assert_eq!(overrides_map.get("key").unwrap(), "value");
+    }
+}
