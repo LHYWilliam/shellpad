@@ -1,0 +1,143 @@
+use crate::models::CommandSet;
+use crate::ui::components::{handle_text_input, TextInput};
+use crossterm::event::{KeyCode, KeyEvent};
+use ratatui::layout::Rect;
+use ratatui::style::{Color, Style};
+use ratatui::text::{Line, Span};
+use ratatui::widgets::{Block, Borders, Clear, Paragraph};
+use ratatui::Frame;
+
+pub enum VariableScreenAction {
+    Execute { gi: usize, si: usize },
+    Cancel,
+    None,
+}
+
+pub struct VariableScreenState {
+    pub active: bool,
+    pub inputs: Vec<TextInput>,
+    pub names: Vec<String>,
+    pub focus: usize,
+    /// Copies of the original group/set indices (not owned by pending_set)
+    pub gi: usize,
+    pub si: usize,
+}
+
+impl VariableScreenState {
+    pub fn new() -> Self {
+        Self {
+            active: false,
+            inputs: Vec::new(),
+            names: Vec::new(),
+            focus: 0,
+            gi: 0,
+            si: 0,
+        }
+    }
+
+    pub fn activate(&mut self, set: &CommandSet, gi: usize, si: usize) {
+        self.active = true;
+        self.inputs = set
+            .variables
+            .iter()
+            .map(|v| TextInput::new(v.default_value.clone()))
+            .collect();
+        self.names = set.variables.iter().map(|v| v.name.clone()).collect();
+        self.focus = 0;
+        self.gi = gi;
+        self.si = si;
+    }
+
+    pub fn handle_key(&mut self, key: KeyEvent) -> VariableScreenAction {
+        match key.code {
+            KeyCode::Enter => VariableScreenAction::Execute {
+                gi: self.gi,
+                si: self.si,
+            },
+            KeyCode::Esc => VariableScreenAction::Cancel,
+            KeyCode::Tab | KeyCode::Down => {
+                let n = self.inputs.len();
+                if n > 0 {
+                    self.focus = (self.focus + 1) % n;
+                }
+                VariableScreenAction::None
+            }
+            KeyCode::Up => {
+                let n = self.inputs.len();
+                if n > 0 {
+                    self.focus = (self.focus + n - 1) % n;
+                }
+                VariableScreenAction::None
+            }
+            _ => {
+                let n = self.inputs.len();
+                if n > 0 && self.focus < n {
+                    handle_text_input(&mut self.inputs[self.focus], key);
+                }
+                VariableScreenAction::None
+            }
+        }
+    }
+
+    pub fn render(&self, frame: &mut Frame, area: Rect) {
+        if !self.active {
+            return;
+        }
+        let count = self.inputs.len();
+        if count == 0 {
+            return;
+        }
+        let width = area.width.min(60).saturating_sub(4);
+        let height = count as u16 + 4;
+        let x = area.x + (area.width.saturating_sub(width)) / 2;
+        let y = area.y + (area.height.saturating_sub(height)) / 2;
+        let dialog = Rect::new(x, y, width, height);
+
+        frame.render_widget(Clear, dialog);
+
+        let block = Block::default()
+            .borders(Borders::ALL)
+            .border_style(Style::default().fg(Color::Cyan))
+            .title(" Set Variables ")
+            .style(Style::default().bg(Color::DarkGray));
+        frame.render_widget(&block, dialog);
+
+        let inner = block.inner(dialog);
+
+        for i in 0..count {
+            let focus = i == self.focus;
+            let color = if focus { Color::Yellow } else { Color::White };
+            let row = Rect::new(inner.x, inner.y + i as u16, inner.width, 1);
+            let display = format!(" {} = {}", self.names[i], self.inputs[i].content);
+            frame.render_widget(
+                Paragraph::new(Line::from(Span::styled(
+                    display,
+                    Style::default().fg(color),
+                ))),
+                row,
+            );
+            if focus {
+                let prefix_w = unicode_width::UnicodeWidthStr::width(" ") // leading space
+                    + unicode_width::UnicodeWidthStr::width(self.names[i].as_str())
+                    + unicode_width::UnicodeWidthStr::width(" = ");
+                let content_w = unicode_width::UnicodeWidthStr::width(
+                    &self.inputs[i].content[..self.inputs[i].cursor
+                        .min(self.inputs[i].content.len())],
+                );
+                frame.set_cursor_position((
+                    inner.x + prefix_w as u16 + content_w as u16,
+                    inner.y + i as u16,
+                ));
+            }
+        }
+
+        let hint_y = inner.y + count as u16;
+        frame.render_widget(
+            Paragraph::new(Line::from(Span::styled(
+                " [Enter] Execute  [Esc] Cancel  [Tab/Down] Next  [Up] Prev",
+                Style::default().fg(Color::DarkGray),
+            ))),
+            Rect::new(inner.x, hint_y, inner.width, 1),
+        );
+    }
+}

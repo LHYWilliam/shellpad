@@ -5,16 +5,16 @@ use std::sync::Arc;
 use crate::mode::AppMode;
 use crate::models::{AppData, CommandSet};
 use crate::storage;
-use crate::ui::components::{handle_text_input, TextInput};
 use crate::ui::detail_screen::{DetailScreenAction, DetailScreenState};
+use crate::ui::variable_screen::{VariableScreenAction, VariableScreenState};
 use crate::ui::execution_screen::{ExecutionScreenAction, ExecutionScreenState};
 use crate::ui::help_screen::draw_help;
 use crate::ui::main_screen::{MainScreenAction, MainScreenState, Panel};
-use crossterm::event::{self, Event, KeyCode, KeyEventKind};
-use ratatui::layout::{Alignment, Rect};
+use crossterm::event::{self, Event, KeyEventKind};
+use ratatui::layout::Alignment;
 use ratatui::style::{Color, Style};
-use ratatui::text::{Line, Span};
-use ratatui::widgets::{Block, Borders, Clear, Paragraph};
+use ratatui::text::Line;
+use ratatui::widgets::Paragraph;
 use ratatui::Frame;
 use std::io;
 use std::sync::mpsc;
@@ -36,11 +36,8 @@ pub struct App {
     // Kill signal for the execution thread (set true to abort running commands)
     kill_signal: Arc<AtomicBool>,
 
-    // Variable input overlay (shown before execution)
-    variable_input_mode: bool,
-    variable_inputs: Vec<TextInput>,
-    variable_names: Vec<String>,
-    variable_focus: usize,
+    // Variable input overlay (shown before execution — extracted into VariableScreenState)
+    variable_screen: VariableScreenState,
     pending_set: Option<(usize, usize)>, // (group_index, set_index)
 }
 
@@ -60,10 +57,7 @@ impl App {
             execution_rx: None,
             execution_handle: None,
             kill_signal: Arc::new(AtomicBool::new(false)),
-            variable_input_mode: false,
-            variable_inputs: Vec::new(),
-            variable_names: Vec::new(),
-            variable_focus: 0,
+            variable_screen: VariableScreenState::new(),
             pending_set: None,
         }
     }
@@ -127,69 +121,13 @@ impl App {
             }
         }
 
-        if self.variable_input_mode {
-            self.render_variable_input(frame, area);
-        }
-    }
-
-    fn render_variable_input(&self, frame: &mut Frame, area: Rect) {
-        let count = self.variable_inputs.len();
-        if count == 0 {
-            return;
-        }
-        let width = area.width.min(60).saturating_sub(4);
-        let height = count as u16 + 4; // top border + n rows + hint + bottom border
-        let x = area.x + (area.width.saturating_sub(width)) / 2;
-        let y = area.y + (area.height.saturating_sub(height)) / 2;
-        let dialog = Rect::new(x, y, width, height);
-
-        frame.render_widget(Clear, dialog);
-
-        let block = Block::default()
-            .borders(Borders::ALL)
-            .border_style(Style::default().fg(Color::Cyan))
-            .title(" Set Variables ")
-            .style(Style::default().bg(Color::DarkGray));
-        frame.render_widget(&block, dialog);
-
-        let inner = block.inner(dialog);
-
-        for i in 0..count {
-            let focus = i == self.variable_focus;
-            let color = if focus { Color::Yellow } else { Color::White };
-            let row = Rect::new(inner.x, inner.y + i as u16, inner.width, 1);
-            let display = format!(" {} = {}", self.variable_names[i], self.variable_inputs[i].content);
-            frame.render_widget(
-                Paragraph::new(Line::from(Span::styled(display, Style::default().fg(color)))),
-                row,
-            );
-            if focus {
-                let input = &self.variable_inputs[i];
-                let prefix_w = unicode_width::UnicodeWidthStr::width(" ") +  // leading space
-                    unicode_width::UnicodeWidthStr::width(self.variable_names[i].as_str()) +
-                    unicode_width::UnicodeWidthStr::width(" = ");            // spacing
-                let content_w = unicode_width::UnicodeWidthStr::width(
-                    &input.content[..input.cursor.min(input.content.len())]);
-                frame.set_cursor_position((
-                    inner.x + prefix_w as u16 + content_w as u16,
-                    inner.y + i as u16,
-                ));
-            }
-        }
-
-        let hint_y = inner.y + count as u16;
-        frame.render_widget(
-            Paragraph::new(Line::from(Span::styled(
-                " [Enter] Execute  [Esc] Cancel  [Tab/Down] Next  [Up] Prev",
-                Style::default().fg(Color::DarkGray),
-            ))),
-            Rect::new(inner.x, hint_y, inner.width, 1),
-        );
+        self.variable_screen.render(frame, area);
     }
 
     fn handle_key(&mut self, key: crossterm::event::KeyEvent) {
-        if self.variable_input_mode {
-            self.handle_variable_key(key);
+        if self.variable_screen.active {
+            let action = self.variable_screen.handle_key(key);
+            self.handle_variable_action(action);
             return;
         }
         match self.mode {
@@ -215,51 +153,27 @@ impl App {
 
     // ---- Variable input ----
 
-    fn handle_variable_key(&mut self, key: crossterm::event::KeyEvent) {
-        match key.code {
-            KeyCode::Enter => {
+    fn handle_variable_action(&mut self, action: VariableScreenAction) {
+        match action {
+            VariableScreenAction::Execute { gi, si } => {
                 // Copy variable values from inputs back to the set
-                if let Some((gi, si)) = self.pending_set
-                    && gi < self.data.groups.len()
-                    && si < self.data.groups[gi].sets.len()
-                {
+                if gi < self.data.groups.len() && si < self.data.groups[gi].sets.len() {
                     let set = &mut self.data.groups[gi].sets[si];
-                    for (i, input) in self.variable_inputs.iter().enumerate() {
+                    for (i, input) in self.variable_screen.inputs.iter().enumerate() {
                         if i < set.variables.len() {
                             set.variables[i].default_value = input.content.clone();
                         }
                     }
                 }
-                self.variable_input_mode = false;
-                self.variable_inputs.clear();
-                self.variable_names.clear();
+                self.variable_screen = VariableScreenState::new();
                 self.auto_save();
                 self.do_execute();
             }
-            KeyCode::Esc => {
-                self.variable_input_mode = false;
-                self.variable_inputs.clear();
-                self.variable_names.clear();
+            VariableScreenAction::Cancel => {
+                self.variable_screen = VariableScreenState::new();
                 self.pending_set = None;
             }
-            KeyCode::Tab | KeyCode::Down => {
-                let n = self.variable_inputs.len();
-                if n > 0 {
-                    self.variable_focus = (self.variable_focus + 1) % n;
-                }
-            }
-            KeyCode::Up => {
-                let n = self.variable_inputs.len();
-                if n > 0 {
-                    self.variable_focus = (self.variable_focus + n - 1) % n;
-                }
-            }
-            _ => {
-                let n = self.variable_inputs.len();
-                if n > 0 && self.variable_focus < n {
-                    handle_text_input(&mut self.variable_inputs[self.variable_focus], key);
-                }
-            }
+            VariableScreenAction::None => {}
         }
     }
 
@@ -273,16 +187,7 @@ impl App {
             MainScreenAction::ExecuteSet(gi, si) => {
                 let set = &self.data.groups[gi].sets[si];
                 if !set.variables.is_empty() {
-                    self.variable_input_mode = true;
-                    self.variable_inputs = set
-                        .variables
-                        .iter()
-                        .map(|v| TextInput::new(v.default_value.clone()))
-                        .collect();
-                    self.variable_names =
-                        set.variables.iter().map(|v| v.name.clone()).collect();
-                    self.variable_focus = 0;
-                    self.pending_set = Some((gi, si));
+                    self.variable_screen.activate(set, gi, si);
                 } else {
                     self.pending_set = Some((gi, si));
                     self.do_execute();
