@@ -170,7 +170,7 @@ impl ExecutionScreenState {
 
             let duration_str = state
                 .duration_ms
-                .map(|d| format!(" ({}.{:02}s)", d / 1000, d % 1000 / 10))
+                .map(|d| format_duration(d))
                 .unwrap_or_default();
 
             items.push(ListItem::new(Line::from(Span::styled(
@@ -199,7 +199,7 @@ impl ExecutionScreenState {
         if self.completed {
             let total_dur = self
                 .total_duration_ms
-                .map(|d| format!(" ({}.{:02}s)", d / 1000, d % 1000 / 10))
+                .map(|d| format_duration(d))
                 .unwrap_or_default();
             items.push(ListItem::new(Line::from("")));
             items.push(ListItem::new(Line::from(Span::styled(
@@ -259,4 +259,8 @@ impl ExecutionScreenState {
             _ => ExecutionScreenAction::None,
         }
     }
+}
+
+fn format_duration(d: u128) -> String {
+    format!(" ({}.{:02}s)", d / 1000, d % 1000 / 10)
 }
