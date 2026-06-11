@@ -33,42 +33,20 @@ stateDiagram-v2
 
 ```mermaid
 stateDiagram-v2
-    state "Main 屏" as Main {
-        [*] --> NormalMode : 初始状态
-
-        state "普通模式" as NormalMode {
-            [*] --> GroupsPanel : 默认焦点在左侧
-
-            GroupsPanel --> GroupsPanel : ↑/↓ 导航分组
-            GroupsPanel --> SetsPanel : →（有命令集时）
-            GroupsPanel --> GroupsPanel : D 删除分组 / g 新建分组
-
-            SetsPanel --> SetsPanel : ↑/↓ 导航命令集
-            SetsPanel --> GroupsPanel : ←
-            SetsPanel --> SetsPanel : d 删除命令集 / n 新建
-            SetsPanel --> SetsPanel : Enter 执行 / e 编辑
-        end
-
-        NormalMode --> SearchMode : /
-        SearchMode --> NormalMode : Esc（取消）/ Enter（选中）
-
-        NormalMode --> RenameMode : R
-        RenameMode --> NormalMode : Enter（确认）/ Esc（取消）
-    }
-
-    state "搜索模式" as SearchMode {
-        [*] --> Typing : 输入关键词
-        Typing --> Filtered : 实时过滤
-        Filtered --> Jump : Enter → 跳转到选中的命令集
-        Jump --> [*]
-        Filtered --> [*] : Esc → 取消
-    }
-
-    state "重命名模式" as RenameMode {
-        [*] --> Editing : 输入新名称
-        Editing --> [*] : Enter → 确认改名
-        Editing --> [*] : Esc → 取消
-    }
+    direction LR
+    [*] --> GroupsPanel : 初始（默认）
+    GroupsPanel --> GroupsPanel : ↑/↓ 导航
+    GroupsPanel --> SetsPanel : →（有命令集）
+    SetsPanel --> SetsPanel : ↑/↓ 导航
+    SetsPanel --> GroupsPanel : ←
+    GroupsPanel --> SearchMode : /
+    SetsPanel --> SearchMode : /
+    SearchMode --> GroupsPanel : Esc 取消
+    SearchMode --> SetsPanel : Enter 选中结果
+    GroupsPanel --> RenameMode : R 重命名
+    RenameMode --> GroupsPanel : Enter 确认
+    RenameMode --> GroupsPanel : Esc 取消
+```
 ```
 
 ### Main 屏布局
@@ -92,34 +70,31 @@ stateDiagram-v2
 
 ```mermaid
 stateDiagram-v2
-    state "Detail 屏" as Detail {
-        [*] --> Navigation : 进入编辑
+    direction LR
+    [*] --> NavName : 进入编辑
 
-        state "导航模式" as Nav {
-            [*] --> Name : Tab 循环 6 个焦点区域
-            Name --> Group : Tab
-            Group --> Shell : Tab
-            Shell --> ExecMode : Tab
-            ExecMode --> Variables : Tab
-            Variables --> Commands : Tab
-            Commands --> Name : Tab（循环）
-        end
-
-        Nav --> NameEditing : Enter（在 Name 上）
-        NameEditing --> Nav : Enter（确认）/ Esc（取消）
-
-        Nav --> VarEditing : Enter / e（在 Variable 上）
-        VarEditing --> Nav : Enter（确认）/ Esc（取消）
-
-        Nav --> CmdEditing : Enter / e（在 Command 上）
-        CmdEditing --> Nav : Enter（确认）/ Esc（取消）
-
-        Nav --> VarInsert : a（在 Variables 上）
-        VarInsert --> Nav : Enter（确认插入）/ Esc（取消）
-
-        Nav --> CmdInsert : a（在 Commands 上）
-        CmdInsert --> Nav : Enter（确认插入）/ Esc（取消）
+    state "Tab 循环 6 焦点" as Nav {
+        NavName --> NavGroup : Tab
+        NavGroup --> NavShell : Tab
+        NavShell --> NavMode : Tab
+        NavMode --> NavVar : Tab
+        NavVar --> NavCmd : Tab
+        NavCmd --> NavName : Tab
     }
+
+    NavName --> NameEdit : Enter
+    NameEdit --> NavName : Enter / Esc
+
+    NavVar --> VarEdit : Enter/e
+    VarEdit --> NavVar : Enter / Esc
+    NavVar --> VarInsert : a
+    VarInsert --> NavVar : Enter / Esc
+
+    NavCmd --> CmdEdit : Enter/e
+    CmdEdit --> NavCmd : Enter / Esc
+    NavCmd --> CmdInsert : a
+    CmdInsert --> NavCmd : Enter / Esc
+```
 
     Note -- 6个焦点区域用Tab/BackTab循环切换
     Note -- 导航模式下 ←/→ 切换 Group/Shell/ExecMode
@@ -171,24 +146,19 @@ stateDiagram-v2
 
 ```mermaid
 stateDiagram-v2
-    state "Execution 屏" as Exec {
-        [*] --> Running : 开始执行
-
-        state "运行中" as Running {
-            [*] --> Cmd1 : 执行第1条
-            Cmd1 --> Cmd2 : ✅ 成功 / ❌ 失败(ContinueOnError)
-            Cmd1 --> Completed : ❌ 失败(StopOnError)
-            Cmd2 --> Cmd3 : ...
-            CmdN --> Completed : 全部完成
-        }
-
-        Running --> Interrupted : s（跳过当前） / Ctrl+C（中断）
-        Interrupted --> Completed : 标记剩余为 ⏭ Skipped
-
-        Completed --> Running : n（继续执行剩余）
-        Completed --> Running : r（全部重跑）
-        Completed --> Main : q（返回主屏）
-    }
+    direction LR
+    [*] --> Cmd1 : 开始执行
+    Cmd1 --> Cmd2 : 成功
+    Cmd1 --> Cmd2 : 失败/ContinueOnError
+    Cmd1 --> Completed : 失败/StopOnError
+    Cmd2 --> Cmd3 : ...
+    CmdN --> Completed : 全部完成
+    Cmd1 --> Completed : s跳过/Ctrl+C中断
+    Cmd2 --> Completed : s跳过/Ctrl+C中断
+    Completed --> CmdN : n继续执行剩余
+    Completed --> Cmd1 : r重新执行全部
+    Completed --> BackMain : q
+```
 
     state "命令状态" as States {
         ⏳ Pending → ▶ Running → ✅ Success
