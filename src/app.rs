@@ -302,7 +302,16 @@ impl App {
         }
     }
 
-    /// Signal the execution thread to abort and wait for it to finish.
+    /// Signal the execution thread to abort, wait for it, but keep the exec screen alive.
+    fn stop_execution(&mut self) {
+        kill_execution(&mut self.kill_signal, &mut self.execution_rx, &mut self.execution_handle);
+        // Mark remaining pending commands as skipped
+        if let Some(ref mut es) = self.exec_screen {
+            es.mark_remaining_as_skipped();
+        }
+    }
+
+    /// Signal the execution thread to abort, destroying the exec screen.
     fn kill_execution(&mut self) {
         kill_execution(&mut self.kill_signal, &mut self.execution_rx, &mut self.execution_handle);
         self.exec_screen = None;
@@ -316,9 +325,9 @@ impl App {
                 self.kill_execution();
                 self.mode = AppMode::Main;
             }
-            ExecutionScreenAction::Interrupt => {
-                self.kill_execution();
-                self.mode = AppMode::Main;
+            ExecutionScreenAction::Interrupt | ExecutionScreenAction::Skip => {
+                self.stop_execution();
+                self.mode = AppMode::Execution;
             }
             ExecutionScreenAction::Reexecute => {
                 self.kill_execution();

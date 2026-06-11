@@ -25,6 +25,7 @@ pub(crate) struct CmdState {
 pub enum ExecutionScreenAction {
     BackToMain,
     Interrupt,
+    Skip,
     Reexecute,
     None,
 }
@@ -36,6 +37,7 @@ pub struct ExecutionScreenState {
     pub total: usize,
     pub succeeded: usize,
     pub failed: usize,
+    pub skipped: usize,
     pub completed: bool,
     pub total_duration_ms: Option<u128>,
 }
@@ -59,8 +61,21 @@ impl ExecutionScreenState {
             current_index: 0,
             succeeded: 0,
             failed: 0,
+            skipped: 0,
             completed: false,
             total_duration_ms: None,
+        }
+    }
+
+    /// Mark all remaining Pending commands as Skipped.
+    /// Called after the execution thread is stopped (Skip or Interrupt).
+    pub fn mark_remaining_as_skipped(&mut self) {
+        self.completed = true;
+        for state in &mut self.cmd_states {
+            if state.status == CmdStatus::Pending {
+                state.status = CmdStatus::Skipped;
+                self.skipped += 1;
+            }
         }
     }
 
@@ -204,11 +219,12 @@ impl ExecutionScreenState {
             items.push(ListItem::new(Line::from("")));
             items.push(ListItem::new(Line::from(Span::styled(
                 format!(
-                    " {} / {} completed, {} succeeded, {} failed{}",
-                    self.succeeded + self.failed,
+                    " {} / {} completed, {} succeeded, {} failed, {} skipped{}",
+                    self.succeeded + self.failed + self.skipped,
                     self.total,
                     self.succeeded,
                     self.failed,
+                    self.skipped,
                     total_dur
                 ),
                 Style::default()
@@ -221,7 +237,7 @@ impl ExecutionScreenState {
         let footer_text = if self.completed {
             " [q] Back to main  [r] Re-execute"
         } else {
-            " [q] Back to main  [Ctrl+C] Interrupt"
+            " [q] Back to main  [s] Skip current  [Ctrl+C] Interrupt"
         };
 
         let body_layout = Layout::vertical([Constraint::Min(1), Constraint::Length(1)]);
@@ -255,6 +271,7 @@ impl ExecutionScreenState {
             {
                 ExecutionScreenAction::Interrupt
             }
+            KeyCode::Char('s') if !self.completed => ExecutionScreenAction::Skip,
             KeyCode::Char('r') if self.completed => ExecutionScreenAction::Reexecute,
             _ => ExecutionScreenAction::None,
         }
