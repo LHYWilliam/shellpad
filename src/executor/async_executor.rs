@@ -58,11 +58,13 @@ fn substitute_variables_inner(template: &str, variables: &[crate::models::Variab
 /// Execute a command set on a background thread.
 ///
 /// Events are sent through the `mpsc::Receiver` for the TUI to poll.
+/// `index_offset` is added to event indices (used when continuing from a skip).
 pub fn execute_set(
     set: &CommandSet,
     shell: &str,
     tx: mpsc::Sender<ExecutionEvent>,
     kill_signal: Arc<AtomicBool>,
+    index_offset: usize,
 ) -> thread::JoinHandle<()> {
     let commands = set.commands.clone();
     let exec_mode = set.exec_mode;
@@ -75,7 +77,9 @@ pub fn execute_set(
         let mut failed = 0usize;
         let total = commands.len();
 
-        for (index, cmd) in commands.iter().enumerate() {
+        for (actual_index, cmd) in commands.iter().enumerate() {
+            let actual_index = actual_index + index_offset;
+
             if kill_signal.load(Ordering::Relaxed) {
                 return;
             }
@@ -83,7 +87,7 @@ pub fn execute_set(
             let resolved = substitute_variables_inner(&cmd.command, &variables);
 
             if tx.send(ExecutionEvent::Starting {
-                index,
+                index: actual_index,
                 command: resolved.clone(),
             })
             .is_err()
@@ -97,11 +101,11 @@ pub fn execute_set(
                 Ok(c) => c,
                 Err(e) => {
                     let _ = tx.send(ExecutionEvent::StderrLine {
-                        index,
+                        index: actual_index,
                         line: format!("Failed to spawn command: {}", e),
                     });
                     let _ = tx.send(ExecutionEvent::Finished {
-                        index,
+                        index: actual_index,
                         success: false,
                         duration_ms: cmd_start.elapsed().as_millis(),
                     });
@@ -115,11 +119,11 @@ pub fn execute_set(
 
             if let Some(stdout) = child.stdout.take() {
                 let tx_out = tx.clone();
-                thread::spawn(move || pipe_reader(stdout, index, tx_out, false));
+                thread::spawn(move || pipe_reader(stdout, actual_index, tx_out, false));
             }
             if let Some(stderr) = child.stderr.take() {
                 let tx_err = tx.clone();
-                thread::spawn(move || pipe_reader(stderr, index, tx_err, true));
+                thread::spawn(move || pipe_reader(stderr, actual_index, tx_err, true));
             }
 
             let success = loop {
@@ -139,7 +143,7 @@ pub fn execute_set(
 
             if tx
                 .send(ExecutionEvent::Finished {
-                    index,
+                    index: actual_index,
                     success,
                     duration_ms: duration,
                 })

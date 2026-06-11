@@ -16,7 +16,7 @@ pub enum CmdStatus {
 }
 
 pub(crate) struct CmdState {
-    status: CmdStatus,
+    pub(crate) status: CmdStatus,
     command: String,
     output_lines: Vec<String>,
     duration_ms: Option<u128>,
@@ -26,6 +26,7 @@ pub enum ExecutionScreenAction {
     BackToMain,
     Interrupt,
     Skip,
+    Continue,
     Reexecute,
     None,
 }
@@ -39,6 +40,7 @@ pub struct ExecutionScreenState {
     pub failed: usize,
     pub skipped: usize,
     pub completed: bool,
+    pub continue_from: Option<usize>,
     pub total_duration_ms: Option<u128>,
 }
 
@@ -63,6 +65,7 @@ impl ExecutionScreenState {
             failed: 0,
             skipped: 0,
             completed: false,
+            continue_from: None,
             total_duration_ms: None,
         }
     }
@@ -71,10 +74,13 @@ impl ExecutionScreenState {
     /// Called after the execution thread is stopped (Skip or Interrupt).
     pub fn mark_remaining_as_skipped(&mut self) {
         self.completed = true;
-        for state in &mut self.cmd_states {
+        for (i, state) in self.cmd_states.iter_mut().enumerate() {
             if state.status == CmdStatus::Pending {
                 state.status = CmdStatus::Skipped;
                 self.skipped += 1;
+                if self.continue_from.is_none() {
+                    self.continue_from = Some(i);
+                }
             }
         }
     }
@@ -235,7 +241,11 @@ impl ExecutionScreenState {
 
         // Footer with key hints
         let footer_text = if self.completed {
-            " [q] Back to main  [r] Re-execute"
+            if self.continue_from.is_some() {
+                " [q] Back to main  [n] Continue from next  [r] Re-execute all"
+            } else {
+                " [q] Back to main  [r] Re-execute"
+            }
         } else {
             " [q] Back to main  [s] Skip current  [Ctrl+C] Interrupt"
         };
@@ -272,6 +282,7 @@ impl ExecutionScreenState {
                 ExecutionScreenAction::Interrupt
             }
             KeyCode::Char('s') if !self.completed => ExecutionScreenAction::Skip,
+            KeyCode::Char('n') if self.completed && self.continue_from.is_some() => ExecutionScreenAction::Continue,
             KeyCode::Char('r') if self.completed => ExecutionScreenAction::Reexecute,
             _ => ExecutionScreenAction::None,
         }
