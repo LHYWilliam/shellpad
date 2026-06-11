@@ -85,6 +85,17 @@ impl ExecutionScreenState {
         }
     }
 
+    /// Reset the screen for continuing execution from a skip point.
+    pub fn reset_from(&mut self, start_from: usize) {
+        for state in self.cmd_states[start_from..].iter_mut() {
+            if state.status == CmdStatus::Skipped {
+                state.status = CmdStatus::Pending;
+            }
+        }
+        self.completed = false;
+        self.continue_from = None;
+    }
+
     /// Process events from the execution channel.
     pub fn process_events(&mut self, rx: &mpsc::Receiver<ExecutionEvent>) {
         while let Ok(event) = rx.try_recv() {

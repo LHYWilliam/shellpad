@@ -1,7 +1,7 @@
 use crate::executor::events::ExecutionEvent;
-use crate::models::{CommandSet, ExecMode};
+use crate::models::{Command, CommandSet, ExecMode, Variable};
 use std::io::{BufRead, BufReader, Read};
-use std::process::{Child, Command, Stdio};
+use std::process::{Child, Command as StdCommand, Stdio};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{mpsc, Arc};
 use std::thread;
@@ -18,7 +18,7 @@ pub fn substitute_variables(template: &str, set: &CommandSet) -> String {
 
 /// Spawn a shell command and return the child process.
 fn spawn_shell_command(shell: &str, command: &str) -> std::io::Result<Child> {
-    let mut cmd = Command::new(shell);
+    let mut cmd = StdCommand::new(shell);
     cmd.arg("-c").arg(command);
     cmd.stdout(Stdio::piped());
     cmd.stderr(Stdio::piped());
@@ -55,21 +55,20 @@ fn substitute_variables_inner(template: &str, variables: &[crate::models::Variab
     result
 }
 
-/// Execute a command set on a background thread.
+/// Execute commands on a background thread.
 ///
 /// Events are sent through the `mpsc::Receiver` for the TUI to poll.
 /// `index_offset` is added to event indices (used when continuing from a skip).
 pub fn execute_set(
-    set: &CommandSet,
+    commands: Vec<Command>,
+    exec_mode: ExecMode,
+    variables: Vec<Variable>,
     shell: &str,
     tx: mpsc::Sender<ExecutionEvent>,
     kill_signal: Arc<AtomicBool>,
     index_offset: usize,
 ) -> thread::JoinHandle<()> {
-    let commands = set.commands.clone();
-    let exec_mode = set.exec_mode;
     let shell = shell.to_string();
-    let variables = set.variables.clone();
 
     thread::spawn(move || {
         let start = std::time::Instant::now();

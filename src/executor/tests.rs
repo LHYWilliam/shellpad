@@ -80,7 +80,7 @@ fn test_execute_echo() {
     });
     set.exec_mode = ExecMode::StopOnError;
 
-    let handle = execute_set(&set, "sh", tx.clone(), Arc::new(AtomicBool::new(false)), 0);
+    let handle = execute_set(set.commands.clone(), set.exec_mode, set.variables.clone(), "sh", tx.clone(), Arc::new(AtomicBool::new(false)), 0);
     handle.join().unwrap();
     drop(tx);
 
@@ -107,7 +107,7 @@ fn test_execute_failure_continue_on_error() {
     });
     set.exec_mode = ExecMode::ContinueOnError;
 
-    let handle = execute_set(&set, "sh", tx.clone(), Arc::new(AtomicBool::new(false)), 0);
+    let handle = execute_set(set.commands.clone(), set.exec_mode, set.variables.clone(), "sh", tx.clone(), Arc::new(AtomicBool::new(false)), 0);
     handle.join().unwrap();
     drop(tx);
 
@@ -142,7 +142,7 @@ fn test_execute_failure_stop_on_error() {
     });
     set.exec_mode = ExecMode::StopOnError;
 
-    let handle = execute_set(&set, "sh", tx.clone(), Arc::new(AtomicBool::new(false)), 0);
+    let handle = execute_set(set.commands.clone(), set.exec_mode, set.variables.clone(), "sh", tx.clone(), Arc::new(AtomicBool::new(false)), 0);
     handle.join().unwrap();
     drop(tx);
 

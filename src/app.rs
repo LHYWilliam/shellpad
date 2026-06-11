@@ -8,7 +8,6 @@ use crate::storage;
 use crate::ui::detail_screen::{DetailScreenAction, DetailScreenState};
 use crate::ui::variable_screen::{VariableScreenAction, VariableScreenState};
 use crate::ui::execution_screen::{ExecutionScreenAction, ExecutionScreenState};
-use crate::ui::execution_screen::CmdStatus;
 use crate::ui::help_screen::draw_help;
 use crate::ui::main_screen::{MainScreenAction, MainScreenState, Panel};
 use crossterm::event::{self, Event, KeyEventKind};
@@ -334,21 +333,14 @@ impl App {
                 let start_from = self.exec_screen.as_ref()
                     .and_then(|es| es.continue_from)
                     .unwrap_or(0);
-                if let Some((gi, si)) = self.pending_set
-                    && gi < self.data.groups.len()
-                    && si < self.data.groups[gi].sets.len()
-                {
-                    self.do_execute_continue(gi, si, start_from);
+                if let Some((gi, si)) = self.pending_set {
+                    self.do_execute_with(gi, si, start_from);
                 }
             }
             ExecutionScreenAction::Reexecute => {
                 self.kill_execution();
-                // Re-trigger execution — verify indices still valid
-                if let Some((gi, si)) = self.pending_set
-                    && gi < self.data.groups.len()
-                    && si < self.data.groups[gi].sets.len()
-                {
-                    self.do_execute_with(gi, si);
+                if let Some((gi, si)) = self.pending_set {
+                    self.do_execute_with(gi, si, 0);
                 }
             }
             ExecutionScreenAction::None => {}
@@ -359,52 +351,42 @@ impl App {
 
     fn do_execute(&mut self) {
         if let Some((gi, si)) = self.pending_set.take() {
-            self.do_execute_with(gi, si);
+            self.do_execute_with(gi, si, 0);
         }
     }
 
-    fn do_execute_with(&mut self, gi: usize, si: usize) {
+    fn do_execute_with(&mut self, gi: usize, si: usize, start_from: usize) {
         if gi >= self.data.groups.len() || si >= self.data.groups[gi].sets.len() {
             return;
         }
         let set = &self.data.groups[gi].sets[si];
         let shell = set.shell.resolve_executable();
-        let commands = set.commands.clone();
-        let set_name = set.name.clone();
-        let set_clone = set.clone();
 
-        let (tx, rx) = mpsc::channel();
-        let handle = execute_set(&set_clone, &shell, tx, Arc::clone(&self.kill_signal), 0);
-
-        self.exec_screen = Some(ExecutionScreenState::new(set_name, &commands));
-        self.execution_rx = Some(rx);
-        self.execution_handle = Some(handle);
-        self.pending_set = Some((gi, si));
-        self.mode = AppMode::Execution;
-    }
-
-    fn do_execute_continue(&mut self, gi: usize, si: usize, start_from: usize) {
-        if gi >= self.data.groups.len() || si >= self.data.groups[gi].sets.len() {
-            return;
-        }
-        let set = &self.data.groups[gi].sets[si];
-        let shell = set.shell.resolve_executable();
-        let mut subset = set.clone();
-        subset.commands = set.commands[start_from..].to_vec();
-
-        // Prepare existing screen for continuation (clear skipped status)
-        if let Some(ref mut es) = self.exec_screen {
-            for state in es.cmd_states[start_from..].iter_mut() {
-                if state.status == CmdStatus::Skipped {
-                    state.status = CmdStatus::Pending;
-                }
+        let (commands, index_offset) = if start_from == 0 {
+            // Full execution: create fresh screen
+            let cmds = set.commands.clone();
+            self.exec_screen = Some(ExecutionScreenState::new(set.name.clone(), &cmds));
+            self.pending_set = Some((gi, si));
+            (cmds, 0usize)
+        } else {
+            // Continue: reuse existing screen from skip point
+            let cmds = set.commands[start_from..].to_vec();
+            if let Some(ref mut es) = self.exec_screen {
+                es.reset_from(start_from);
             }
-            es.completed = false;
-            es.continue_from = None;
-        }
+            (cmds, start_from)
+        };
 
         let (tx, rx) = mpsc::channel();
-        let handle = execute_set(&subset, &shell, tx, Arc::clone(&self.kill_signal), start_from);
+        let handle = execute_set(
+            commands,
+            set.exec_mode,
+            set.variables.clone(),
+            &shell,
+            tx,
+            Arc::clone(&self.kill_signal),
+            index_offset,
+        );
 
         self.execution_rx = Some(rx);
         self.execution_handle = Some(handle);
