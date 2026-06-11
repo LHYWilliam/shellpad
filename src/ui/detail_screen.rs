@@ -206,8 +206,8 @@ impl DetailScreenState {
             .collect();
 
         // Preview row only for new inserts (not for editing existing)
-        if let Some(idx) = self.editing_variable {
-            if self.insert_at.is_some() {
+        if let Some(idx) = self.editing_variable
+            && self.insert_at.is_some() {
                 let label = format!("  ▶ {}", self.edit_input.content);
                 let style = Style::default()
                     .fg(Color::Yellow)
@@ -216,7 +216,6 @@ impl DetailScreenState {
                 let pos = self.insert_at.unwrap_or(idx.min(items.len()));
                 items.insert(pos, preview);
             }
-        }
 
         let mut list_state = ratatui::widgets::ListState::default()
             .with_selected(if self.set.variables.is_empty() {
@@ -289,8 +288,8 @@ impl DetailScreenState {
             .collect();
 
         // Preview row only for new inserts (not for editing existing)
-        if let Some(idx) = self.editing_command {
-            if self.insert_at.is_some() {
+        if let Some(idx) = self.editing_command
+            && self.insert_at.is_some() {
                 let pos = self.insert_at.unwrap_or(idx);
                 let label = format!("  #{}▶ {}", pos, self.edit_input.content);
                 let style = Style::default()
@@ -300,7 +299,6 @@ impl DetailScreenState {
                 let insert_pos = self.insert_at.unwrap_or(idx.min(items.len()));
                 items.insert(insert_pos, preview);
             }
-        }
 
         let mut list_state = ratatui::widgets::ListState::default()
             .with_selected(if self.set.commands.is_empty() {

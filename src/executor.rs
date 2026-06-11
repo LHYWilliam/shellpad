@@ -1,6 +1,6 @@
 use crate::models::{CommandSet, ExecMode};
 use std::io::{BufRead, BufReader, Read};
-use std::process::{Child, Command, ExitStatus, Stdio};
+use std::process::{Child, Command, Stdio};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{mpsc, Arc};
 use std::thread;

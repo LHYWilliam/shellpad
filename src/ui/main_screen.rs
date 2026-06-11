@@ -398,19 +398,17 @@ impl MainScreenState {
                 MainScreenAction::None
             }
             KeyCode::Enter => {
-                if self.active_panel == Panel::Sets {
-                    if let Some((gi, si)) = self.selected_set_idx(data) {
+                if self.active_panel == Panel::Sets
+                    && let Some((gi, si)) = self.selected_set_idx(data) {
                         return MainScreenAction::ExecuteSet(gi, si);
                     }
-                }
                 MainScreenAction::None
             }
             KeyCode::Char('e') | KeyCode::Char('E') => {
-                if self.active_panel == Panel::Sets {
-                    if let Some((gi, si)) = self.selected_set_idx(data) {
+                if self.active_panel == Panel::Sets
+                    && let Some((gi, si)) = self.selected_set_idx(data) {
                         return MainScreenAction::EditSet(gi, si);
                     }
-                }
                 MainScreenAction::None
             }
             KeyCode::Char('n') | KeyCode::Char('N') => {
@@ -421,19 +419,17 @@ impl MainScreenState {
                 }
             }
             KeyCode::Char('d') => {
-                if self.active_panel == Panel::Sets {
-                    if let Some((gi, si)) = self.selected_set_idx(data) {
+                if self.active_panel == Panel::Sets
+                    && let Some((gi, si)) = self.selected_set_idx(data) {
                         return MainScreenAction::DeleteSet(gi, si);
                     }
-                }
                 MainScreenAction::None
             }
             KeyCode::Char('D') => {
-                if self.active_panel == Panel::Groups {
-                    if let Some(gi) = self.selected_group_idx(data) {
+                if self.active_panel == Panel::Groups
+                    && let Some(gi) = self.selected_group_idx(data) {
                         return MainScreenAction::DeleteGroup(gi);
                     }
-                }
                 MainScreenAction::None
             }
             KeyCode::Char('g') => {

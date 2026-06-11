@@ -22,11 +22,10 @@ pub fn save_app_data(data: &AppData) -> io::Result<()> {
 
 fn load_app_data_from(path: &Path) -> Result<AppData, String> {
     if !path.exists() {
-        if let Some(parent) = path.parent() {
-            if let Err(e) = fs::create_dir_all(parent) {
+        if let Some(parent) = path.parent()
+            && let Err(e) = fs::create_dir_all(parent) {
                 return Err(format!("Failed to create config directory `{}`: {}", parent.display(), e));
             }
-        }
         return Ok(AppData::empty());
     }
 
@@ -42,11 +41,10 @@ fn load_app_data_from(path: &Path) -> Result<AppData, String> {
                 );
                 eprintln!("{}", msg);
                 let _ = fs::rename(path, &bak);
-                if let Some(parent) = path.parent() {
-                    if let Ok(dir) = fs::File::open(parent) {
+                if let Some(parent) = path.parent()
+                    && let Ok(dir) = fs::File::open(parent) {
                         let _ = dir.sync_all();
                     }
-                }
                 Err(msg)
             }
         },
@@ -78,21 +76,19 @@ fn save_app_data_to(data: &AppData, path: &Path, tmp: &Path) -> io::Result<()> {
             fs::copy(tmp, path)?;
             let _ = fs::remove_file(tmp);
             // Sync parent directory after copy+remove too
-            if let Some(parent) = path.parent() {
-                if let Ok(dir) = fs::File::open(parent) {
+            if let Some(parent) = path.parent()
+                && let Ok(dir) = fs::File::open(parent) {
                     let _ = dir.sync_all();
                 }
-            }
         } else {
             return Err(e);
         }
     } else {
         // Sync parent directory metadata so the rename is durable
-        if let Some(parent) = path.parent() {
-            if let Ok(dir) = fs::File::open(parent) {
+        if let Some(parent) = path.parent()
+            && let Ok(dir) = fs::File::open(parent) {
                 let _ = dir.sync_all();
             }
-        }
     }
 
     Ok(())
