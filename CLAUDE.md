@@ -58,6 +58,26 @@ app.rs:do_execute_with()
   → kill_signal: Arc<AtomicBool> aborts running commands
 ```
 
+## Rust Edition 2024 Notes
+
+- `std::env::set_var`/`remove_var` are `unsafe` — use `unsafe {}` blocks or restructure to avoid env manipulation
+- `directories::ProjectDirs` caches internally — tests cannot override via `XDG_CONFIG_HOME`; use path-accepting functions instead
+
+## Known Gotchas
+
+- `ExitStatus::default()` has exit code 0 (success) — use explicit `success: bool` when masking spawn failures
+- `fs::rename(tmp, path)` fails with `EXDEV` cross-filesystem — handle by falling back to `copy` + `remove`
+- `TextInput::render` with `Borders::ALL` needs ≥3 lines of vertical space — use plain text rendering in 1-line areas
+- App panics with "No such device or address" when stdout is not a terminal — expected for TUI apps in non-TTY environments
+- `render_stateful_widget(widget, area, &mut state)` takes 3 args, `render_widget(widget, area)` takes 2
+- `ScrollableList::update_offset(vis_height)` must be called every render frame for proper list scrolling
+- `Block` with borders: create it, call `block.inner(area)`, then render it with `frame.render_widget(&block, area)` — block is not auto-rendered
+
+## Testing
+
+- Storage tests use `with_temp_dir` pattern: create temp dir → run closure → clean up
+- Executor tests pass `Arc::new(AtomicBool::new(false))` as kill_signal (never triggered in tests)
+
 ### Key design decisions
 
 - **No async runtime** — execution thread uses `std::thread` + `mpsc`. Event loop polls with 100ms tick.
