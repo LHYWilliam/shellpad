@@ -1,4 +1,5 @@
 mod app;
+mod cli;
 mod config;
 mod executor;
 mod mode;
@@ -12,6 +13,11 @@ use std::io;
 use tui::{init_terminal, restore_terminal};
 
 fn main() -> io::Result<()> {
+    // CLI mode: if a subcommand is given, handle it and exit
+    if let Some(exit_code) = cli::run_cli() {
+        std::process::exit(exit_code);
+    }
+
     let mut terminal = init_terminal()?;
     let mut app = App::new();
 
