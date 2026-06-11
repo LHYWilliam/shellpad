@@ -167,6 +167,7 @@ impl App {
                 }
                 self.variable_screen = VariableScreenState::new();
                 self.auto_save();
+                self.pending_set = Some((gi, si));
                 self.do_execute();
             }
             VariableScreenAction::Cancel => {
