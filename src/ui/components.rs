@@ -1,7 +1,7 @@
-use ratatui::layout::{Alignment, Rect};
-use ratatui::style::{Color, Modifier, Style};
+use ratatui::layout::Rect;
+use ratatui::style::{Color, Style};
 use ratatui::text::Line;
-use ratatui::widgets::{Block, Borders, Clear, Paragraph};
+use ratatui::widgets::{Block, Borders, Paragraph};
 use ratatui::Frame;
 
 // ---------------------------------------------------------------------------
@@ -109,106 +109,6 @@ impl TextInput {
             let cursor_x = inner.x + col as u16;
             frame.set_cursor_position((cursor_x, inner.y));
         }
-    }
-}
-
-// ---------------------------------------------------------------------------
-// ConfirmDialog — a centered yes/no confirmation dialog
-// ---------------------------------------------------------------------------
-
-pub struct ConfirmDialog {
-    pub visible: bool,
-    pub title: String,
-    pub message: String,
-    pub selected: bool, // true = Yes, false = No
-}
-
-impl ConfirmDialog {
-    pub fn new(title: String, message: String) -> Self {
-        Self {
-            visible: true,
-            title,
-            message,
-            selected: true, // default to Yes
-        }
-    }
-
-    pub fn toggle(&mut self) {
-        self.selected = !self.selected;
-    }
-
-    pub fn is_confirmed(&self) -> bool {
-        self.selected
-    }
-
-    pub fn render(&self, frame: &mut Frame, area: Rect) {
-        if !self.visible {
-            return;
-        }
-
-        let width = area.width.min(50).saturating_sub(4);
-        let height = 7;
-        let x = area.x + (area.width.saturating_sub(width)) / 2;
-        let y = area.y + (area.height.saturating_sub(height)) / 2;
-
-        let dialog_area = Rect::new(x, y, width, height);
-
-        // Clear area
-        frame.render_widget(Clear, dialog_area);
-
-        let block = Block::default()
-            .borders(Borders::ALL)
-            .border_style(Style::default().fg(Color::Cyan))
-            .title(self.title.as_str())
-            .style(Style::default().bg(Color::DarkGray));
-
-        let inner = block.inner(dialog_area);
-        frame.render_widget(&block, dialog_area);
-
-        // Message
-        let msg = Paragraph::new(self.message.as_str())
-            .alignment(Alignment::Center)
-            .style(Style::default().fg(Color::White));
-        frame.render_widget(msg, Rect::new(inner.x, inner.y, inner.width, 1));
-
-        // Yes/No buttons
-        let yes_style = if self.selected {
-            Style::default()
-                .fg(Color::Black)
-                .bg(Color::Green)
-                .add_modifier(Modifier::BOLD)
-        } else {
-            Style::default().fg(Color::DarkGray)
-        };
-
-        let no_style = if !self.selected {
-            Style::default()
-                .fg(Color::Black)
-                .bg(Color::Red)
-                .add_modifier(Modifier::BOLD)
-        } else {
-            Style::default().fg(Color::DarkGray)
-        };
-
-        let btn_y = inner.y + 3;
-        let btn_width = 8;
-        let gap = 4;
-        let total_width = btn_width * 2 + gap;
-        let start_x = inner.x + (inner.width.saturating_sub(total_width)) / 2;
-
-        let yes_label = Line::from(" Yes ").alignment(Alignment::Center);
-        let yes_area = Rect::new(start_x, btn_y, btn_width, 1);
-        frame.render_widget(
-            Paragraph::new(yes_label).style(yes_style),
-            yes_area,
-        );
-
-        let no_label = Line::from(" No ").alignment(Alignment::Center);
-        let no_area = Rect::new(start_x + btn_width + gap, btn_y, btn_width, 1);
-        frame.render_widget(
-            Paragraph::new(no_label).style(no_style),
-            no_area,
-        );
     }
 }
 

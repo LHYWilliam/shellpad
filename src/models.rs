@@ -33,6 +33,17 @@ impl ShellType {
         }
     }
 
+    /// Returns the resolved shell executable path, falling back to $SHELL or "sh".
+    pub fn resolve_executable(&self) -> String {
+        match self {
+            ShellType::SystemDefault => std::env::var("SHELL").unwrap_or_else(|_| "sh".to_string()),
+            ShellType::Bash => "bash".to_string(),
+            ShellType::Zsh => "zsh".to_string(),
+            ShellType::Fish => "fish".to_string(),
+            ShellType::Custom(path) => path.clone(),
+        }
+    }
+
     /// Returns a display label.
     pub fn label(&self) -> String {
         match self {

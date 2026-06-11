@@ -444,14 +444,6 @@ impl MainScreenState {
                 }
                 MainScreenAction::None
             }
-            KeyCode::Char('G') => {
-                // Shift+G not handled here
-                MainScreenAction::None
-            }
-            KeyCode::Delete | KeyCode::Char('x') => {
-                // Delete group with D
-                MainScreenAction::None
-            }
             KeyCode::Char('/') => {
                 self.search_mode = true;
                 self.search_query.clear();

@@ -3,7 +3,7 @@ use crate::executor::{execute_set, ExecutionEvent};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use crate::mode::AppMode;
-use crate::models::{AppData, CommandSet, ShellType};
+use crate::models::{AppData, CommandSet};
 use crate::storage;
 use crate::ui::components::{handle_text_input, TextInput};
 use crate::ui::detail_screen::{DetailScreenAction, DetailScreenState};
@@ -398,16 +398,8 @@ impl App {
 
     /// Signal the execution thread to abort and wait for it to finish.
     fn kill_execution(&mut self) {
-        self.kill_signal.store(true, Ordering::Relaxed);
-        // Drop the receiver so the thread's send() calls fail
-        self.execution_rx = None;
-        // Join the thread to ensure child is killed before we proceed
-        if let Some(handle) = self.execution_handle.take() {
-            let _ = handle.join();
-        }
+        kill_execution(&mut self.kill_signal, &mut self.execution_rx, &mut self.execution_handle);
         self.exec_screen = None;
-        // Reset kill signal for next execution
-        self.kill_signal.store(false, Ordering::Relaxed);
     }
 
     // ---- Execution screen actions ----
@@ -449,7 +441,7 @@ impl App {
             return;
         }
         let set = &self.data.groups[gi].sets[si];
-        let shell = resolve_shell(&set.shell);
+        let shell = set.shell.resolve_executable();
         let commands = set.commands.clone();
         let set_name = set.name.clone();
         let set_clone = set.clone();
@@ -473,17 +465,22 @@ impl App {
 
 impl Drop for App {
     fn drop(&mut self) {
-        // Final save on shutdown — ignore errors (already logged by auto_save)
+        kill_execution(&mut self.kill_signal, &mut self.execution_rx, &mut self.execution_handle);
         let _ = storage::save_app_data(&self.data);
     }
 }
 
-fn resolve_shell(shell: &ShellType) -> String {
-    match shell {
-        ShellType::SystemDefault => std::env::var("SHELL").unwrap_or_else(|_| "sh".to_string()),
-        ShellType::Bash => "bash".to_string(),
-        ShellType::Zsh => "zsh".to_string(),
-        ShellType::Fish => "fish".to_string(),
-        ShellType::Custom(path) => path.clone(),
+/// Free function that can be called from Drop without full &mut self access.
+fn kill_execution(
+    kill_signal: &mut Arc<AtomicBool>,
+    rx: &mut Option<mpsc::Receiver<ExecutionEvent>>,
+    handle: &mut Option<thread::JoinHandle<()>>,
+) {
+    kill_signal.store(true, Ordering::Relaxed);
+    *rx = None;
+    if let Some(h) = handle.take() {
+        let _ = h.join();
     }
+    kill_signal.store(false, Ordering::Relaxed);
 }
+

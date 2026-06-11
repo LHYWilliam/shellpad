@@ -37,9 +37,6 @@ pub struct DetailScreenState {
     pub edit_input: TextInput,
     /// If Some(pos), a new item was created with 'a' and should be inserted at pos.
     pub insert_at: Option<usize>,
-    pub show_cancel_dialog: bool,
-    pub delete_var_confirm: bool,
-    pub delete_cmd_confirm: bool,
 }
 
 impl DetailScreenState {
@@ -57,9 +54,6 @@ impl DetailScreenState {
             editing_name: false,
             edit_input: TextInput::new(String::new()),
             insert_at: None,
-            show_cancel_dialog: false,
-            delete_var_confirm: false,
-            delete_cmd_confirm: false,
         }
     }
 

@@ -1,4 +1,4 @@
-use crate::models::{AppData, ShellType};
+use crate::models::AppData;
 use clap::{Parser, Subcommand};
 use std::collections::HashMap;
 use std::io::{self, Write};
@@ -90,7 +90,7 @@ fn handle_run(
     };
 
     // Resolve shell executable
-    let shell = resolve_shell(&set_ref.shell);
+    let shell = set_ref.shell.resolve_executable();
 
     // Resolve variables
     let use_defaults = var.len() == 1 && var[0].eq_ignore_ascii_case("default");
@@ -218,16 +218,6 @@ fn resolve_variables(
         }
     }
     Ok(result)
-}
-
-fn resolve_shell(shell: &ShellType) -> String {
-    match shell {
-        ShellType::SystemDefault => std::env::var("SHELL").unwrap_or_else(|_| "sh".to_string()),
-        ShellType::Bash => "bash".to_string(),
-        ShellType::Zsh => "zsh".to_string(),
-        ShellType::Fish => "fish".to_string(),
-        ShellType::Custom(path) => path.clone(),
-    }
 }
 
 // ---- Search ----
