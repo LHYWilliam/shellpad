@@ -264,6 +264,7 @@ impl App {
                     let set = CommandSet::new("New Command Set".to_string(), gid);
                     self.data.groups[gi].sets.push(set.clone());
                     self.auto_save();
+                    self.push_toast("Set created", ToastSeverity::Info);
                     let groups = self.data.groups.clone();
                     self.detail_screen = Some(DetailScreenState::new(set, groups));
                     self.mode = AppMode::Detail;
@@ -289,11 +290,13 @@ impl App {
                     self.data.groups.len().saturating_sub(1);
                 self.main_screen.set_list.reset();
                 self.auto_save();
+                self.push_toast("Group created", ToastSeverity::Info);
             }
             MainScreenAction::RenameGroup(gi, new_name) => {
                 if gi < self.data.groups.len() {
                     self.data.groups[gi].name = new_name;
                     self.auto_save();
+                    self.push_toast("Group renamed", ToastSeverity::Info);
                 }
             }
             MainScreenAction::DeleteGroup(gi) => {
