@@ -1,5 +1,5 @@
 use crate::models::{CommandSet, ExecMode, Group, ShellType};
-use crate::ui::components::{set_cursor_after_prefix, ScrollableList, TextInput};
+use crate::ui::components::{handle_text_input, set_cursor_after_prefix, ScrollableList, TextInput};
 use crate::ui::detail_editor::DetailEditState;
 use crate::ui::theme::Theme;
 use ratatui::layout::{Constraint, Layout, Rect};
@@ -598,30 +598,7 @@ impl DetailScreenState {
 
         // Handle name editing (Enter to confirm is handled in the outer match)
         if self.editing_name {
-            match key.code {
-                KeyCode::Char(c) => {
-                    self.name_input.insert_char(c);
-                }
-                KeyCode::Backspace => {
-                    self.name_input.delete_before();
-                }
-                KeyCode::Delete => {
-                    self.name_input.delete_at();
-                }
-                KeyCode::Left => {
-                    self.name_input.move_cursor_left();
-                }
-                KeyCode::Right => {
-                    self.name_input.move_cursor_right();
-                }
-                KeyCode::Home => {
-                    self.name_input.move_cursor_to_start();
-                }
-                KeyCode::End => {
-                    self.name_input.move_cursor_to_end();
-                }
-                _ => {}
-            }
+            handle_text_input(&mut self.name_input, key);
         }
 
         DetailScreenAction::None
