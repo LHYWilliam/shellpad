@@ -1,10 +1,13 @@
 use crate::ui::theme::Theme;
 use crate::models::AppData;
-use crate::ui::components::{handle_text_input, set_cursor_after_prefix, ScrollableList, TextInput};
+use crate::ui::components::{
+    bordered_block, empty_hint, handle_text_input, list_scrollbar_areas, render_scrollbar,
+    render_status_bar, set_cursor_after_prefix, ScrollableList, TextInput,
+};
 use ratatui::layout::{Constraint, Layout, Rect};
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
-use ratatui::widgets::{Block, Borders, List, ListItem, Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState};
+use ratatui::widgets::{List, ListItem, Paragraph};
 use ratatui::Frame;
 
 /// Find case-insensitive matches of `query` in `text`, returning byte-offset pairs
@@ -144,22 +147,13 @@ impl MainScreenState {
     }
 
     fn render_group_panel(&mut self, frame: &mut Frame, area: Rect, data: &AppData, theme: &Theme) {
-        let border_color = if self.active_panel == Panel::Groups {
-            theme.accent_primary
-        } else {
-            theme.surface_border
-        };
-        let block = Block::default()
-            .borders(Borders::ALL)
-            .border_style(Style::default().fg(border_color))
-            .title(" Groups ");
+        let block = bordered_block(theme, " Groups ", self.active_panel == Panel::Groups);
 
         let inner = block.inner(area);
         frame.render_widget(&block, area);
 
         // Split inner area into list + scrollbar
-        let inner_layout = Layout::horizontal([Constraint::Min(1), Constraint::Length(1)]);
-        let [list_area, scrollbar_area] = inner_layout.areas(inner);
+        let (list_area, scrollbar_area) = list_scrollbar_areas(inner);
 
         let avail = list_area.width as usize;
         let mut items: Vec<ListItem> = data
@@ -179,46 +173,25 @@ impl MainScreenState {
                 let pad = avail.saturating_sub(name_width + count.len());
                 let label = format!("{}{:>pad$}{}", name, "", count, pad = pad);
                 let style = if i == self.group_list.selected {
-                    Style::default()
-                        .fg(theme.text_on_selected)
-                        .bg(theme.selection_bg_primary)
-                        .add_modifier(Modifier::BOLD)
+                    theme.selected_style(theme.selection_bg_primary)
                 } else {
-                    Style::default().fg(theme.text_primary)
+                    theme.normal_style()
                 };
                 ListItem::new(Line::from(Span::styled(label, style)))
             })
             .collect();
 
         if data.groups.is_empty() {
-            items.push(
-                ListItem::new(Line::from(Span::styled(
-                    " (empty — press g to add) ",
-                    Style::default().fg(theme.text_disabled).add_modifier(Modifier::ITALIC),
-                ))),
-            );
+            items.push(empty_hint(theme, " (empty — press g to add) "));
         }
 
         let mut list_state = ratatui::widgets::ListState::default()
             .with_selected(Some(self.group_list.selected));
-        let list = List::new(items).highlight_style(
-            Style::default()
-                .fg(theme.text_on_selected)
-                .bg(theme.selection_bg_primary)
-                .add_modifier(Modifier::BOLD),
-        );
+        let list = List::new(items).highlight_style(theme.selected_style(theme.selection_bg_primary));
         frame.render_stateful_widget(list, list_area, &mut list_state);
 
         // Render scrollbar
-        let content_len = data.groups.len();
-        let mut scrollbar_state = ScrollbarState::new(content_len)
-            .position(self.group_list.selected);
-        frame.render_stateful_widget(
-            Scrollbar::new(ScrollbarOrientation::VerticalRight)
-                .thumb_style(Style::default().fg(theme.surface_border)),
-            scrollbar_area,
-            &mut scrollbar_state,
-        );
+        render_scrollbar(frame, scrollbar_area, theme, data.groups.len(), self.group_list.selected);
 
         // Cursor for rename mode at the selected group name position
         if self.rename_mode && !data.groups.is_empty() {
@@ -256,15 +229,7 @@ impl MainScreenState {
             format!(" {} ", group_name)
         };
 
-        let border_color = if self.active_panel == Panel::Sets {
-            theme.accent_primary
-        } else {
-            theme.surface_border
-        };
-        let block = Block::default()
-            .borders(Borders::ALL)
-            .border_style(Style::default().fg(border_color))
-            .title(title);
+        let block = bordered_block(theme, &title, self.active_panel == Panel::Sets);
 
         let inner = block.inner(area);
         frame.render_widget(&block, area);
@@ -317,12 +282,9 @@ impl MainScreenState {
                 let is_selected = i == self.set_list.selected
                     && self.active_panel == Panel::Sets;
                 let text_style = if is_selected {
-                    Style::default()
-                        .fg(theme.text_on_selected)
-                        .bg(theme.selection_bg_secondary)
-                        .add_modifier(Modifier::BOLD)
+                    theme.selected_style(theme.selection_bg_secondary)
                 } else {
-                    Style::default().fg(theme.text_primary)
+                    theme.normal_style()
                 };
 
                 let prefix = format!(" {}  ", mode_label);
@@ -382,58 +344,25 @@ impl MainScreenState {
 
         // Empty-state hint when no sets
         if sets.is_empty() {
-            items.push(ListItem::new(Line::from(Span::styled(
-                " (empty — press n to add a set) ",
-                Style::default().fg(theme.text_disabled).add_modifier(Modifier::ITALIC),
-            ))));
+            items.push(empty_hint(theme, " (empty — press n to add a set) "));
         }
 
-        let selected = if !sets.is_empty() && self.active_panel == Panel::Sets {
-            Some(self.set_list.selected.min(sets.len().saturating_sub(1)))
-        } else {
-            None
-        };
+        let selected = self.set_list.selected_or_none(sets.len())
+            .filter(|_| self.active_panel == Panel::Sets);
         let mut list_state = ratatui::widgets::ListState::default()
             .with_selected(selected);
-        let list = List::new(items).highlight_style(
-            Style::default()
-                .fg(theme.text_on_selected)
-                .bg(theme.selection_bg_secondary)
-                .add_modifier(Modifier::BOLD),
-        );
+        let list = List::new(items).highlight_style(theme.selected_style(theme.selection_bg_secondary));
         frame.render_stateful_widget(list, list_area, &mut list_state);
 
         // Render scrollbar
-        let content_len = sets.len();
-        let scroll_pos = selected.unwrap_or(0);
-        let mut scrollbar_state = ScrollbarState::new(content_len)
-            .position(scroll_pos);
-        frame.render_stateful_widget(
-            Scrollbar::new(ScrollbarOrientation::VerticalRight)
-                .thumb_style(Style::default().fg(theme.surface_border)),
-            scrollbar_area,
-            &mut scrollbar_state,
-        );
+        render_scrollbar(frame, scrollbar_area, theme, sets.len(), selected.unwrap_or(0));
     }
 
     fn render_status_bar(&self, frame: &mut Frame, area: Rect, theme: &Theme) {
-        // Top separator line
-        let sep = "─".repeat(area.width as usize);
-        frame.render_widget(
-            Paragraph::new(Line::from(Span::styled(
-                sep,
-                Style::default().fg(theme.surface_border),
-            ))),
-            Rect::new(area.x, area.y, area.width, 1),
-        );
-
-        // Status bar content
-        let text = Line::from(Span::styled(
+        render_status_bar(
+            frame, area, theme,
             " [↑/↓] Nav  [←/→] Panel  [Enter] Run  [e] Edit  [n] New  [d] Del set  [Shift+D] Del group  [g] Group  [/] Search  [?] Help  [q] Quit",
-            Style::default().fg(theme.text_secondary).add_modifier(Modifier::DIM),
-        ));
-        let status_area = Rect::new(area.x, area.y + 1, area.width, area.height.saturating_sub(1));
-        frame.render_widget(Paragraph::new(text), status_area);
+        );
     }
 
     /// Handle a key event, returning an action.
