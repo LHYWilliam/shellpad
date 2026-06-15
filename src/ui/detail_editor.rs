@@ -24,6 +24,18 @@ impl DetailEditState {
         self.editing_variable.is_some() || self.editing_command.is_some()
     }
 
+    /// Commit the current edit, either inserting at `insert_at` position or
+    /// replacing at `idx`. Clears `insert_at` if it was present.
+    fn commit_edit<T>(&mut self, idx: usize, items: &mut Vec<T>, new_item: T, list: &mut ScrollableList) {
+        if let Some(insert_pos) = self.insert_at.take() {
+            items.insert(insert_pos, new_item);
+            list.selected = insert_pos;
+        } else {
+            items[idx] = new_item;
+            list.selected = idx;
+        }
+    }
+
     pub fn handle_variable_edit(
         &mut self,
         key: KeyEvent,
@@ -111,13 +123,7 @@ impl DetailEditState {
             KeyCode::Enter => {
                 let cmd = self.edit_input.content.clone();
                 let command = Command { position: idx, command: cmd };
-                if let Some(insert_pos) = self.insert_at.take() {
-                    commands.insert(insert_pos, command);
-                    list.selected = insert_pos;
-                } else {
-                    commands[idx] = command;
-                    list.selected = idx;
-                }
+                self.commit_edit(idx, commands, command, list);
                 for (i, c) in commands.iter_mut().enumerate() {
                     c.position = i;
                 }
