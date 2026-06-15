@@ -6,16 +6,17 @@ use crate::mode::AppMode;
 use crate::models::{AppData, CommandSet};
 use crate::storage;
 use crate::ui::detail_screen::{DetailScreenAction, DetailScreenState};
+use crate::ui::notification::{Toast, ToastSeverity};
 use crate::ui::theme::Theme;
 use crate::ui::variable_screen::{VariableScreenAction, VariableScreenState};
 use crate::ui::execution_screen::{ExecutionScreenAction, ExecutionScreenState};
 use crate::ui::help_screen::draw_help;
 use crate::ui::main_screen::{MainScreenAction, MainScreenState, Panel};
 use crossterm::event::{self, Event, KeyEventKind};
-use ratatui::layout::{Alignment, Constraint, Layout};
+use ratatui::layout::{Alignment, Constraint, Layout, Rect};
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
-use ratatui::widgets::Paragraph;
+use ratatui::widgets::{Clear, Paragraph};
 use ratatui::Frame;
 use std::io;
 use std::sync::mpsc;
@@ -43,6 +44,9 @@ pub struct App {
 
     // -- UI theme
     theme: Theme,
+
+    // -- Toast notifications
+    toasts: Vec<Toast>,
 }
 
 impl App {
@@ -64,6 +68,7 @@ impl App {
             variable_screen: VariableScreenState::new(),
             pending_set: None,
             theme: Theme::default_dark(),
+            toasts: Vec::new(),
         }
     }
 
@@ -71,6 +76,7 @@ impl App {
         let tick_rate = Duration::from_millis(100);
 
         while self.running {
+            self.clean_toasts();
             terminal.draw(|f| self.render(f))?;
 
             let timeout = tick_rate;
@@ -152,6 +158,27 @@ impl App {
         }
 
         self.variable_screen.render(frame, content_area, &self.theme);
+
+        // Render toast notification (right side of title bar)
+        if let Some(toast) = self.toasts.last() {
+            let (toast_fg, toast_label) = match toast.severity {
+                ToastSeverity::Success => (self.theme.accent_success, " ✓ "),
+                ToastSeverity::Error => (self.theme.accent_error, " ✗ "),
+                ToastSeverity::Info => (self.theme.accent_info, " ● "),
+            };
+            let toast_msg = format!("{}{}", toast_label, toast.message);
+            let toast_width = (toast_msg.len() as u16 + 2).min(area.width.saturating_sub(4));
+            let x = (area.width.saturating_sub(toast_width)) / 2;
+            let toast_area = Rect::new(x, title_area.y, toast_width, 1);
+            frame.render_widget(Clear, toast_area);
+            frame.render_widget(
+                Paragraph::new(Line::from(Span::styled(
+                    toast_msg,
+                    Style::default().fg(toast_fg).add_modifier(Modifier::BOLD),
+                ))),
+                toast_area,
+            );
+        }
     }
 
     fn handle_key(&mut self, key: crossterm::event::KeyEvent) {
@@ -249,6 +276,7 @@ impl App {
                         self.main_screen.active_panel = Panel::Groups;
                     }
                     self.auto_save();
+                    self.push_toast("Set deleted", ToastSeverity::Info);
                 }
             }
             MainScreenAction::NewGroup => {
@@ -280,6 +308,7 @@ impl App {
                         self.main_screen.active_panel = Panel::Groups;
                     }
                     self.auto_save();
+                    self.push_toast("Group deleted", ToastSeverity::Info);
                 }
             }
         }
@@ -352,6 +381,15 @@ impl App {
     fn on_exec_action(&mut self, action: ExecutionScreenAction) {
         match action {
             ExecutionScreenAction::BackToMain => {
+                if let Some(ref es) = self.exec_screen
+                    && es.completed {
+                    let summary = format!(
+                        "Done: {}/{}",
+                        es.succeeded + es.failed + es.skipped,
+                        es.total,
+                    );
+                    self.push_toast(summary, ToastSeverity::Success);
+                }
                 self.kill_execution();
                 self.mode = AppMode::Main;
             }
@@ -423,10 +461,20 @@ impl App {
         self.mode = AppMode::Execution;
     }
 
-    fn auto_save(&self) {
-        if let Err(e) = storage::save_app_data(&self.data) {
-            eprintln!("Auto-save failed: {}", e);
+    fn auto_save(&mut self) {
+        match storage::save_app_data(&self.data) {
+            Ok(()) => self.push_toast("Saved", ToastSeverity::Success),
+            Err(e) => self.push_toast(format!("Save failed: {}", e), ToastSeverity::Error),
         }
+    }
+
+    fn push_toast(&mut self, message: impl Into<String>, severity: ToastSeverity) {
+        self.toasts.push(Toast::new(message, severity));
+    }
+
+    fn clean_toasts(&mut self) {
+        const TOAST_DURATION: std::time::Duration = std::time::Duration::from_secs(3);
+        self.toasts.retain(|t| t.created_at.elapsed() < TOAST_DURATION);
     }
 }
 

@@ -4,5 +4,6 @@ pub mod detail_screen;
 pub mod execution_screen;
 pub mod help_screen;
 pub mod main_screen;
+pub mod notification;
 pub mod theme;
 pub mod variable_screen;
