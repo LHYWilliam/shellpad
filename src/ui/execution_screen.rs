@@ -310,7 +310,8 @@ impl ExecutionScreenState {
 
         let list_block = Block::default()
             .borders(Borders::ALL)
-            .border_style(Style::default().fg(theme.surface_border));
+            .border_style(Style::default().fg(theme.surface_border))
+            .title(" Output ");
         let list_inner = list_block.inner(list_area);
         frame.render_widget(&list_block, list_area);
 
