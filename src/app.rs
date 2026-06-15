@@ -342,6 +342,7 @@ impl App {
                 {
                     ds.set.variables.remove(idx);
                     ds.variable_list.clamp_selected(ds.set.variables.len());
+                    self.push_toast("Variable deleted", ToastSeverity::Info);
                 }
             }
             DetailScreenAction::DeleteCommand(idx) => {
@@ -353,6 +354,7 @@ impl App {
                         c.position = i;
                     }
                     ds.command_list.clamp_selected(ds.set.commands.len());
+                    self.push_toast("Command deleted", ToastSeverity::Info);
                 }
             }
         }
