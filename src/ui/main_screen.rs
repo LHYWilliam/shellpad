@@ -1,8 +1,9 @@
 use crate::ui::theme::Theme;
 use crate::models::AppData;
 use crate::ui::components::{
-    bordered_block, empty_hint, handle_text_input, list_scrollbar_areas, render_inline_cursor,
-    render_scrollbar, render_status_bar, set_cursor_after_prefix, ScrollableList, TextInput,
+    bordered_block, empty_hint, fill_row, handle_text_input, list_scrollbar_areas,
+    render_inline_cursor, render_scrollbar, render_status_bar, set_cursor_after_prefix,
+    ScrollableList, TextInput,
 };
 use ratatui::layout::{Constraint, Layout, Rect};
 use ratatui::style::{Modifier, Style};
@@ -177,7 +178,8 @@ impl MainScreenState {
                 } else {
                     theme.normal_style()
                 };
-                ListItem::new(Line::from(Span::styled(label, style)))
+                let line = fill_row(Line::from(Span::styled(label, style)), style, list_area.width);
+                ListItem::new(line)
             })
             .collect();
 
@@ -328,7 +330,8 @@ impl MainScreenState {
                     parts.push(Span::styled(gname, text_style));
                 }
 
-                ListItem::new(Line::from(parts))
+                let set_line = fill_row(Line::from(parts), text_style, list_area.width);
+                ListItem::new(set_line)
             })
             .collect();
 
