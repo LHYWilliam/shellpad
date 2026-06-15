@@ -1,7 +1,7 @@
 use crate::models::{CommandSet, ExecMode, Group, ShellType};
 use crate::ui::components::{
-    bordered_block, empty_hint, handle_text_input, list_scrollbar_areas, render_scrollbar,
-    render_status_bar, set_cursor_after_prefix, ScrollableList, TextInput,
+    bordered_block, empty_hint, handle_text_input, list_scrollbar_areas, render_inline_cursor,
+    render_scrollbar, render_status_bar, set_cursor_after_prefix, ScrollableList, TextInput,
 };
 use crate::ui::detail_editor::DetailEditState;
 use crate::ui::theme::Theme;
@@ -247,17 +247,11 @@ impl DetailScreenState {
         // Cursor for inline variable editing
         if let Some(idx) = self.edit_state.editing_variable {
             let pos = self.edit_state.insert_at.unwrap_or(idx);
-            let item_y = list_area.y + pos.saturating_sub(self.variable_list.offset) as u16;
-            if item_y < list_area.y + list_area.height {
-                let prefix_width = unicode_width::UnicodeWidthStr::width("  ▶ ");
-                set_cursor_after_prefix(
-                    frame,
-                    &self.edit_state.edit_input.content,
-                    self.edit_state.edit_input.cursor,
-                    prefix_width as u16,
-                    Rect::new(list_area.x, item_y, list_area.width, 1),
-                );
-            }
+            render_inline_cursor(
+                frame, list_area, self.variable_list.offset,
+                pos, &self.edit_state.edit_input,
+                unicode_width::UnicodeWidthStr::width("  ▶ ") as u16,
+            );
         }
     }
 
@@ -336,19 +330,12 @@ impl DetailScreenState {
         // Cursor for inline command editing
         if let Some(idx) = self.edit_state.editing_command {
             let pos = self.edit_state.insert_at.unwrap_or(idx);
-            let item_y = list_area.y + pos.saturating_sub(self.command_list.offset) as u16;
-            if item_y < list_area.y + list_area.height {
-                let pos = self.edit_state.insert_at.unwrap_or(idx);
-                let display_prefix = format!("  #{}▶ ", pos);
-                let prefix_width = unicode_width::UnicodeWidthStr::width(display_prefix.as_str());
-                set_cursor_after_prefix(
-                    frame,
-                    &self.edit_state.edit_input.content,
-                    self.edit_state.edit_input.cursor,
-                    prefix_width as u16,
-                    Rect::new(list_area.x, item_y, list_area.width, 1),
-                );
-            }
+            let display_prefix = format!("  #{}▶ ", pos);
+            render_inline_cursor(
+                frame, list_area, self.command_list.offset,
+                pos, &self.edit_state.edit_input,
+                unicode_width::UnicodeWidthStr::width(display_prefix.as_str()) as u16,
+            );
         }
     }
 

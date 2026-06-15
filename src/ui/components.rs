@@ -290,7 +290,7 @@ pub fn render_inline_cursor(
     prefix_display_width: u16,
 ) {
     let item_y = list_area.y + item_index.saturating_sub(list_offset) as u16;
-    if item_y < list_area.y + list_area.height {
+    if item_index >= list_offset && item_y < list_area.y + list_area.height {
         set_cursor_after_prefix(
             frame,
             &input.content,

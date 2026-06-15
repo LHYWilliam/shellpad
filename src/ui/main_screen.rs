@@ -1,8 +1,8 @@
 use crate::ui::theme::Theme;
 use crate::models::AppData;
 use crate::ui::components::{
-    bordered_block, empty_hint, handle_text_input, list_scrollbar_areas, render_scrollbar,
-    render_status_bar, set_cursor_after_prefix, ScrollableList, TextInput,
+    bordered_block, empty_hint, handle_text_input, list_scrollbar_areas, render_inline_cursor,
+    render_scrollbar, render_status_bar, set_cursor_after_prefix, ScrollableList, TextInput,
 };
 use ratatui::layout::{Constraint, Layout, Rect};
 use ratatui::style::{Modifier, Style};
@@ -195,19 +195,11 @@ impl MainScreenState {
 
         // Cursor for rename mode at the selected group name position
         if self.rename_mode && !data.groups.is_empty() {
-            let offset = self.group_list.offset;
-            let selected = self.group_list.selected;
-            let item_y = list_area.y + selected.saturating_sub(offset) as u16;
-            if item_y < list_area.y + list_area.height {
-                let prefix_width = unicode_width::UnicodeWidthStr::width("▶ ");
-                set_cursor_after_prefix(
-                    frame,
-                    &self.rename_input.content,
-                    self.rename_input.cursor,
-                    prefix_width as u16,
-                    Rect::new(list_area.x, item_y, list_area.width, 1),
-                );
-            }
+            render_inline_cursor(
+                frame, list_area, self.group_list.offset,
+                self.group_list.selected, &self.rename_input,
+                unicode_width::UnicodeWidthStr::width("▶ ") as u16,
+            );
         }
     }
 
