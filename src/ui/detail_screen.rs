@@ -520,7 +520,7 @@ impl DetailScreenState {
 
     fn cycle_shell(&mut self, delta: isize) {
         // Build a list that includes Custom at the appropriate position
-        // Build 5-element cycle: SystemDefault, Bash, Zsh, Fish, Custom(prev path)
+        // Build 6-element cycle: SystemDefault, Bash, Zsh, Fish, PowerShell, Custom(prev path)
         let saved_custom = match &self.set.shell {
             ShellType::Custom(p) => Some(p.clone()),
             _ => None,

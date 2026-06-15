@@ -53,7 +53,10 @@ impl ShellType {
             ShellType::Bash => "bash".to_string(),
             ShellType::Zsh => "zsh".to_string(),
             ShellType::Fish => "fish".to_string(),
-            ShellType::PowerShell => "powershell".to_string(),
+            ShellType::PowerShell => {
+                #[cfg(windows)] { "powershell.exe".to_string() }
+                #[cfg(not(windows))] { "pwsh".to_string() }
+            }
             ShellType::Custom(path) => path.clone(),
         }
     }
@@ -86,10 +89,17 @@ impl ShellType {
                 #[cfg(not(windows))]
                 { ShellCommand { program: "pwsh".to_string(), flag: "-Command".to_string() } }
             }
-            ShellType::Custom(path) => ShellCommand {
-                program: path.clone(),
-                flag: "-c".to_string(),
-            },
+            ShellType::Custom(path) => {
+                let lower = path.to_lowercase();
+                let flag = if lower.contains("cmd.exe") || lower.contains("cmd ") {
+                    "/C"
+                } else if lower.contains("powershell") {
+                    "-Command"
+                } else {
+                    "-c"
+                };
+                ShellCommand { program: path.clone(), flag: flag.to_string() }
+            }
         }
     }
 
