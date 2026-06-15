@@ -5,7 +5,7 @@ use crate::ui::theme::Theme;
 use ratatui::layout::{Constraint, Layout, Rect};
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
-use ratatui::widgets::{Block, Borders, List, ListItem, Paragraph};
+use ratatui::widgets::{Block, Borders, List, ListItem, Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState};
 use ratatui::Frame;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -162,6 +162,10 @@ impl DetailScreenState {
         let inner = var_block.inner(area);
         frame.render_widget(&var_block, area);
 
+        // Split into list + scrollbar
+        let inner_layout = Layout::horizontal([Constraint::Min(1), Constraint::Length(1)]);
+        let [list_area, scrollbar_area] = inner_layout.areas(inner);
+
         let mut items: Vec<ListItem> = self
             .set
             .variables
@@ -216,7 +220,19 @@ impl DetailScreenState {
                         .min(self.set.variables.len().saturating_sub(1)),
                 )
             });
-        frame.render_stateful_widget(List::new(items), inner, &mut list_state);
+        frame.render_stateful_widget(List::new(items), list_area, &mut list_state);
+
+        // Scrollbar
+        let content_len = self.set.variables.len();
+        let scroll_pos = self.variable_list.selected.min(content_len.saturating_sub(1));
+        let mut scrollbar_state = ScrollbarState::new(content_len)
+            .position(scroll_pos);
+        frame.render_stateful_widget(
+            Scrollbar::new(ScrollbarOrientation::VerticalRight)
+                .thumb_style(Style::default().fg(theme.surface_border)),
+            scrollbar_area,
+            &mut scrollbar_state,
+        );
     }
 
     fn render_commands(&self, frame: &mut Frame, area: Rect, theme: &Theme) {
@@ -234,6 +250,10 @@ impl DetailScreenState {
 
         let inner = cmd_block.inner(area);
         frame.render_widget(&cmd_block, area);
+
+        // Split into list + scrollbar
+        let inner_layout = Layout::horizontal([Constraint::Min(1), Constraint::Length(1)]);
+        let [list_area, scrollbar_area] = inner_layout.areas(inner);
 
         let mut items: Vec<ListItem> = self
             .set
@@ -299,7 +319,19 @@ impl DetailScreenState {
                         .min(self.set.commands.len().saturating_sub(1)),
                 )
             });
-        frame.render_stateful_widget(List::new(items), inner, &mut list_state);
+        frame.render_stateful_widget(List::new(items), list_area, &mut list_state);
+
+        // Scrollbar
+        let content_len = self.set.commands.len();
+        let scroll_pos = self.command_list.selected.min(content_len.saturating_sub(1));
+        let mut scrollbar_state = ScrollbarState::new(content_len)
+            .position(scroll_pos);
+        frame.render_stateful_widget(
+            Scrollbar::new(ScrollbarOrientation::VerticalRight)
+                .thumb_style(Style::default().fg(theme.surface_border)),
+            scrollbar_area,
+            &mut scrollbar_state,
+        );
     }
 
     fn render_status_bar(&self, frame: &mut Frame, area: Rect, theme: &Theme) {
