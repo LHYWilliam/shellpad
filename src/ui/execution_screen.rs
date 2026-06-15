@@ -43,6 +43,8 @@ pub struct ExecutionScreenState {
     pub completed: bool,
     pub continue_from: Option<usize>,
     pub total_duration_ms: Option<u128>,
+    pub auto_scroll: bool,
+    pub scroll_offset: usize,
 }
 
 impl ExecutionScreenState {
@@ -68,7 +70,20 @@ impl ExecutionScreenState {
             completed: false,
             continue_from: None,
             total_duration_ms: None,
+            auto_scroll: true,
+            scroll_offset: 0,
         }
+    }
+
+    /// Calculate the flat items Vec index for a given command index.
+    fn items_offset_for_command(&self, cmd_idx: usize) -> usize {
+        let mut offset = 0;
+        for i in 0..cmd_idx.min(self.cmd_states.len()) {
+            offset += 1; // command header line
+            offset += self.cmd_states[i].output_lines.len(); // output lines
+            offset += 1; // separator line
+        }
+        offset
     }
 
     /// Mark all remaining Pending commands as Skipped.
@@ -88,6 +103,8 @@ impl ExecutionScreenState {
 
     /// Reset the screen for continuing execution from a skip point.
     pub fn reset_from(&mut self, start_from: usize) {
+        self.auto_scroll = true;
+        self.scroll_offset = 0;
         for state in self.cmd_states[start_from..].iter_mut() {
             if state.status == CmdStatus::Skipped {
                 state.status = CmdStatus::Pending;
@@ -106,6 +123,9 @@ impl ExecutionScreenState {
                         self.cmd_states[index].status = CmdStatus::Running;
                         self.cmd_states[index].command = command;
                         self.current_index = index;
+                        if self.auto_scroll {
+                            self.scroll_offset = self.items_offset_for_command(index);
+                        }
                     }
                 }
                 ExecutionEvent::StdoutLine { index, line } => {
@@ -282,7 +302,7 @@ impl ExecutionScreenState {
                 " [q] Back to main  [r] Re-execute"
             }
         } else {
-            " [q] Back to main  [s] Skip current  [Ctrl+C] Interrupt"
+            " [q] Back to main  [s] Skip  [z] Auto-scroll  [Ctrl+C] Interrupt"
         };
 
         let body_layout = Layout::vertical([Constraint::Min(1), Constraint::Length(1)]);
@@ -298,13 +318,16 @@ impl ExecutionScreenState {
         let list_inner_layout = Layout::horizontal([Constraint::Min(1), Constraint::Length(1)]);
         let [content_area, scrollbar_area] = list_inner_layout.areas(list_inner);
 
-        let list = List::new(items);
-        frame.render_widget(list, content_area);
+        // Use ListState with offset for auto-scroll
+        let mut list_state = ratatui::widgets::ListState::default()
+            .with_offset(self.scroll_offset);
+        frame.render_stateful_widget(List::new(items), content_area, &mut list_state);
 
-        // Scrollbar
+        // Scrollbar tracks current command position
         let content_len = self.cmd_states.len();
+        let scroll_pos = self.current_index.min(content_len.saturating_sub(1));
         let mut scrollbar_state = ScrollbarState::new(content_len)
-            .position(0);
+            .position(scroll_pos);
         frame.render_stateful_widget(
             Scrollbar::new(ScrollbarOrientation::VerticalRight)
                 .thumb_style(Style::default().fg(theme.surface_border)),
@@ -337,6 +360,10 @@ impl ExecutionScreenState {
             KeyCode::Char('s') if !self.completed => ExecutionScreenAction::Skip,
             KeyCode::Char('n') if self.completed && self.continue_from.is_some() => ExecutionScreenAction::Continue,
             KeyCode::Char('r') if self.completed => ExecutionScreenAction::Reexecute,
+            KeyCode::Char('z') => {
+                self.auto_scroll = !self.auto_scroll;
+                ExecutionScreenAction::None
+            }
             _ => ExecutionScreenAction::None,
         }
     }
