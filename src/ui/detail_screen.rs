@@ -56,7 +56,9 @@ impl DetailScreenState {
         let block = Block::default()
             .borders(Borders::ALL)
             .border_style(Style::default().fg(theme.accent_info))
-            .title(format!(" Edit: {} ", self.set.name));
+            .title(format!(" Edit: {} ",
+                if self.editing_name { &self.name_input.content } else { &self.set.name }
+            ));
 
         let inner = block.inner(area);
         frame.render_widget(&block, area);
