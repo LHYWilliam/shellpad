@@ -66,8 +66,7 @@ pub struct MainScreenState {
     pub set_list: ScrollableList,
     pub active_panel: Panel,
     pub search_mode: bool,
-    pub search_query: String,
-    pub search_cursor: usize,
+    pub search_input: TextInput,
     pub rename_mode: bool,
     pub rename_input: TextInput,
 }
@@ -79,8 +78,7 @@ impl MainScreenState {
             set_list: ScrollableList::new(),
             active_panel: Panel::Groups,
             search_mode: false,
-            search_query: String::new(),
-            search_cursor: 0,
+            search_input: TextInput::new(String::new()),
             rename_mode: false,
             rename_input: TextInput::new(String::new()),
         }
@@ -108,7 +106,7 @@ impl MainScreenState {
     /// Get all sets visible in current view (accounting for search).
     pub fn visible_sets<'a>(&'a self, data: &'a AppData) -> Vec<(usize, usize, &'a crate::models::CommandSet)> {
         if self.search_mode {
-            data.filter_sets(&self.search_query)
+            data.filter_sets(&self.search_input.content)
         } else if let Some(gi) = self.selected_group_idx(data) {
             data.groups[gi]
                 .sets
@@ -279,7 +277,7 @@ impl MainScreenState {
             // Render search query line
             frame.render_widget(
                 Paragraph::new(Line::from(Span::styled(
-                    format!(" Search: {} ", self.search_query),
+                    format!(" Search: {} ", self.search_input.content),
                     Style::default().fg(theme.text_primary),
                 ))),
                 search_line,
@@ -289,8 +287,8 @@ impl MainScreenState {
             let prefix_width = unicode_width::UnicodeWidthStr::width(" Search: ");
             set_cursor_after_prefix(
                 frame,
-                &self.search_query,
-                self.search_cursor,
+                &self.search_input.content,
+                self.search_input.cursor,
                 prefix_width as u16,
                 search_line,
             );
@@ -331,8 +329,8 @@ impl MainScreenState {
                 let suffix = format!("  [{}] ({} cmd)", shell_label, cmd_count);
 
                 // Build name part with optional search highlighting
-                let name_part: Vec<Span> = if self.search_mode && !self.search_query.is_empty() && !is_selected {
-                    let matches = find_matches_case_insensitive(&set.name, &self.search_query);
+                let name_part: Vec<Span> = if self.search_mode && !self.search_input.content.is_empty() && !is_selected {
+                    let matches = find_matches_case_insensitive(&set.name, &self.search_input.content);
                     if matches.is_empty() {
                         vec![Span::styled(set.name.clone(), text_style)]
                     } else {
@@ -471,22 +469,20 @@ impl MainScreenState {
             return match key.code {
                 KeyCode::Esc => {
                     self.search_mode = false;
-                    self.search_query.clear();
-                    self.search_cursor = 0;
+                    self.search_input = TextInput::new(String::new());
                     self.set_list.reset();
                     self.active_panel = Panel::Groups;
                     MainScreenAction::None
                 }
                 KeyCode::Enter => {
-                    let results = data.filter_sets(&self.search_query);
+                    let results = data.filter_sets(&self.search_input.content);
                     if let Some((gi, si, _)) = results.get(self.set_list.selected) {
                         self.group_list.selected = *gi;
                         self.set_list.selected = *si;
                         self.active_panel = Panel::Sets;
                     }
                     self.search_mode = false;
-                    self.search_query.clear();
-                    self.search_cursor = 0;
+                    self.search_input = TextInput::new(String::new());
                     MainScreenAction::None
                 }
                 KeyCode::Up | KeyCode::Char('k') | KeyCode::Char('K') => {
@@ -494,61 +490,16 @@ impl MainScreenState {
                     MainScreenAction::None
                 }
                 KeyCode::Down | KeyCode::Char('j') | KeyCode::Char('J') => {
-                    let n = data.filter_sets(&self.search_query).len();
+                    let n = data.filter_sets(&self.search_input.content).len();
                     self.set_list.select_next(n);
                     MainScreenAction::None
                 }
-                KeyCode::Left => {
-                    if self.search_cursor > 0 {
-                        self.search_cursor = self.search_query[..self.search_cursor]
-                            .floor_char_boundary(self.search_cursor - 1);
-                    }
-                    MainScreenAction::None
-                }
-                KeyCode::Right => {
-                    let len = self.search_query.len();
-                    let pos = self.search_query.floor_char_boundary(self.search_cursor);
-                    if let Some(ch) = self.search_query[pos..].chars().next() {
-                        self.search_cursor = (pos + ch.len_utf8()).min(len);
-                    }
-                    MainScreenAction::None
-                }
-                KeyCode::Home => {
-                    self.search_cursor = 0;
-                    MainScreenAction::None
-                }
-                KeyCode::End => {
-                    self.search_cursor = self.search_query.len();
-                    MainScreenAction::None
-                }
-                KeyCode::Char(c) => {
-                    let pos = self.search_query.floor_char_boundary(self.search_cursor);
-                    self.search_query.insert(pos, c);
-                    self.search_cursor = pos + c.len_utf8();
+                _ => {
+                    handle_text_input(&mut self.search_input, key);
                     self.active_panel = Panel::Sets;
                     self.set_list.reset();
                     MainScreenAction::None
                 }
-                KeyCode::Backspace => {
-                    let pos = self.search_query.floor_char_boundary(self.search_cursor);
-                    if pos > 0 {
-                        let prev = self.search_query[..pos - 1].floor_char_boundary(pos - 1);
-                        self.search_query.remove(prev);
-                        self.search_cursor = prev;
-                    }
-                    self.active_panel = Panel::Sets;
-                    self.set_list.reset();
-                    MainScreenAction::None
-                }
-                KeyCode::Delete => {
-                    let pos = self.search_query.floor_char_boundary(self.search_cursor);
-                    if pos < self.search_query.len() {
-                        self.search_query.remove(pos);
-                        self.search_cursor = pos;
-                    }
-                    MainScreenAction::None
-                }
-                _ => MainScreenAction::None,
             };
         }
 
@@ -650,7 +601,7 @@ impl MainScreenState {
             }
             KeyCode::Char('/') => {
                 self.search_mode = true;
-                self.search_query.clear();
+                self.search_input.content.clear();
                 self.set_list.reset();
                 self.active_panel = Panel::Sets;
                 MainScreenAction::None
