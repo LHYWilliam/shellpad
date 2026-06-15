@@ -241,6 +241,14 @@ pub fn bordered_block<'a>(theme: &Theme, title: &'a str, focused: bool) -> Block
         .title(title)
 }
 
+/// Create a bordered Block with accent_info color for overlay dialogs.
+pub fn bordered_block_info<'a>(theme: &Theme, title: &'a str) -> Block<'a> {
+    Block::default()
+        .borders(Borders::ALL)
+        .border_style(Style::default().fg(theme.accent_info))
+        .title(title)
+}
+
 /// Create a disabled/italic ListItem for empty-state guidance.
 pub fn empty_hint<'a>(theme: &Theme, text: &'a str) -> ListItem<'a> {
     ListItem::new(Line::from(Span::styled(

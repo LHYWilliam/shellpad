@@ -1,9 +1,9 @@
-use crate::ui::components::centered_rect;
+use crate::ui::components::{bordered_block_info, centered_rect};
 use crate::ui::theme::Theme;
 use ratatui::layout::{Alignment, Rect};
 use ratatui::style::Style;
 use ratatui::text::Line;
-use ratatui::widgets::{Block, Borders, Clear, Paragraph};
+use ratatui::widgets::{Clear, Paragraph};
 use ratatui::Frame;
 
 pub fn draw_help(frame: &mut Frame, area: Rect, theme: &Theme) {
@@ -11,10 +11,7 @@ pub fn draw_help(frame: &mut Frame, area: Rect, theme: &Theme) {
 
     frame.render_widget(Clear, help_area);
 
-    let block = Block::default()
-        .borders(Borders::ALL)
-        .border_style(Style::default().fg(theme.accent_info))
-        .title(" Help ")
+    let block = bordered_block_info(theme, " Help ")
         .style(Style::default().bg(theme.surface));
 
     let inner = block.inner(help_area);

@@ -1,11 +1,11 @@
 use crate::models::CommandSet;
-use crate::ui::components::{centered_rect, fill_row, handle_text_input, set_cursor_after_prefix, TextInput};
+use crate::ui::components::{bordered_block_info, centered_rect, fill_row, handle_text_input, set_cursor_after_prefix, TextInput};
 use crate::ui::theme::Theme;
 use crossterm::event::{KeyCode, KeyEvent};
 use ratatui::layout::Rect;
 use ratatui::style::Style;
 use ratatui::text::{Line, Span};
-use ratatui::widgets::{Block, Borders, Clear, Paragraph};
+use ratatui::widgets::{Clear, Paragraph};
 use ratatui::Frame;
 
 pub enum VariableScreenAction {
@@ -92,10 +92,7 @@ impl VariableScreenState {
 
         frame.render_widget(Clear, dialog);
 
-        let block = Block::default()
-            .borders(Borders::ALL)
-            .border_style(Style::default().fg(theme.accent_info))
-            .title(" Set Variables ")
+        let block = bordered_block_info(theme, " Set Variables ")
             .style(Style::default().bg(theme.surface));
         frame.render_widget(&block, dialog);
 
