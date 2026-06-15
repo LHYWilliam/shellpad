@@ -272,7 +272,10 @@ impl App {
             MainScreenAction::DeleteSet(gi, si) => {
                 if gi < self.data.groups.len() && si < self.data.groups[gi].sets.len() {
                     self.data.groups[gi].sets.remove(si);
-                    self.main_screen.set_list.reset();
+                    if self.main_screen.set_list.selected >= self.data.groups[gi].sets.len() {
+                        self.main_screen.set_list.selected =
+                            self.data.groups[gi].sets.len().saturating_sub(1);
+                    }
                     if self.data.groups[gi].sets.is_empty() {
                         self.main_screen.active_panel = Panel::Groups;
                     }
