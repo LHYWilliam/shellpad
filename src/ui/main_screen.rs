@@ -85,7 +85,7 @@ impl MainScreenState {
     }
 
     pub fn render(&mut self, frame: &mut Frame, area: Rect, data: &AppData, theme: &Theme) {
-        let vertical = Layout::vertical([Constraint::Min(1), Constraint::Length(1)]);
+        let vertical = Layout::vertical([Constraint::Min(1), Constraint::Length(2)]);
         let [main_area, status_area] = vertical.areas(area);
 
         let horizontal = Layout::horizontal([Constraint::Ratio(1, 3), Constraint::Ratio(2, 3)]);
@@ -300,11 +300,23 @@ impl MainScreenState {
     }
 
     fn render_status_bar(&self, frame: &mut Frame, area: Rect, theme: &Theme) {
+        // Top separator line
+        let sep = "─".repeat(area.width as usize);
+        frame.render_widget(
+            Paragraph::new(Line::from(Span::styled(
+                sep,
+                Style::default().fg(theme.surface_border),
+            ))),
+            Rect::new(area.x, area.y, area.width, 1),
+        );
+
+        // Status bar content
         let text = Line::from(Span::styled(
             " [↑/↓] Nav  [←/→] Panel  [Enter] Run  [e] Edit  [n] New  [d] Del set  [Shift+D] Del group  [g] Group  [/] Search  [?] Help  [q] Quit",
             Style::default().fg(theme.text_secondary).add_modifier(Modifier::DIM),
         ));
-        frame.render_widget(Paragraph::new(text), area);
+        let status_area = Rect::new(area.x, area.y + 1, area.width, area.height.saturating_sub(1));
+        frame.render_widget(Paragraph::new(text), status_area);
     }
 
     /// Handle a key event, returning an action.
