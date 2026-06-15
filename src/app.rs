@@ -272,10 +272,7 @@ impl App {
             MainScreenAction::DeleteSet(gi, si) => {
                 if gi < self.data.groups.len() && si < self.data.groups[gi].sets.len() {
                     self.data.groups[gi].sets.remove(si);
-                    if self.main_screen.set_list.selected >= self.data.groups[gi].sets.len() {
-                        self.main_screen.set_list.selected =
-                            self.data.groups[gi].sets.len().saturating_sub(1);
-                    }
+                    self.main_screen.set_list.clamp_selected(self.data.groups[gi].sets.len());
                     if self.data.groups[gi].sets.is_empty() {
                         self.main_screen.active_panel = Panel::Groups;
                     }
@@ -302,10 +299,7 @@ impl App {
             MainScreenAction::DeleteGroup(gi) => {
                 if gi < self.data.groups.len() {
                     self.data.groups.remove(gi);
-                    if self.main_screen.group_list.selected >= self.data.groups.len() {
-                        self.main_screen.group_list.selected =
-                            self.data.groups.len().saturating_sub(1);
-                    }
+                    self.main_screen.group_list.clamp_selected(self.data.groups.len());
                     self.main_screen.set_list.reset();
                     if self.data.groups.is_empty() {
                         self.main_screen.group_list.reset();
@@ -347,10 +341,7 @@ impl App {
                     && idx < ds.set.variables.len()
                 {
                     ds.set.variables.remove(idx);
-                    if ds.variable_list.selected >= ds.set.variables.len() {
-                        ds.variable_list.selected =
-                            ds.set.variables.len().saturating_sub(1);
-                    }
+                    ds.variable_list.clamp_selected(ds.set.variables.len());
                 }
             }
             DetailScreenAction::DeleteCommand(idx) => {
@@ -361,10 +352,7 @@ impl App {
                     for (i, c) in ds.set.commands.iter_mut().enumerate() {
                         c.position = i;
                     }
-                    if ds.command_list.selected >= ds.set.commands.len() {
-                        ds.command_list.selected =
-                            ds.set.commands.len().saturating_sub(1);
-                    }
+                    ds.command_list.clamp_selected(ds.set.commands.len());
                 }
             }
         }
