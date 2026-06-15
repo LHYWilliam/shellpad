@@ -105,10 +105,7 @@ impl TextInput {
         frame.render_widget(paragraph, inner);
 
         if focused {
-            // Set cursor position (display width, not byte offset)
-            let col = unicode_width::UnicodeWidthStr::width(&self.content[..self.cursor.min(self.content.len())]);
-            let cursor_x = inner.x + col as u16;
-            frame.set_cursor_position((cursor_x, inner.y));
+            set_cursor_after_prefix(frame, &self.content, self.cursor, 0, inner);
         }
     }
 }
@@ -156,6 +153,25 @@ impl ScrollableList {
         self.selected = 0;
         self.offset = 0;
     }
+}
+
+/// Set the terminal cursor after a text prefix at the given row.
+/// `prefix_display_width` is the display column width of the label before the editable content.
+/// `content` is the full editable text, `cursor` is the byte offset within it.
+pub fn set_cursor_after_prefix(
+    frame: &mut Frame,
+    content: &str,
+    cursor: usize,
+    prefix_display_width: u16,
+    row: Rect,
+) {
+    let cursor_display = unicode_width::UnicodeWidthStr::width(
+        &content[..cursor.min(content.len())],
+    );
+    frame.set_cursor_position((
+        row.x + prefix_display_width + cursor_display as u16,
+        row.y,
+    ));
 }
 
 /// Handle common text input key events.
