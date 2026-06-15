@@ -1,3 +1,4 @@
+use crossterm::cursor::SetCursorStyle;
 use crossterm::terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen};
 use crossterm::execute;
 use ratatui::Terminal;
@@ -10,7 +11,11 @@ pub type TuiTerminal = Terminal<CrosstermBackend<io::Stdout>>;
 /// Initialize the terminal into raw mode + alternate screen.
 pub fn init_terminal() -> io::Result<TuiTerminal> {
     enable_raw_mode()?;
-    execute!(io::stdout(), EnterAlternateScreen)?;
+    execute!(
+        io::stdout(),
+        EnterAlternateScreen,
+        SetCursorStyle::BlinkingBar,
+    )?;
     let backend = CrosstermBackend::new(io::stdout());
     let mut terminal = Terminal::new(backend)?;
     terminal.clear()?;
@@ -19,7 +24,11 @@ pub fn init_terminal() -> io::Result<TuiTerminal> {
 
 /// Restore the terminal to normal mode.
 pub fn restore_terminal() -> io::Result<()> {
-    execute!(io::stdout(), LeaveAlternateScreen)?;
+    execute!(
+        io::stdout(),
+        LeaveAlternateScreen,
+        SetCursorStyle::DefaultUserShape,
+    )?;
     disable_raw_mode()?;
     Ok(())
 }
