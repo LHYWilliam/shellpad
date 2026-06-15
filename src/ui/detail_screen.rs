@@ -474,6 +474,7 @@ impl DetailScreenState {
                             .min(self.set.variables.len());
                         self.var_edit.insert_at = Some(pos);
                         self.var_edit.editing = Some(self.set.variables.len());
+                        self.variable_list.selected = pos;
                     }
                     DetailFocus::Commands => {
                         self.cmd_edit.edit_input = TextInput::new(String::new());
@@ -481,6 +482,7 @@ impl DetailScreenState {
                             .min(self.set.commands.len());
                         self.cmd_edit.insert_at = Some(pos);
                         self.cmd_edit.editing = Some(self.set.commands.len());
+                        self.command_list.selected = pos;
                     }
                     _ => {}
                 }
