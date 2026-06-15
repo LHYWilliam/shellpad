@@ -68,7 +68,7 @@ impl DetailEditState {
             }
             _ => {
                 let n = variables.len();
-                if n > 0 && self.editing_variable.is_some() {
+                if (n > 0 || self.insert_at.is_some()) && self.editing_variable.is_some() {
                     // Protect "key=" prefix from deletion
                     let protect = self.edit_input.content.find('=').map_or(0, |p| p + 1);
                     match key.code {
