@@ -153,6 +153,24 @@ impl ScrollableList {
         self.selected = 0;
         self.offset = 0;
     }
+
+    /// Clamp `selected` after a deletion: if the last item was removed,
+    /// move selection to the new last item; otherwise keep it.
+    pub fn clamp_selected(&mut self, len: usize) {
+        if self.selected >= len {
+            self.selected = len.saturating_sub(1);
+        }
+    }
+
+    /// Return `Some(selected)` if the list is non-empty, else `None`,
+    /// with the selected index clamped to `len - 1`.
+    pub fn selected_or_none(&self, len: usize) -> Option<usize> {
+        if len == 0 {
+            None
+        } else {
+            Some(self.selected.min(len.saturating_sub(1)))
+        }
+    }
 }
 
 /// Set the terminal cursor after a text prefix at the given row.
