@@ -250,6 +250,13 @@ impl DetailScreenState {
                 items.insert(pos, preview);
             }
 
+        if self.set.variables.is_empty() {
+            items.push(ListItem::new(Line::from(Span::styled(
+                " (empty — press a to add a variable) ",
+                Style::default().fg(theme.text_disabled).add_modifier(Modifier::ITALIC),
+            ))));
+        }
+
         let mut list_state = ratatui::widgets::ListState::default()
             .with_selected(if self.set.variables.is_empty() {
                 None
@@ -363,6 +370,13 @@ impl DetailScreenState {
                 let insert_pos = self.edit_state.insert_at.unwrap_or(idx.min(items.len()));
                 items.insert(insert_pos, preview);
             }
+
+        if self.set.commands.is_empty() {
+            items.push(ListItem::new(Line::from(Span::styled(
+                " (empty — press a to add a command) ",
+                Style::default().fg(theme.text_disabled).add_modifier(Modifier::ITALIC),
+            ))));
+        }
 
         let mut list_state = ratatui::widgets::ListState::default()
             .with_selected(if self.set.commands.is_empty() {

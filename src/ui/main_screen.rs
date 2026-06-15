@@ -299,7 +299,7 @@ impl MainScreenState {
         let inner_layout = Layout::horizontal([Constraint::Min(1), Constraint::Length(1)]);
         let [list_area, scrollbar_area] = inner_layout.areas(inner);
 
-        let items: Vec<ListItem> = sets
+        let mut items: Vec<ListItem> = sets
             .iter()
             .enumerate()
             .map(|(i, &(gi, _, set))| {
@@ -374,6 +374,14 @@ impl MainScreenState {
                 ListItem::new(Line::from(parts))
             })
             .collect();
+
+        // Empty-state hint when no sets
+        if sets.is_empty() {
+            items.push(ListItem::new(Line::from(Span::styled(
+                " (empty — press n to add a set) ",
+                Style::default().fg(theme.text_disabled).add_modifier(Modifier::ITALIC),
+            ))));
+        }
 
         let selected = if !sets.is_empty() && self.active_panel == Panel::Sets {
             Some(self.set_list.selected.min(sets.len().saturating_sub(1)))
