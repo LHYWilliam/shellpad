@@ -283,7 +283,8 @@ impl DetailScreenState {
 
         // Cursor for inline variable editing
         if let Some(idx) = self.edit_state.editing_variable {
-            let item_y = list_area.y + idx.saturating_sub(self.variable_list.offset) as u16;
+            let pos = self.edit_state.insert_at.unwrap_or(idx);
+            let item_y = list_area.y + pos.saturating_sub(self.variable_list.offset) as u16;
             if item_y < list_area.y + list_area.height {
                 let prefix_width = unicode_width::UnicodeWidthStr::width("  ▶ ");
                 set_cursor_after_prefix(
@@ -404,7 +405,8 @@ impl DetailScreenState {
 
         // Cursor for inline command editing
         if let Some(idx) = self.edit_state.editing_command {
-            let item_y = list_area.y + idx.saturating_sub(self.command_list.offset) as u16;
+            let pos = self.edit_state.insert_at.unwrap_or(idx);
+            let item_y = list_area.y + pos.saturating_sub(self.command_list.offset) as u16;
             if item_y < list_area.y + list_area.height {
                 let pos = self.edit_state.insert_at.unwrap_or(idx);
                 let display_prefix = format!("  #{}▶ ", pos);
