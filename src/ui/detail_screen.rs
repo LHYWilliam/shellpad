@@ -1,11 +1,14 @@
 use crate::models::{CommandSet, ExecMode, Group, ShellType};
-use crate::ui::components::{handle_text_input, set_cursor_after_prefix, ScrollableList, TextInput};
+use crate::ui::components::{
+    bordered_block, empty_hint, handle_text_input, list_scrollbar_areas, render_scrollbar,
+    render_status_bar, set_cursor_after_prefix, ScrollableList, TextInput,
+};
 use crate::ui::detail_editor::DetailEditState;
 use crate::ui::theme::Theme;
 use ratatui::layout::{Constraint, Layout, Rect};
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
-use ratatui::widgets::{Block, Borders, List, ListItem, Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState};
+use ratatui::widgets::{Block, Borders, List, ListItem, Paragraph};
 use ratatui::Frame;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -84,14 +87,7 @@ impl DetailScreenState {
 
     fn render_metadata(&self, frame: &mut Frame, area: Rect, theme: &Theme) {
         let props_focused = matches!(self.focus, DetailFocus::Name | DetailFocus::Group | DetailFocus::Shell | DetailFocus::ExecMode);
-        let block = Block::default()
-            .borders(Borders::ALL)
-            .border_style(Style::default().fg(if props_focused {
-                theme.accent_primary
-            } else {
-                theme.surface_border
-            }))
-            .title(" Properties ");
+        let block = bordered_block(theme, " Properties ", props_focused);
 
         let inner = block.inner(area);
         frame.render_widget(&block, area);
@@ -112,7 +108,7 @@ impl DetailScreenState {
                 Style::default().fg(theme.accent_primary)
             }
         } else {
-            Style::default().fg(theme.text_primary)
+            theme.normal_style()
         };
         let display_name = if self.editing_name {
             self.name_input.content.as_str()
@@ -147,13 +143,13 @@ impl DetailScreenState {
         let group_style = if self.focus == DetailFocus::Group {
             Style::default().fg(theme.accent_primary)
         } else {
-            Style::default().fg(theme.text_primary)
+            theme.normal_style()
         };
 
         let shell_style = if self.focus == DetailFocus::Shell {
             Style::default().fg(theme.accent_primary)
         } else {
-            Style::default().fg(theme.text_primary)
+            theme.normal_style()
         };
 
         let half_layout = Layout::horizontal([Constraint::Ratio(1, 2), Constraint::Ratio(1, 2)]);
@@ -177,7 +173,7 @@ impl DetailScreenState {
         let mode_style = if self.focus == DetailFocus::ExecMode {
             Style::default().fg(theme.accent_primary)
         } else {
-            Style::default().fg(theme.text_primary)
+            theme.normal_style()
         };
         let mode_text = format!(" Mode: {}", self.set.exec_mode.label());
         frame.render_widget(
@@ -187,24 +183,14 @@ impl DetailScreenState {
     }
 
     fn render_variables(&self, frame: &mut Frame, area: Rect, theme: &Theme) {
-        let var_block = Block::default()
-            .borders(Borders::ALL)
-            .border_style(Style::default().fg(if self.focus == DetailFocus::Variables {
-                theme.accent_primary
-            } else {
-                theme.surface_border
-            }))
-            .title(format!(
-                " Variables ({}) ",
-                self.set.variables.len()
-            ));
+        let var_title = format!(" Variables ({}) ", self.set.variables.len());
+        let var_block = bordered_block(theme, &var_title, self.focus == DetailFocus::Variables);
 
         let inner = var_block.inner(area);
         frame.render_widget(&var_block, area);
 
         // Split into list + scrollbar
-        let inner_layout = Layout::horizontal([Constraint::Min(1), Constraint::Length(1)]);
-        let [list_area, scrollbar_area] = inner_layout.areas(inner);
+        let (list_area, scrollbar_area) = list_scrollbar_areas(inner);
 
         let mut items: Vec<ListItem> = self
             .set
@@ -227,12 +213,9 @@ impl DetailScreenState {
                 } else if i == self.variable_list.selected
                     && self.focus == DetailFocus::Variables
                 {
-                    Style::default()
-                        .fg(theme.text_on_selected)
-                        .bg(theme.selection_bg_secondary)
-                        .add_modifier(Modifier::BOLD)
+                    theme.selected_style(theme.selection_bg_secondary)
                 } else {
-                    Style::default().fg(theme.text_primary)
+                    theme.normal_style()
                 };
                 ListItem::new(Line::from(Span::styled(label, style)))
             })
@@ -251,35 +234,15 @@ impl DetailScreenState {
             }
 
         if self.set.variables.is_empty() {
-            items.push(ListItem::new(Line::from(Span::styled(
-                " (empty — press a to add a variable) ",
-                Style::default().fg(theme.text_disabled).add_modifier(Modifier::ITALIC),
-            ))));
+            items.push(empty_hint(theme, " (empty — press a to add a variable) "));
         }
 
         let mut list_state = ratatui::widgets::ListState::default()
-            .with_selected(if self.set.variables.is_empty() {
-                None
-            } else {
-                Some(
-                    self.variable_list
-                        .selected
-                        .min(self.set.variables.len().saturating_sub(1)),
-                )
-            });
+            .with_selected(self.variable_list.selected_or_none(self.set.variables.len()));
         frame.render_stateful_widget(List::new(items), list_area, &mut list_state);
 
         // Scrollbar
-        let content_len = self.set.variables.len();
-        let scroll_pos = self.variable_list.selected.min(content_len.saturating_sub(1));
-        let mut scrollbar_state = ScrollbarState::new(content_len)
-            .position(scroll_pos);
-        frame.render_stateful_widget(
-            Scrollbar::new(ScrollbarOrientation::VerticalRight)
-                .thumb_style(Style::default().fg(theme.surface_border)),
-            scrollbar_area,
-            &mut scrollbar_state,
-        );
+        render_scrollbar(frame, scrollbar_area, theme, self.set.variables.len(), self.variable_list.selected);
 
         // Cursor for inline variable editing
         if let Some(idx) = self.edit_state.editing_variable {
@@ -299,24 +262,14 @@ impl DetailScreenState {
     }
 
     fn render_commands(&self, frame: &mut Frame, area: Rect, theme: &Theme) {
-        let cmd_block = Block::default()
-            .borders(Borders::ALL)
-            .border_style(Style::default().fg(if self.focus == DetailFocus::Commands {
-                theme.accent_primary
-            } else {
-                theme.surface_border
-            }))
-            .title(format!(
-                " Commands ({}) ",
-                self.set.commands.len()
-            ));
+        let cmd_title = format!(" Commands ({}) ", self.set.commands.len());
+        let cmd_block = bordered_block(theme, &cmd_title, self.focus == DetailFocus::Commands);
 
         let inner = cmd_block.inner(area);
         frame.render_widget(&cmd_block, area);
 
         // Split into list + scrollbar
-        let inner_layout = Layout::horizontal([Constraint::Min(1), Constraint::Length(1)]);
-        let [list_area, scrollbar_area] = inner_layout.areas(inner);
+        let (list_area, scrollbar_area) = list_scrollbar_areas(inner);
 
         let mut items: Vec<ListItem> = self
             .set
@@ -348,12 +301,9 @@ impl DetailScreenState {
                 } else if i == self.command_list.selected
                     && self.focus == DetailFocus::Commands
                 {
-                    Style::default()
-                        .fg(theme.text_on_selected)
-                        .bg(theme.selection_bg_secondary)
-                        .add_modifier(Modifier::BOLD)
+                    theme.selected_style(theme.selection_bg_secondary)
                 } else {
-                    Style::default().fg(theme.text_primary)
+                    theme.normal_style()
                 };
                 ListItem::new(Line::from(Span::styled(label, style)))
             })
@@ -373,35 +323,15 @@ impl DetailScreenState {
             }
 
         if self.set.commands.is_empty() {
-            items.push(ListItem::new(Line::from(Span::styled(
-                " (empty — press a to add a command) ",
-                Style::default().fg(theme.text_disabled).add_modifier(Modifier::ITALIC),
-            ))));
+            items.push(empty_hint(theme, " (empty — press a to add a command) "));
         }
 
         let mut list_state = ratatui::widgets::ListState::default()
-            .with_selected(if self.set.commands.is_empty() {
-                None
-            } else {
-                Some(
-                    self.command_list
-                        .selected
-                        .min(self.set.commands.len().saturating_sub(1)),
-                )
-            });
+            .with_selected(self.command_list.selected_or_none(self.set.commands.len()));
         frame.render_stateful_widget(List::new(items), list_area, &mut list_state);
 
         // Scrollbar
-        let content_len = self.set.commands.len();
-        let scroll_pos = self.command_list.selected.min(content_len.saturating_sub(1));
-        let mut scrollbar_state = ScrollbarState::new(content_len)
-            .position(scroll_pos);
-        frame.render_stateful_widget(
-            Scrollbar::new(ScrollbarOrientation::VerticalRight)
-                .thumb_style(Style::default().fg(theme.surface_border)),
-            scrollbar_area,
-            &mut scrollbar_state,
-        );
+        render_scrollbar(frame, scrollbar_area, theme, self.set.commands.len(), self.command_list.selected);
 
         // Cursor for inline command editing
         if let Some(idx) = self.edit_state.editing_command {
@@ -423,17 +353,6 @@ impl DetailScreenState {
     }
 
     fn render_status_bar(&self, frame: &mut Frame, area: Rect, theme: &Theme) {
-        // Top separator line
-        let sep = "─".repeat(area.width as usize);
-        frame.render_widget(
-            Paragraph::new(Line::from(Span::styled(
-                sep,
-                Style::default().fg(theme.surface_border),
-            ))),
-            Rect::new(area.x, area.y, area.width, 1),
-        );
-
-        // Status content
         let is_editing = self.edit_state.is_editing();
         let status: String = if is_editing {
             " [Enter] Confirm  [Esc] Cancel".into()
@@ -447,14 +366,8 @@ impl DetailScreenState {
                 DetailFocus::Commands => "[a] Add  [e] Edit  [d] Delete  [Tab] Next".into(),
             }
         };
-        let status_area = Rect::new(area.x, area.y + 1, area.width, area.height.saturating_sub(1));
-        frame.render_widget(
-            Paragraph::new(Line::from(Span::styled(
-                format!(" {}  |  [Ctrl+S] Save  [Esc] Cancel", status),
-                Style::default().fg(theme.text_secondary).add_modifier(Modifier::DIM),
-            ))),
-            status_area,
-        );
+        let text = format!(" {}  |  [Ctrl+S] Save  [Esc] Cancel", status);
+        render_status_bar(frame, area, theme, &text);
     }
 
     /// Handle a key event.
