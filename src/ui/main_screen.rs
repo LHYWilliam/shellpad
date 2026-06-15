@@ -249,7 +249,7 @@ impl MainScreenState {
         theme: &Theme,
     ) {
         let title = if self.search_mode {
-            format!(" Search: {} ", self.search_query)
+            " Search ".to_string()
         } else {
             let group_name: &str = self
                 .selected_group_idx(data)
@@ -271,9 +271,40 @@ impl MainScreenState {
         let inner = block.inner(area);
         frame.render_widget(&block, area);
 
-        // Split inner into list + scrollbar
-        let inner_layout = Layout::horizontal([Constraint::Min(1), Constraint::Length(1)]);
-        let [list_area, scrollbar_area] = inner_layout.areas(inner);
+        // When in search mode, split inner into search line + list area
+        let (list_area, scrollbar_area) = if self.search_mode {
+            let search_layout = Layout::vertical([Constraint::Length(1), Constraint::Min(1)]);
+            let [search_line, remaining] = search_layout.areas(inner);
+
+            // Render search query line
+            frame.render_widget(
+                Paragraph::new(Line::from(Span::styled(
+                    format!(" Search: {} ", self.search_query),
+                    Style::default().fg(theme.text_primary),
+                ))),
+                search_line,
+            );
+
+            // Cursor at end of search query
+            let prefix_width = unicode_width::UnicodeWidthStr::width(" Search: ");
+            set_cursor_after_prefix(
+                frame,
+                &self.search_query,
+                self.search_cursor,
+                prefix_width as u16,
+                search_line,
+            );
+
+            // Split remaining into list + scrollbar
+            let list_layout = Layout::horizontal([Constraint::Min(1), Constraint::Length(1)]);
+            let [list_area, sb_area] = list_layout.areas(remaining);
+            (list_area, sb_area)
+        } else {
+            // Original: split inner into list + scrollbar
+            let list_layout = Layout::horizontal([Constraint::Min(1), Constraint::Length(1)]);
+            let [list_area, sb_area] = list_layout.areas(inner);
+            (list_area, sb_area)
+        };
 
         let mut items: Vec<ListItem> = sets
             .iter()
