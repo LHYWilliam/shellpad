@@ -184,27 +184,82 @@ impl DetailScreenState {
         );
     }
 
-    fn render_variables(&self, frame: &mut Frame, area: Rect, theme: &Theme) {
-        let var_title = format!(" Variables ({}) ", self.set.variables.len());
-        let var_block = bordered_block(theme, &var_title, self.focus == DetailFocus::Variables);
+    /// Shared list renderer for Variables and Commands.
+    /// `item_fn(index, is_editing) -> (label, style)` provides per-item content.
+    /// `preview_label` is shown when `insert_at` is Some.
+    /// Returns `list_area` for cursor positioning.
+    fn render_items_list<F>(
+        &self,
+        frame: &mut Frame,
+        area: Rect,
+        theme: &Theme,
+        title: &str,
+        focused: bool,
+        count: usize,
+        list: &ScrollableList,
+        editing_item: Option<usize>,
+        item_fn: F,
+        preview_label: Option<String>,
+        empty_text: &str,
+    ) -> Rect
+    where
+        F: Fn(usize, bool) -> (String, Style),
+    {
+        let block = bordered_block(theme, title, focused);
+        let inner = block.inner(area);
+        frame.render_widget(&block, area);
 
-        let inner = var_block.inner(area);
-        frame.render_widget(&var_block, area);
-
-        // Split into list + scrollbar
         let (list_area, scrollbar_area) = list_scrollbar_areas(inner);
 
-        let mut items: Vec<ListItem> = self
-            .set
-            .variables
-            .iter()
-            .enumerate()
-            .map(|(i, v)| {
-                let is_editing = Some(i) == self.edit_state.editing_variable;
-                let is_insert = self.edit_state.insert_at.is_some();
-                let label = if is_editing && !is_insert {
+        let mut items: Vec<ListItem> = (0..count)
+            .map(|i| {
+                let is_editing = Some(i) == editing_item;
+                let (label, style) = item_fn(i, is_editing);
+                ListItem::new(fill_row(Line::from(Span::styled(label, style)), style, list_area.width))
+            })
+            .collect();
+
+        // Preview row for new inserts
+        if let Some(idx) = editing_item
+            && self.edit_state.insert_at.is_some()
+            && let Some(label) = &preview_label
+        {
+            let style = Style::default()
+                .fg(theme.accent_primary)
+                .add_modifier(Modifier::BOLD);
+            let preview = ListItem::new(fill_row(Line::from(Span::styled(label.clone(), style)), style, list_area.width));
+            let pos = self.edit_state.insert_at.unwrap_or(idx.min(items.len()));
+            items.insert(pos, preview);
+        }
+
+        if count == 0 {
+            items.push(empty_hint(theme, empty_text));
+        }
+
+        let mut list_state = ratatui::widgets::ListState::default()
+            .with_selected(list.selected_or_none(count));
+        frame.render_stateful_widget(List::new(items), list_area, &mut list_state);
+
+        render_scrollbar(frame, scrollbar_area, theme, count, list.selected);
+        list_area
+    }
+
+    fn render_variables(&self, frame: &mut Frame, area: Rect, theme: &Theme) {
+        let count = self.set.variables.len();
+        let preview = self.edit_state.insert_at.is_some().then(|| {
+            format!("  ▶ {}", self.edit_state.edit_input.content)
+        });
+        let list_area = self.render_items_list(
+            frame, area, theme,
+            &format!(" Variables ({}) ", count),
+            self.focus == DetailFocus::Variables,
+            count, &self.variable_list,
+            self.edit_state.editing_variable,
+            |i, is_editing| {
+                let label = if is_editing {
                     format!("  ▶ {}", self.edit_state.edit_input.content)
                 } else {
+                    let v = &self.set.variables[i];
                     format!("  {} = {}", v.name, v.default_value)
                 };
                 let style = if is_editing {
@@ -219,34 +274,12 @@ impl DetailScreenState {
                 } else {
                     theme.normal_style()
                 };
-                ListItem::new(fill_row(Line::from(Span::styled(label, style)), style, list_area.width))
-            })
-            .collect();
+                (label, style)
+            },
+            preview,
+            " (empty — press a to add a variable) ",
+        );
 
-        // Preview row only for new inserts (not for editing existing)
-        if let Some(idx) = self.edit_state.editing_variable
-            && self.edit_state.insert_at.is_some() {
-                let label = format!("  ▶ {}", self.edit_state.edit_input.content);
-                let style = Style::default()
-                    .fg(theme.accent_primary)
-                    .add_modifier(Modifier::BOLD);
-                let preview = ListItem::new(fill_row(Line::from(Span::styled(label, style)), style, list_area.width));
-                let pos = self.edit_state.insert_at.unwrap_or(idx.min(items.len()));
-                items.insert(pos, preview);
-            }
-
-        if self.set.variables.is_empty() {
-            items.push(empty_hint(theme, " (empty — press a to add a variable) "));
-        }
-
-        let mut list_state = ratatui::widgets::ListState::default()
-            .with_selected(self.variable_list.selected_or_none(self.set.variables.len()));
-        frame.render_stateful_widget(List::new(items), list_area, &mut list_state);
-
-        // Scrollbar
-        render_scrollbar(frame, scrollbar_area, theme, self.set.variables.len(), self.variable_list.selected);
-
-        // Cursor for inline variable editing
         if let Some(idx) = self.edit_state.editing_variable {
             let pos = self.edit_state.insert_at.unwrap_or(idx);
             render_inline_cursor(
@@ -258,23 +291,19 @@ impl DetailScreenState {
     }
 
     fn render_commands(&self, frame: &mut Frame, area: Rect, theme: &Theme) {
-        let cmd_title = format!(" Commands ({}) ", self.set.commands.len());
-        let cmd_block = bordered_block(theme, &cmd_title, self.focus == DetailFocus::Commands);
-
-        let inner = cmd_block.inner(area);
-        frame.render_widget(&cmd_block, area);
-
-        // Split into list + scrollbar
-        let (list_area, scrollbar_area) = list_scrollbar_areas(inner);
-
-        let mut items: Vec<ListItem> = self
-            .set
-            .commands
-            .iter()
-            .enumerate()
-            .map(|(i, cmd)| {
-                let pos = cmd.position;
-                let is_editing = Some(i) == self.edit_state.editing_command;
+        let count = self.set.commands.len();
+        let preview = self.edit_state.insert_at.is_some().then(|| {
+            let pos = self.edit_state.insert_at.unwrap_or(0);
+            format!("  #{}▶ {}", pos, self.edit_state.edit_input.content)
+        });
+        let list_area = self.render_items_list(
+            frame, area, theme,
+            &format!(" Commands ({}) ", count),
+            self.focus == DetailFocus::Commands,
+            count, &self.command_list,
+            self.edit_state.editing_command,
+            |i, is_editing| {
+                let pos = self.set.commands[i].position;
                 let is_insert = self.edit_state.insert_at.is_some();
                 let display_pos = if is_editing {
                     self.edit_state.insert_at.unwrap_or(pos)
@@ -283,10 +312,10 @@ impl DetailScreenState {
                 } else {
                     pos
                 };
-                let content = if is_editing && !is_insert {
+                let content = if is_editing {
                     self.edit_state.edit_input.content.as_str()
                 } else {
-                    cmd.command.as_str()
+                    self.set.commands[i].command.as_str()
                 };
                 let label = format!("  #{}  {}", display_pos, content);
                 let style = if is_editing {
@@ -301,35 +330,12 @@ impl DetailScreenState {
                 } else {
                     theme.normal_style()
                 };
-                ListItem::new(fill_row(Line::from(Span::styled(label, style)), style, list_area.width))
-            })
-            .collect();
+                (label, style)
+            },
+            preview,
+            " (empty — press a to add a command) ",
+        );
 
-        // Preview row only for new inserts (not for editing existing)
-        if let Some(idx) = self.edit_state.editing_command
-            && self.edit_state.insert_at.is_some() {
-                let pos = self.edit_state.insert_at.unwrap_or(idx);
-                let label = format!("  #{}▶ {}", pos, self.edit_state.edit_input.content);
-                let style = Style::default()
-                    .fg(theme.accent_primary)
-                    .add_modifier(Modifier::BOLD);
-                let preview = ListItem::new(fill_row(Line::from(Span::styled(label, style)), style, list_area.width));
-                let insert_pos = self.edit_state.insert_at.unwrap_or(idx.min(items.len()));
-                items.insert(insert_pos, preview);
-            }
-
-        if self.set.commands.is_empty() {
-            items.push(empty_hint(theme, " (empty — press a to add a command) "));
-        }
-
-        let mut list_state = ratatui::widgets::ListState::default()
-            .with_selected(self.command_list.selected_or_none(self.set.commands.len()));
-        frame.render_stateful_widget(List::new(items), list_area, &mut list_state);
-
-        // Scrollbar
-        render_scrollbar(frame, scrollbar_area, theme, self.set.commands.len(), self.command_list.selected);
-
-        // Cursor for inline command editing
         if let Some(idx) = self.edit_state.editing_command {
             let pos = self.edit_state.insert_at.unwrap_or(idx);
             let display_prefix = format!("  #{}▶ ", pos);
