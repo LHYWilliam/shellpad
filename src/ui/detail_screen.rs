@@ -83,9 +83,14 @@ impl DetailScreenState {
     }
 
     fn render_metadata(&self, frame: &mut Frame, area: Rect, theme: &Theme) {
+        let props_focused = matches!(self.focus, DetailFocus::Name | DetailFocus::Group | DetailFocus::Shell | DetailFocus::ExecMode);
         let block = Block::default()
             .borders(Borders::ALL)
-            .border_style(Style::default().fg(theme.surface_border))
+            .border_style(Style::default().fg(if props_focused {
+                theme.accent_primary
+            } else {
+                theme.surface_border
+            }))
             .title(" Properties ");
 
         let inner = block.inner(area);
