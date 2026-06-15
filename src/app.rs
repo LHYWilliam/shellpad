@@ -159,7 +159,7 @@ impl App {
 
         self.variable_screen.render(frame, content_area, &self.theme);
 
-        // Render toast notification (right side of title bar)
+        // Render toast notification (centered on title bar)
         if let Some(toast) = self.toasts.last() {
             let (toast_fg, toast_label) = match toast.severity {
                 ToastSeverity::Success => (self.theme.accent_success, " ✓ "),
@@ -333,6 +333,7 @@ impl App {
                 self.detail_screen = None;
                 self.mode = AppMode::Main;
                 self.auto_save();
+                self.push_toast("Command set saved", ToastSeverity::Success);
             }
             DetailScreenAction::Cancel => {
                 self.detail_screen = None;
@@ -470,9 +471,8 @@ impl App {
     }
 
     fn auto_save(&mut self) {
-        match storage::save_app_data(&self.data) {
-            Ok(()) => self.push_toast("Saved", ToastSeverity::Success),
-            Err(e) => self.push_toast(format!("Save failed: {}", e), ToastSeverity::Error),
+        if let Err(e) = storage::save_app_data(&self.data) {
+            self.push_toast(format!("Save failed: {}", e), ToastSeverity::Error);
         }
     }
 
