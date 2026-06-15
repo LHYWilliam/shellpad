@@ -259,6 +259,21 @@ impl DetailScreenState {
             scrollbar_area,
             &mut scrollbar_state,
         );
+
+        // Cursor for inline variable editing
+        if let Some(idx) = self.edit_state.editing_variable {
+            let item_y = list_area.y + idx.saturating_sub(self.variable_list.offset) as u16;
+            if item_y < list_area.y + list_area.height {
+                let prefix_width = unicode_width::UnicodeWidthStr::width("  ▶ ");
+                set_cursor_after_prefix(
+                    frame,
+                    &self.edit_state.edit_input.content,
+                    self.edit_state.edit_input.cursor,
+                    prefix_width as u16,
+                    Rect::new(list_area.x, item_y, list_area.width, 1),
+                );
+            }
+        }
     }
 
     fn render_commands(&self, frame: &mut Frame, area: Rect, theme: &Theme) {
@@ -358,6 +373,23 @@ impl DetailScreenState {
             scrollbar_area,
             &mut scrollbar_state,
         );
+
+        // Cursor for inline command editing
+        if let Some(idx) = self.edit_state.editing_command {
+            let item_y = list_area.y + idx.saturating_sub(self.command_list.offset) as u16;
+            if item_y < list_area.y + list_area.height {
+                let pos = self.edit_state.insert_at.unwrap_or(idx);
+                let display_prefix = format!("  #{}▶ ", pos);
+                let prefix_width = unicode_width::UnicodeWidthStr::width(display_prefix.as_str());
+                set_cursor_after_prefix(
+                    frame,
+                    &self.edit_state.edit_input.content,
+                    self.edit_state.edit_input.cursor,
+                    prefix_width as u16,
+                    Rect::new(list_area.x, item_y, list_area.width, 1),
+                );
+            }
+        }
     }
 
     fn render_status_bar(&self, frame: &mut Frame, area: Rect, theme: &Theme) {
