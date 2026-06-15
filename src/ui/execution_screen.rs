@@ -3,7 +3,7 @@ use crate::ui::theme::Theme;
 use ratatui::layout::{Constraint, Layout, Rect};
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
-use ratatui::widgets::{Block, Borders, List, ListItem, Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState};
+use ratatui::widgets::{Block, Borders, Gauge, List, ListItem, Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState};
 use ratatui::Frame;
 use std::sync::mpsc;
 
@@ -153,8 +153,8 @@ impl ExecutionScreenState {
     }
 
     pub fn render(&self, frame: &mut Frame, area: Rect, theme: &Theme) {
-        let vertical = Layout::vertical([Constraint::Length(3), Constraint::Min(1)]);
-        let [header_area, body_area] = vertical.areas(area);
+        let vertical = Layout::vertical([Constraint::Length(1), Constraint::Length(1), Constraint::Min(1)]);
+        let [header_area, gauge_area, body_area] = vertical.areas(area);
 
         // Header
         let status_text = if self.completed {
@@ -179,6 +179,24 @@ impl ExecutionScreenState {
             ),
         ]));
         frame.render_widget(header, header_area);
+
+        // Gauge progress bar
+        let completed_count = self.succeeded + self.failed + self.skipped;
+        let progress = if self.total > 0 {
+            completed_count as f64 / self.total as f64
+        } else {
+            0.0
+        };
+        let gauge_label = format!("  {}/{}  {:.0}%  ", completed_count, self.total, progress * 100.0);
+        let gauge = Gauge::default()
+            .gauge_style(
+                Style::default()
+                    .fg(theme.accent_success)
+                    .bg(theme.surface),
+            )
+            .percent((progress * 100.0) as u16)
+            .label(gauge_label);
+        frame.render_widget(gauge, gauge_area);
 
         // Body: scrollable command output
         let mut items: Vec<ListItem> = Vec::new();
