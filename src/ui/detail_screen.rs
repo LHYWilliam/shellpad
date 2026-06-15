@@ -1,7 +1,8 @@
 use crate::models::{CommandSet, ExecMode, Group, ShellType};
 use crate::ui::components::{
-    bordered_block, empty_hint, handle_text_input, list_scrollbar_areas, render_inline_cursor,
-    render_scrollbar, render_status_bar, set_cursor_after_prefix, ScrollableList, TextInput,
+    bordered_block, empty_hint, fill_row, handle_text_input, list_scrollbar_areas,
+    render_inline_cursor, render_scrollbar, render_status_bar, set_cursor_after_prefix,
+    ScrollableList, TextInput,
 };
 use crate::ui::detail_editor::DetailEditState;
 use crate::ui::theme::Theme;
@@ -116,8 +117,9 @@ impl DetailScreenState {
             self.set.name.as_str()
         };
         let name_text = format!(" Name: {}", display_name);
+        let name_line = fill_row(Line::from(Span::styled(name_text, name_style)), name_style, name_row.width);
         frame.render_widget(
-            Paragraph::new(Line::from(Span::styled(name_text, name_style))),
+            Paragraph::new(name_line),
             name_row,
         );
 
@@ -217,7 +219,7 @@ impl DetailScreenState {
                 } else {
                     theme.normal_style()
                 };
-                ListItem::new(Line::from(Span::styled(label, style)))
+                ListItem::new(fill_row(Line::from(Span::styled(label, style)), style, list_area.width))
             })
             .collect();
 
@@ -228,7 +230,7 @@ impl DetailScreenState {
                 let style = Style::default()
                     .fg(theme.accent_primary)
                     .add_modifier(Modifier::BOLD);
-                let preview = ListItem::new(Line::from(Span::styled(label, style)));
+                let preview = ListItem::new(fill_row(Line::from(Span::styled(label, style)), style, list_area.width));
                 let pos = self.edit_state.insert_at.unwrap_or(idx.min(items.len()));
                 items.insert(pos, preview);
             }
@@ -299,7 +301,7 @@ impl DetailScreenState {
                 } else {
                     theme.normal_style()
                 };
-                ListItem::new(Line::from(Span::styled(label, style)))
+                ListItem::new(fill_row(Line::from(Span::styled(label, style)), style, list_area.width))
             })
             .collect();
 
@@ -311,7 +313,7 @@ impl DetailScreenState {
                 let style = Style::default()
                     .fg(theme.accent_primary)
                     .add_modifier(Modifier::BOLD);
-                let preview = ListItem::new(Line::from(Span::styled(label, style)));
+                let preview = ListItem::new(fill_row(Line::from(Span::styled(label, style)), style, list_area.width));
                 let insert_pos = self.edit_state.insert_at.unwrap_or(idx.min(items.len()));
                 items.insert(insert_pos, preview);
             }
