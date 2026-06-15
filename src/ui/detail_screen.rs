@@ -200,6 +200,7 @@ impl DetailScreenState {
         count: usize,
         list: &ScrollableList,
         editing_item: Option<usize>,
+        insert_at: Option<usize>,
         item_fn: F,
         preview_label: Option<String>,
         empty_text: &str,
@@ -223,14 +224,14 @@ impl DetailScreenState {
 
         // Preview row for new inserts
         if let Some(idx) = editing_item
-            && self.var_edit.insert_at.is_some()
+            && insert_at.is_some()
             && let Some(label) = &preview_label
         {
             let style = Style::default()
                 .fg(theme.accent_primary)
                 .add_modifier(Modifier::BOLD);
             let preview = ListItem::new(fill_row(Line::from(Span::styled(label.clone(), style)), style, list_area.width));
-            let pos = self.var_edit.insert_at.unwrap_or(idx.min(items.len()));
+            let pos = insert_at.unwrap_or(idx.min(items.len()));
             items.insert(pos, preview);
         }
 
@@ -257,6 +258,7 @@ impl DetailScreenState {
             self.focus == DetailFocus::Variables,
             count, &self.variable_list,
             self.var_edit.editing,
+            self.var_edit.insert_at,
             |i, is_editing| {
                 let label = if is_editing {
                     format!("  ▶ {}", self.var_edit.edit_input.content)
@@ -304,6 +306,7 @@ impl DetailScreenState {
             self.focus == DetailFocus::Commands,
             count, &self.command_list,
             self.cmd_edit.editing,
+            self.cmd_edit.insert_at,
             |i, is_editing| {
                 let pos = self.set.commands[i].position;
                 let is_insert = self.cmd_edit.insert_at.is_some();
