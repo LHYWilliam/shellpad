@@ -300,3 +300,22 @@ pub fn render_inline_cursor(
         );
     }
 }
+
+/// Pad a styled Line with trailing spaces up to `target_width` columns,
+/// so that the background highlight extends to the full row width.
+/// Uses `fill_style` for the padding spaces (typically the same style as the row).
+pub fn fill_row(line: Line<'_>, fill_style: Style, target_width: u16) -> Line<'_> {
+    let current: usize = line
+        .spans
+        .iter()
+        .map(|s| unicode_width::UnicodeWidthStr::width(s.content.as_ref()))
+        .sum();
+    let need = target_width.saturating_sub(current as u16) as usize;
+    if need > 0 {
+        let mut spans = line.spans;
+        spans.push(Span::styled(" ".repeat(need), fill_style));
+        Line::from(spans)
+    } else {
+        line
+    }
+}
