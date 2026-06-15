@@ -1,144 +1,75 @@
 use crate::models::{Command, Variable};
-use crate::ui::components::{handle_text_input, ScrollableList, TextInput};
+use crate::ui::components::{handle_text_input, InlineEdit, ScrollableList};
 use crate::ui::detail_screen::DetailScreenAction;
 use crossterm::event::{KeyCode, KeyEvent};
 
-pub struct DetailEditState {
-    pub editing_variable: Option<usize>,
-    pub editing_command: Option<usize>,
-    pub edit_input: TextInput,
-    pub insert_at: Option<usize>,
-}
-
-impl DetailEditState {
-    pub fn new() -> Self {
-        Self {
-            editing_variable: None,
-            editing_command: None,
-            edit_input: TextInput::new(String::new()),
-            insert_at: None,
-        }
-    }
-
-    pub fn is_editing(&self) -> bool {
-        self.editing_variable.is_some() || self.editing_command.is_some()
-    }
-
-    /// Commit the current edit, either inserting at `insert_at` position or
-    /// replacing at `idx`. Clears `insert_at` if it was present.
-    fn commit_edit<T>(&mut self, idx: usize, items: &mut Vec<T>, new_item: T, list: &mut ScrollableList) {
-        if let Some(insert_pos) = self.insert_at.take() {
-            items.insert(insert_pos, new_item);
-            list.selected = insert_pos;
-        } else {
-            items[idx] = new_item;
-            list.selected = idx;
-        }
-    }
-
-    pub fn handle_variable_edit(
-        &mut self,
-        key: KeyEvent,
-        idx: usize,
-        variables: &mut Vec<Variable>,
-        list: &mut ScrollableList,
-    ) -> DetailScreenAction {
-        match key.code {
-            KeyCode::Enter => {
-                let input = self.edit_input.content.clone();
-                if let Some(eq_pos) = input.find('=') {
-                    let name = input[..eq_pos].trim().to_string();
-                    let value = input[eq_pos + 1..].trim().to_string();
-                    let var = Variable { name, default_value: value };
-                    if let Some(insert_pos) = self.insert_at.take() {
-                        variables.insert(insert_pos, var);
-                        list.selected = insert_pos;
-                    } else {
-                        variables[idx] = var;
-                        list.selected = idx;
-                    }
-                } else if !input.is_empty() {
-                    let var = Variable {
+pub fn handle_variable_edit(
+    edit: &mut InlineEdit,
+    key: KeyEvent,
+    idx: usize,
+    variables: &mut Vec<Variable>,
+    list: &mut ScrollableList,
+) -> DetailScreenAction {
+    match key.code {
+        KeyCode::Enter => {
+            let input = edit.edit_input.content.clone();
+            if let Some(eq_pos) = input.find('=') {
+                let name = input[..eq_pos].trim().to_string();
+                let value = input[eq_pos + 1..].trim().to_string();
+                edit.commit(idx, variables, Variable { name, default_value: value }, list);
+            } else if !input.is_empty() {
+                edit.commit(
+                    idx,
+                    variables,
+                    Variable {
                         name: input.trim().to_string(),
                         default_value: String::new(),
-                    };
-                    if let Some(insert_pos) = self.insert_at.take() {
-                        variables.insert(insert_pos, var);
-                        list.selected = insert_pos;
-                    } else {
-                        variables[idx] = var;
-                        list.selected = idx;
-                    }
-                }
-                self.editing_variable = None;
-                DetailScreenAction::None
+                    },
+                    list,
+                );
             }
-            KeyCode::Esc => {
-                self.insert_at = None;
-                self.editing_variable = None;
-                DetailScreenAction::None
+            edit.editing = None;
+            DetailScreenAction::None
+        }
+        KeyCode::Esc => {
+            edit.cancel();
+            DetailScreenAction::None
+        }
+        _ => {
+            let n = variables.len();
+            if (n > 0 || edit.insert_at.is_some()) && edit.editing.is_some() {
+                let protect = edit.edit_input.content.find('=').map(|p| p + 1);
+                edit.handle_key_protected(key, protect);
             }
-            _ => {
-                let n = variables.len();
-                if (n > 0 || self.insert_at.is_some()) && self.editing_variable.is_some() {
-                    // Protect "key=" prefix from deletion
-                    let protect = self.edit_input.content.find('=').map_or(0, |p| p + 1);
-                    match key.code {
-                        KeyCode::Backspace => {
-                            if self.edit_input.cursor > protect {
-                                self.edit_input.delete_before();
-                            }
-                        }
-                        KeyCode::Delete => {
-                            if self.edit_input.cursor > protect {
-                                self.edit_input.delete_at();
-                            }
-                        }
-                        KeyCode::Left => {
-                            if self.edit_input.cursor > protect {
-                                self.edit_input.move_cursor_left();
-                            }
-                        }
-                        KeyCode::Right => self.edit_input.move_cursor_right(),
-                        KeyCode::Home => self.edit_input.move_cursor_to_start(),
-                        KeyCode::End => self.edit_input.move_cursor_to_end(),
-                        _ => {
-                            handle_text_input(&mut self.edit_input, key);
-                        }
-                    }
-                }
-                DetailScreenAction::None
-            }
+            DetailScreenAction::None
         }
     }
+}
 
-    pub fn handle_command_edit(
-        &mut self,
-        key: KeyEvent,
-        idx: usize,
-        commands: &mut Vec<Command>,
-        list: &mut ScrollableList,
-    ) -> DetailScreenAction {
-        match key.code {
-            KeyCode::Enter => {
-                let cmd = self.edit_input.content.clone();
-                let command = Command { position: idx, command: cmd };
-                self.commit_edit(idx, commands, command, list);
-                for (i, c) in commands.iter_mut().enumerate() {
-                    c.position = i;
-                }
-                self.editing_command = None;
-                DetailScreenAction::None
+pub fn handle_command_edit(
+    edit: &mut InlineEdit,
+    key: KeyEvent,
+    idx: usize,
+    commands: &mut Vec<Command>,
+    list: &mut ScrollableList,
+) -> DetailScreenAction {
+    match key.code {
+        KeyCode::Enter => {
+            let cmd = edit.edit_input.content.clone();
+            edit.commit(idx, commands, Command { position: idx, command: cmd }, list);
+            for (i, c) in commands.iter_mut().enumerate() {
+                c.position = i;
             }
-            KeyCode::Esc => {
-                self.insert_at = None;
-                self.editing_command = None;
-                DetailScreenAction::None
-            }
-            _ => {
-                handle_text_input(&mut self.edit_input, key);
-                DetailScreenAction::None
-            }
+            edit.editing = None;
+            DetailScreenAction::None
+        }
+        KeyCode::Esc => {
+            edit.cancel();
+            DetailScreenAction::None
+        }
+        _ => {
+            edit.handle_key(key);
+            DetailScreenAction::None
         }
     }
 }

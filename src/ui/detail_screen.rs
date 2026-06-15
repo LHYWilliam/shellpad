@@ -1,10 +1,10 @@
 use crate::models::{CommandSet, ExecMode, Group, ShellType};
 use crate::ui::components::{
-    bordered_block, empty_hint, fill_row, handle_text_input, list_scrollbar_areas,
+    bordered_block, empty_hint, fill_row, handle_text_input, InlineEdit, list_scrollbar_areas,
     render_inline_cursor, render_scrollbar, render_status_bar, set_cursor_after_prefix,
     ScrollableList, TextInput,
 };
-use crate::ui::detail_editor::DetailEditState;
+use crate::ui::detail_editor::{handle_command_edit, handle_variable_edit};
 use crate::ui::theme::Theme;
 use ratatui::layout::{Constraint, Layout, Rect};
 use ratatui::style::{Modifier, Style};
@@ -38,7 +38,8 @@ pub struct DetailScreenState {
     pub variable_list: ScrollableList,
     pub command_list: ScrollableList,
     pub editing_name: bool,
-    pub edit_state: DetailEditState,
+    pub var_edit: InlineEdit,
+    pub cmd_edit: InlineEdit,
 }
 
 impl DetailScreenState {
@@ -52,7 +53,8 @@ impl DetailScreenState {
             variable_list: ScrollableList::new(),
             command_list: ScrollableList::new(),
             editing_name: false,
-            edit_state: DetailEditState::new(),
+            var_edit: InlineEdit::new(),
+            cmd_edit: InlineEdit::new(),
         }
     }
 
@@ -221,14 +223,14 @@ impl DetailScreenState {
 
         // Preview row for new inserts
         if let Some(idx) = editing_item
-            && self.edit_state.insert_at.is_some()
+            && self.var_edit.insert_at.is_some()
             && let Some(label) = &preview_label
         {
             let style = Style::default()
                 .fg(theme.accent_primary)
                 .add_modifier(Modifier::BOLD);
             let preview = ListItem::new(fill_row(Line::from(Span::styled(label.clone(), style)), style, list_area.width));
-            let pos = self.edit_state.insert_at.unwrap_or(idx.min(items.len()));
+            let pos = self.var_edit.insert_at.unwrap_or(idx.min(items.len()));
             items.insert(pos, preview);
         }
 
@@ -246,18 +248,18 @@ impl DetailScreenState {
 
     fn render_variables(&self, frame: &mut Frame, area: Rect, theme: &Theme) {
         let count = self.set.variables.len();
-        let preview = self.edit_state.insert_at.is_some().then(|| {
-            format!("  ▶ {}", self.edit_state.edit_input.content)
+        let preview = self.var_edit.insert_at.is_some().then(|| {
+            format!("  ▶ {}", self.var_edit.edit_input.content)
         });
         let list_area = self.render_items_list(
             frame, area, theme,
             &format!(" Variables ({}) ", count),
             self.focus == DetailFocus::Variables,
             count, &self.variable_list,
-            self.edit_state.editing_variable,
+            self.var_edit.editing,
             |i, is_editing| {
                 let label = if is_editing {
-                    format!("  ▶ {}", self.edit_state.edit_input.content)
+                    format!("  ▶ {}", self.var_edit.edit_input.content)
                 } else {
                     let v = &self.set.variables[i];
                     format!("  {} = {}", v.name, v.default_value)
@@ -280,11 +282,11 @@ impl DetailScreenState {
             " (empty — press a to add a variable) ",
         );
 
-        if let Some(idx) = self.edit_state.editing_variable {
-            let pos = self.edit_state.insert_at.unwrap_or(idx);
+        if let Some(idx) = self.var_edit.editing {
+            let pos = self.var_edit.insert_at.unwrap_or(idx);
             render_inline_cursor(
                 frame, list_area, self.variable_list.offset,
-                pos, &self.edit_state.edit_input,
+                pos, &self.var_edit.edit_input,
                 unicode_width::UnicodeWidthStr::width("  ▶ ") as u16,
             );
         }
@@ -292,28 +294,28 @@ impl DetailScreenState {
 
     fn render_commands(&self, frame: &mut Frame, area: Rect, theme: &Theme) {
         let count = self.set.commands.len();
-        let preview = self.edit_state.insert_at.is_some().then(|| {
-            let pos = self.edit_state.insert_at.unwrap_or(0);
-            format!("  #{}▶ {}", pos, self.edit_state.edit_input.content)
+        let preview = self.cmd_edit.insert_at.is_some().then(|| {
+            let pos = self.cmd_edit.insert_at.unwrap_or(0);
+            format!("  #{}▶ {}", pos, self.cmd_edit.edit_input.content)
         });
         let list_area = self.render_items_list(
             frame, area, theme,
             &format!(" Commands ({}) ", count),
             self.focus == DetailFocus::Commands,
             count, &self.command_list,
-            self.edit_state.editing_command,
+            self.cmd_edit.editing,
             |i, is_editing| {
                 let pos = self.set.commands[i].position;
-                let is_insert = self.edit_state.insert_at.is_some();
+                let is_insert = self.cmd_edit.insert_at.is_some();
                 let display_pos = if is_editing {
-                    self.edit_state.insert_at.unwrap_or(pos)
-                } else if is_insert && i >= self.edit_state.insert_at.unwrap() {
+                    self.cmd_edit.insert_at.unwrap_or(pos)
+                } else if is_insert && i >= self.cmd_edit.insert_at.unwrap() {
                     pos + 1
                 } else {
                     pos
                 };
                 let content = if is_editing {
-                    self.edit_state.edit_input.content.as_str()
+                    self.cmd_edit.edit_input.content.as_str()
                 } else {
                     self.set.commands[i].command.as_str()
                 };
@@ -336,19 +338,19 @@ impl DetailScreenState {
             " (empty — press a to add a command) ",
         );
 
-        if let Some(idx) = self.edit_state.editing_command {
-            let pos = self.edit_state.insert_at.unwrap_or(idx);
+        if let Some(idx) = self.cmd_edit.editing {
+            let pos = self.cmd_edit.insert_at.unwrap_or(idx);
             let display_prefix = format!("  #{}▶ ", pos);
             render_inline_cursor(
                 frame, list_area, self.command_list.offset,
-                pos, &self.edit_state.edit_input,
+                pos, &self.var_edit.edit_input,
                 unicode_width::UnicodeWidthStr::width(display_prefix.as_str()) as u16,
             );
         }
     }
 
     fn render_status_bar(&self, frame: &mut Frame, area: Rect, theme: &Theme) {
-        let is_editing = self.edit_state.is_editing();
+        let is_editing = self.var_edit.is_editing() || self.cmd_edit.is_editing();
         let status: String = if is_editing {
             " [Enter] Confirm  [Esc] Cancel".into()
         } else {
@@ -370,14 +372,14 @@ impl DetailScreenState {
         use crossterm::event::KeyCode;
 
         // Handle inline editing
-        if let Some(idx) = self.edit_state.editing_variable {
-            return self.edit_state.handle_variable_edit(
-                key, idx, &mut self.set.variables, &mut self.variable_list,
+        if let Some(idx) = self.var_edit.editing {
+            return handle_variable_edit(
+                &mut self.var_edit, key, idx, &mut self.set.variables, &mut self.variable_list,
             );
         }
-        if let Some(idx) = self.edit_state.editing_command {
-            return self.edit_state.handle_command_edit(
-                key, idx, &mut self.set.commands, &mut self.command_list,
+        if let Some(idx) = self.cmd_edit.editing {
+            return handle_command_edit(
+                &mut self.cmd_edit, key, idx, &mut self.set.commands, &mut self.command_list,
             );
         }
 
@@ -450,13 +452,13 @@ impl DetailScreenState {
                     DetailFocus::Variables if !self.set.variables.is_empty() => {
                         let idx = self.variable_list.selected.min(self.set.variables.len().saturating_sub(1));
                         let v = &self.set.variables[idx];
-                        self.edit_state.edit_input = TextInput::new(format!("{}={}", v.name, v.default_value));
-                        self.edit_state.editing_variable = Some(idx);
+                        self.var_edit.edit_input = TextInput::new(format!("{}={}", v.name, v.default_value));
+                        self.var_edit.editing = Some(idx);
                     }
                     DetailFocus::Commands if !self.set.commands.is_empty() => {
                         let idx = self.command_list.selected.min(self.set.commands.len().saturating_sub(1));
-                        self.edit_state.edit_input = TextInput::new(self.set.commands[idx].command.clone());
-                        self.edit_state.editing_command = Some(idx);
+                        self.cmd_edit.edit_input = TextInput::new(self.set.commands[idx].command.clone());
+                        self.cmd_edit.editing = Some(idx);
                     }
                     _ => {}
                 }
@@ -464,18 +466,18 @@ impl DetailScreenState {
             KeyCode::Char('a' | 'A') => {
                 match self.focus {
                     DetailFocus::Variables => {
-                        self.edit_state.edit_input = TextInput::new(String::new());
+                        self.var_edit.edit_input = TextInput::new(String::new());
                         let pos = (self.variable_list.selected + 1)
                             .min(self.set.variables.len());
-                        self.edit_state.insert_at = Some(pos);
-                        self.edit_state.editing_variable = Some(self.set.variables.len());
+                        self.var_edit.insert_at = Some(pos);
+                        self.var_edit.editing = Some(self.set.variables.len());
                     }
                     DetailFocus::Commands => {
-                        self.edit_state.edit_input = TextInput::new(String::new());
+                        self.cmd_edit.edit_input = TextInput::new(String::new());
                         let pos = (self.command_list.selected + 1)
                             .min(self.set.commands.len());
-                        self.edit_state.insert_at = Some(pos);
-                        self.edit_state.editing_command = Some(self.set.commands.len());
+                        self.cmd_edit.insert_at = Some(pos);
+                        self.cmd_edit.editing = Some(self.set.commands.len());
                     }
                     _ => {}
                 }
