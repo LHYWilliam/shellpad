@@ -1,5 +1,5 @@
 use crate::executor::ExecutionEvent;
-use crate::ui::components::{bordered_block, list_scrollbar_areas, render_scrollbar};
+use crate::ui::components::{bordered_block, list_scrollbar_areas, render_scrollbar, render_status_bar};
 use crate::ui::theme::Theme;
 use ratatui::layout::{Constraint, Layout, Rect};
 use ratatui::style::{Modifier, Style};
@@ -306,7 +306,7 @@ impl ExecutionScreenState {
             " [q] Back to main  [s] Skip  [z] Auto-scroll  [Ctrl+C] Interrupt"
         };
 
-        let body_layout = Layout::vertical([Constraint::Min(1), Constraint::Length(1)]);
+        let body_layout = Layout::vertical([Constraint::Min(1), Constraint::Length(2)]);
         let [list_area, footer_area] = body_layout.areas(body_area);
 
         let list_block = bordered_block(theme, " Output ", false);
@@ -324,13 +324,7 @@ impl ExecutionScreenState {
         // Scrollbar tracks current command position
         render_scrollbar(frame, scrollbar_area, theme, self.cmd_states.len(), self.current_index);
 
-        frame.render_widget(
-            Paragraph::new(Line::from(Span::styled(
-                footer_text,
-                theme.dim_style(),
-            ))),
-            footer_area,
-        );
+        render_status_bar(frame, footer_area, theme, footer_text);
     }
 
     /// Handle key events.
