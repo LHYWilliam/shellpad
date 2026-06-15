@@ -167,7 +167,8 @@ impl App {
                 ToastSeverity::Info => (self.theme.accent_info, " ● "),
             };
             let toast_msg = format!("{}{}", toast_label, toast.message);
-            let toast_width = (toast_msg.len() as u16 + 2).min(area.width.saturating_sub(4));
+            let toast_display_width = unicode_width::UnicodeWidthStr::width(toast_msg.as_str());
+            let toast_width = (toast_display_width as u16 + 2).min(area.width.saturating_sub(4));
             let x = (area.width.saturating_sub(toast_width)) / 2;
             let toast_area = Rect::new(x, title_area.y, toast_width, 1);
             frame.render_widget(Clear, toast_area);
