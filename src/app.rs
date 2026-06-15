@@ -5,7 +5,7 @@ use std::sync::Arc;
 use crate::mode::AppMode;
 use crate::models::{AppData, CommandSet};
 use crate::storage;
-use crate::ui::detail_screen::{DetailScreenAction, DetailScreenState};
+use crate::ui::detail_screen::{DetailFocus, DetailScreenAction, DetailScreenState};
 use crate::ui::notification::{Toast, ToastSeverity};
 use crate::ui::theme::Theme;
 use crate::ui::variable_screen::{VariableScreenAction, VariableScreenState};
@@ -345,6 +345,9 @@ impl App {
                 {
                     ds.set.variables.remove(idx);
                     ds.variable_list.clamp_selected(ds.set.variables.len());
+                    if ds.set.variables.is_empty() {
+                        ds.focus = DetailFocus::Name;
+                    }
                     self.push_toast("Variable deleted", ToastSeverity::Info);
                 }
             }
@@ -357,6 +360,9 @@ impl App {
                         c.position = i;
                     }
                     ds.command_list.clamp_selected(ds.set.commands.len());
+                    if ds.set.commands.is_empty() {
+                        ds.focus = DetailFocus::Name;
+                    }
                     self.push_toast("Command deleted", ToastSeverity::Info);
                 }
             }
