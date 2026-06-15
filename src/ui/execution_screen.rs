@@ -224,7 +224,12 @@ impl ExecutionScreenState {
 
             // Separator between commands
             if i + 1 < self.cmd_states.len() {
-                items.push(ListItem::new(Line::from("")));
+                let sep_width = area.width.saturating_sub(6) as usize;
+                let separator = "╌".repeat(sep_width);
+                items.push(ListItem::new(Line::from(Span::styled(
+                    separator,
+                    Style::default().fg(theme.text_disabled).add_modifier(Modifier::DIM),
+                ))));
             }
         }
 
