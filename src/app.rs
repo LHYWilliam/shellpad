@@ -262,7 +262,8 @@ impl App {
                 if gi < self.data.groups.len() {
                     let gid = self.data.groups[gi].id;
                     let set = CommandSet::new("New Command Set".to_string(), gid);
-                    self.data.groups[gi].sets.push(set.clone());
+                    let si = (self.main_screen.set_list.selected + 1).min(self.data.groups[gi].sets.len());
+                    self.data.groups[gi].sets.insert(si, set.clone());
                     self.auto_save();
                     self.push_toast("Set created", ToastSeverity::Info);
                     let groups = self.data.groups.clone();
@@ -282,12 +283,12 @@ impl App {
                 }
             }
             MainScreenAction::NewGroup => {
+                let gi = (self.main_screen.group_list.selected + 1).min(self.data.groups.len());
                 let n = self.data.groups.len() + 1;
                 self.data
                     .groups
-                    .push(crate::models::Group::new(format!("Group {}", n)));
-                self.main_screen.group_list.selected =
-                    self.data.groups.len().saturating_sub(1);
+                    .insert(gi, crate::models::Group::new(format!("Group {}", n)));
+                self.main_screen.group_list.selected = gi;
                 self.main_screen.set_list.reset();
                 self.auto_save();
                 self.push_toast("Group created", ToastSeverity::Info);
