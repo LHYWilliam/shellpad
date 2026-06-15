@@ -6,6 +6,7 @@ use crate::mode::AppMode;
 use crate::models::{AppData, CommandSet};
 use crate::storage;
 use crate::ui::detail_screen::{DetailScreenAction, DetailScreenState};
+use crate::ui::theme::Theme;
 use crate::ui::variable_screen::{VariableScreenAction, VariableScreenState};
 use crate::ui::execution_screen::{ExecutionScreenAction, ExecutionScreenState};
 use crate::ui::help_screen::draw_help;
@@ -39,6 +40,9 @@ pub struct App {
     // Variable input overlay (shown before execution — extracted into VariableScreenState)
     variable_screen: VariableScreenState,
     pending_set: Option<(usize, usize)>, // (group_index, set_index)
+
+    // -- UI theme
+    theme: Theme,
 }
 
 impl App {
@@ -59,6 +63,7 @@ impl App {
             kill_signal: Arc::new(AtomicBool::new(false)),
             variable_screen: VariableScreenState::new(),
             pending_set: None,
+            theme: Theme::default_simple(),
         }
     }
 
@@ -103,25 +108,25 @@ impl App {
 
         match self.mode {
             AppMode::Main => {
-                self.main_screen.render(frame, area, &self.data);
+                self.main_screen.render(frame, area, &self.data, &self.theme);
             }
             AppMode::Detail => {
                 if let Some(ref mut ds) = self.detail_screen {
-                    ds.render(frame, area);
+                    ds.render(frame, area, &self.theme);
                 }
             }
             AppMode::Execution => {
                 if let Some(ref es) = self.exec_screen {
-                    es.render(frame, area);
+                    es.render(frame, area, &self.theme);
                 }
             }
             AppMode::Help => {
-                self.main_screen.render(frame, area, &self.data);
-                draw_help(frame, area);
+                self.main_screen.render(frame, area, &self.data, &self.theme);
+                draw_help(frame, area, &self.theme);
             }
         }
 
-        self.variable_screen.render(frame, area);
+        self.variable_screen.render(frame, area, &self.theme);
     }
 
     fn handle_key(&mut self, key: crossterm::event::KeyEvent) {
