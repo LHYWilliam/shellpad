@@ -63,7 +63,7 @@ impl DetailScreenState {
 
         // Split into top metadata and bottom command areas
         let layout = Layout::vertical([
-            Constraint::Length(6), // metadata (name, group, shell, mode)
+            Constraint::Length(8), // Properties block (4 rows + borders)
             Constraint::Min(3),    // variables
             Constraint::Min(3),    // commands
             Constraint::Length(1), // status bar
@@ -81,9 +81,17 @@ impl DetailScreenState {
     }
 
     fn render_metadata(&self, frame: &mut Frame, area: Rect, theme: &Theme) {
-        // Name, Group, Shell, ExecMode in rows
-        let rows = Layout::vertical([Constraint::Length(1); 4]);
-        let [name_row, group_row, shell_row, mode_row] = rows.areas(area);
+        let block = Block::default()
+            .borders(Borders::ALL)
+            .border_style(Style::default().fg(theme.surface_border))
+            .title(" Properties ");
+
+        let inner = block.inner(area);
+        frame.render_widget(&block, area);
+
+        // Name, Group+Shell, ExecMode in rows inside the block
+        let rows = Layout::vertical([Constraint::Length(1), Constraint::Length(1), Constraint::Length(1)]);
+        let [name_row, gs_row, mode_row] = rows.areas(inner);
 
         // Name
         let is_name_focused = self.focus == DetailFocus::Name;
@@ -103,7 +111,7 @@ impl DetailScreenState {
             name_row,
         );
 
-        // Group
+        // Group and Shell on the same row (side by side)
         let group_name = self
             .groups
             .iter()
@@ -115,25 +123,31 @@ impl DetailScreenState {
         } else {
             Style::default().fg(theme.text_primary)
         };
-        let group_text = format!(" Group: {}", group_name);
-        frame.render_widget(
-            Paragraph::new(Line::from(Span::styled(group_text, group_style))),
-            group_row,
-        );
 
-        // Shell
         let shell_style = if self.focus == DetailFocus::Shell {
             Style::default().fg(theme.accent_primary)
         } else {
             Style::default().fg(theme.text_primary)
         };
-        let shell_text = format!(" Shell: {}", self.set.shell.label());
+
+        let half_layout = Layout::horizontal([Constraint::Ratio(1, 2), Constraint::Ratio(1, 2)]);
+        let [group_col, shell_col] = half_layout.areas(gs_row);
         frame.render_widget(
-            Paragraph::new(Line::from(Span::styled(shell_text, shell_style))),
-            shell_row,
+            Paragraph::new(Line::from(Span::styled(
+                format!(" Group: {}", group_name),
+                group_style,
+            ))),
+            group_col,
+        );
+        frame.render_widget(
+            Paragraph::new(Line::from(Span::styled(
+                format!(" Shell: {}", self.set.shell.label()),
+                shell_style,
+            ))),
+            shell_col,
         );
 
-        // Exec mode
+        // Exec mode (full width)
         let mode_style = if self.focus == DetailFocus::ExecMode {
             Style::default().fg(theme.accent_primary)
         } else {
