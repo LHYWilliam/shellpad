@@ -141,7 +141,7 @@ impl MainScreenState {
         let sets = self.visible_sets(data);
         self.render_set_panel(frame, right_area, data, &sets, theme);
 
-        // Status bar (or rename input when in rename mode)
+        // Status bar (or rename/search input)
         if self.rename_mode {
             let prefix = " Rename: ";
             let ren = &self.rename_input;
@@ -160,6 +160,24 @@ impl MainScreenState {
                 frame,
                 &ren.content,
                 ren.cursor,
+                prefix_w as u16,
+                Rect::new(status_area.x, status_area.y, status_area.width, 1),
+            );
+        } else if self.search_mode {
+            let prefix = " Search: ";
+            let display = format!("{}{}", prefix, self.search_query);
+            frame.render_widget(
+                Paragraph::new(Line::from(Span::styled(
+                    display,
+                    Style::default().fg(theme.text_primary),
+                ))),
+                status_area,
+            );
+            let prefix_w = unicode_width::UnicodeWidthStr::width(prefix);
+            set_cursor_after_prefix(
+                frame,
+                &self.search_query,
+                self.search_cursor,
                 prefix_w as u16,
                 Rect::new(status_area.x, status_area.y, status_area.width, 1),
             );
