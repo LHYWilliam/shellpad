@@ -1,5 +1,5 @@
 use crate::models::{CommandSet, ExecMode, Group, ShellType};
-use crate::ui::components::{ScrollableList, TextInput};
+use crate::ui::components::{set_cursor_after_prefix, ScrollableList, TextInput};
 use crate::ui::detail_editor::DetailEditState;
 use crate::ui::theme::Theme;
 use ratatui::layout::{Constraint, Layout, Rect};
@@ -110,6 +110,18 @@ impl DetailScreenState {
             Paragraph::new(Line::from(Span::styled(name_text, name_style))),
             name_row,
         );
+
+        // Cursor for name editing
+        if self.editing_name {
+            let prefix_width = unicode_width::UnicodeWidthStr::width(" Name: ");
+            set_cursor_after_prefix(
+                frame,
+                &self.name_input.content,
+                self.name_input.cursor,
+                prefix_width as u16,
+                name_row,
+            );
+        }
 
         // Group and Shell on the same row (side by side)
         let group_name = self
