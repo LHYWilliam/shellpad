@@ -346,7 +346,7 @@ impl DetailScreenState {
             let display_prefix = format!("  #{}▶ ", pos);
             render_inline_cursor(
                 frame, list_area, self.command_list.offset,
-                pos, &self.var_edit.edit_input,
+                pos, &self.cmd_edit.edit_input,
                 unicode_width::UnicodeWidthStr::width(display_prefix.as_str()) as u16,
             );
         }

@@ -264,6 +264,7 @@ impl App {
                     let set = CommandSet::new("New Command Set".to_string(), gid);
                     let si = (self.main_screen.set_list.selected + 1).min(self.data.groups[gi].sets.len());
                     self.data.groups[gi].sets.insert(si, set.clone());
+                    self.main_screen.set_list.selected = si;
                     self.auto_save();
                     self.push_toast("Set created", ToastSeverity::Info);
                     let groups = self.data.groups.clone();
