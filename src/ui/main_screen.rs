@@ -251,13 +251,11 @@ impl MainScreenState {
             );
 
             // Split remaining into list + scrollbar
-            let list_layout = Layout::horizontal([Constraint::Min(1), Constraint::Length(1)]);
-            let [list_area, sb_area] = list_layout.areas(remaining);
+            let (list_area, sb_area) = list_scrollbar_areas(remaining);
             (list_area, sb_area)
         } else {
             // Original: split inner into list + scrollbar
-            let list_layout = Layout::horizontal([Constraint::Min(1), Constraint::Length(1)]);
-            let [list_area, sb_area] = list_layout.areas(inner);
+            let (list_area, sb_area) = list_scrollbar_areas(inner);
             (list_area, sb_area)
         };
 
