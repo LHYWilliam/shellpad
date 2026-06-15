@@ -1,11 +1,11 @@
 use crate::models::CommandSet;
-use crate::ui::components::{handle_text_input, set_cursor_after_prefix, TextInput};
+use crate::ui::components::{bordered_block, centered_rect, handle_text_input, set_cursor_after_prefix, TextInput};
 use crate::ui::theme::Theme;
 use crossterm::event::{KeyCode, KeyEvent};
 use ratatui::layout::Rect;
-use ratatui::style::{Modifier, Style};
+use ratatui::style::Style;
 use ratatui::text::{Line, Span};
-use ratatui::widgets::{Block, Borders, Clear, Paragraph};
+use ratatui::widgets::{Clear, Paragraph};
 use ratatui::Frame;
 
 pub enum VariableScreenAction {
@@ -88,18 +88,11 @@ impl VariableScreenState {
         if count == 0 {
             return;
         }
-        let width = area.width.min(60).saturating_sub(4);
-        let height = count as u16 + 4;
-        let x = area.x + (area.width.saturating_sub(width)) / 2;
-        let y = area.y + (area.height.saturating_sub(height)) / 2;
-        let dialog = Rect::new(x, y, width, height);
+        let dialog = centered_rect(area, area.width.min(60).saturating_sub(4), count as u16 + 4);
 
         frame.render_widget(Clear, dialog);
 
-        let block = Block::default()
-            .borders(Borders::ALL)
-            .border_style(Style::default().fg(theme.accent_info))
-            .title(" Set Variables ")
+        let block = bordered_block(theme, " Set Variables ", false)
             .style(Style::default().bg(theme.surface));
         frame.render_widget(&block, dialog);
 
@@ -108,11 +101,9 @@ impl VariableScreenState {
         for i in 0..count {
             let focused = i == self.focus;
             let row_style = if focused {
-                Style::default()
-                    .fg(theme.text_on_selected)
-                    .bg(theme.selection_bg_primary)
+                theme.selected_style(theme.selection_bg_primary)
             } else {
-                Style::default().fg(theme.text_primary)
+                theme.normal_style()
             };
             let row = Rect::new(inner.x, inner.y + i as u16, inner.width, 1);
             let display = format!(" {} = {}", self.names[i], self.inputs[i].content);
@@ -138,7 +129,7 @@ impl VariableScreenState {
         frame.render_widget(
             Paragraph::new(Line::from(Span::styled(
                 " [Enter] Execute  [Esc] Cancel  [Tab/Down] Next  [Up] Prev",
-                Style::default().fg(theme.text_secondary).add_modifier(Modifier::DIM),
+                theme.dim_style(),
             ))),
             Rect::new(inner.x, hint_y, inner.width, 1),
         );
