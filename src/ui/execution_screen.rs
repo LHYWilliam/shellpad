@@ -3,7 +3,7 @@ use crate::ui::theme::Theme;
 use ratatui::layout::{Constraint, Layout, Rect};
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
-use ratatui::widgets::{Block, Borders, List, ListItem, Paragraph};
+use ratatui::widgets::{Block, Borders, List, ListItem, Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState};
 use ratatui::Frame;
 use std::sync::mpsc;
 
@@ -268,8 +268,26 @@ impl ExecutionScreenState {
         let list_block = Block::default()
             .borders(Borders::ALL)
             .border_style(Style::default().fg(theme.surface_border));
-        let list = List::new(items).block(list_block);
-        frame.render_widget(list, list_area);
+        let list_inner = list_block.inner(list_area);
+        frame.render_widget(&list_block, list_area);
+
+        // Split list inner into content + scrollbar
+        let list_inner_layout = Layout::horizontal([Constraint::Min(1), Constraint::Length(1)]);
+        let [content_area, scrollbar_area] = list_inner_layout.areas(list_inner);
+
+        let list = List::new(items);
+        frame.render_widget(list, content_area);
+
+        // Scrollbar
+        let content_len = self.cmd_states.len();
+        let mut scrollbar_state = ScrollbarState::new(content_len)
+            .position(0);
+        frame.render_stateful_widget(
+            Scrollbar::new(ScrollbarOrientation::VerticalRight)
+                .thumb_style(Style::default().fg(theme.surface_border)),
+            scrollbar_area,
+            &mut scrollbar_state,
+        );
 
         frame.render_widget(
             Paragraph::new(Line::from(Span::styled(
