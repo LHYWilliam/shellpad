@@ -1,6 +1,6 @@
 use crate::ui::theme::Theme;
 use crate::models::AppData;
-use crate::ui::components::{handle_text_input, ScrollableList, TextInput};
+use crate::ui::components::{handle_text_input, set_cursor_after_prefix, ScrollableList, TextInput};
 use ratatui::layout::{Constraint, Layout, Rect};
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
@@ -154,11 +154,13 @@ impl MainScreenState {
                 status_area,
             );
             let prefix_w = unicode_width::UnicodeWidthStr::width(prefix);
-            let content_w = unicode_width::UnicodeWidthStr::width(&ren.content[..ren.cursor.min(ren.content.len())]);
-            frame.set_cursor_position((
-                status_area.x + prefix_w as u16 + content_w as u16,
-                status_area.y,
-            ));
+            set_cursor_after_prefix(
+                frame,
+                &ren.content,
+                ren.cursor,
+                prefix_w as u16,
+                Rect::new(status_area.x, status_area.y, status_area.width, 1),
+            );
         } else {
             self.render_status_bar(frame, status_area, theme);
         }

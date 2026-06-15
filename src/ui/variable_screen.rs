@@ -1,5 +1,5 @@
 use crate::models::CommandSet;
-use crate::ui::components::{handle_text_input, TextInput};
+use crate::ui::components::{handle_text_input, set_cursor_after_prefix, TextInput};
 use crate::ui::theme::Theme;
 use crossterm::event::{KeyCode, KeyEvent};
 use ratatui::layout::Rect;
@@ -124,14 +124,13 @@ impl VariableScreenState {
                 let prefix_w = unicode_width::UnicodeWidthStr::width(" ") // leading space
                     + unicode_width::UnicodeWidthStr::width(self.names[i].as_str())
                     + unicode_width::UnicodeWidthStr::width(" = ");
-                let content_w = unicode_width::UnicodeWidthStr::width(
-                    &self.inputs[i].content[..self.inputs[i].cursor
-                        .min(self.inputs[i].content.len())],
+                set_cursor_after_prefix(
+                    frame,
+                    &self.inputs[i].content,
+                    self.inputs[i].cursor,
+                    prefix_w as u16,
+                    Rect::new(inner.x, inner.y + i as u16, inner.width, 1),
                 );
-                frame.set_cursor_position((
-                    inner.x + prefix_w as u16 + content_w as u16,
-                    inner.y + i as u16,
-                ));
             }
         }
 
