@@ -188,8 +188,8 @@ impl MainScreenState {
         }
 
         let mut list_state = ratatui::widgets::ListState::default()
-            .with_selected(Some(self.group_list.selected));
-        let list = List::new(items).highlight_style(theme.selected_style(theme.selection_bg_primary));
+            .with_selected(self.group_list.selected_or_none(data.groups.len()));
+        let list = List::new(items);
         frame.render_stateful_widget(list, list_area, &mut list_state);
 
         // Render scrollbar
@@ -340,11 +340,14 @@ impl MainScreenState {
             items.push(empty_hint(theme, " (empty — press n to add a set) "));
         }
 
-        let selected = self.set_list.selected_or_none(sets.len())
-            .filter(|_| self.active_panel == Panel::Sets);
+        let selected = if self.active_panel == Panel::Sets {
+            self.set_list.selected_or_none(sets.len())
+        } else {
+            None
+        };
         let mut list_state = ratatui::widgets::ListState::default()
             .with_selected(selected);
-        let list = List::new(items).highlight_style(theme.selected_style(theme.selection_bg_secondary));
+        let list = List::new(items);
         frame.render_stateful_widget(list, list_area, &mut list_state);
 
         // Render scrollbar
