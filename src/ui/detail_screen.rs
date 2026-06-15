@@ -1,6 +1,7 @@
 use crate::models::{CommandSet, ExecMode, Group, ShellType};
 use crate::ui::components::{ScrollableList, TextInput};
 use crate::ui::detail_editor::DetailEditState;
+use crate::ui::theme::Theme;
 use ratatui::layout::{Constraint, Layout, Rect};
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
@@ -51,10 +52,10 @@ impl DetailScreenState {
         }
     }
 
-    pub fn render(&mut self, frame: &mut Frame, area: Rect) {
+    pub fn render(&mut self, frame: &mut Frame, area: Rect, theme: &Theme) {
         let block = Block::default()
             .borders(Borders::ALL)
-            .border_style(Style::default().fg(Color::Cyan))
+            .border_style(Style::default().fg(theme.accent_info))
             .title(format!(" Edit: {} ", self.set.name));
 
         let inner = block.inner(area);
@@ -73,13 +74,13 @@ impl DetailScreenState {
         self.variable_list.update_offset(var_area.height.saturating_sub(2) as usize);
         self.command_list.update_offset(cmd_area.height.saturating_sub(2) as usize);
 
-        self.render_metadata(frame, meta_area);
-        self.render_variables(frame, var_area);
-        self.render_commands(frame, cmd_area);
-        self.render_status_bar(frame, status_area);
+        self.render_metadata(frame, meta_area, theme);
+        self.render_variables(frame, var_area, theme);
+        self.render_commands(frame, cmd_area, theme);
+        self.render_status_bar(frame, status_area, theme);
     }
 
-    fn render_metadata(&self, frame: &mut Frame, area: Rect) {
+    fn render_metadata(&self, frame: &mut Frame, area: Rect, theme: &Theme) {
         // Name, Group, Shell, ExecMode in rows
         let rows = Layout::vertical([Constraint::Length(1); 4]);
         let [name_row, group_row, shell_row, mode_row] = rows.areas(area);
@@ -87,9 +88,9 @@ impl DetailScreenState {
         // Name
         let is_name_focused = self.focus == DetailFocus::Name;
         let name_style = if is_name_focused {
-            Style::default().fg(Color::Yellow)
+            Style::default().fg(theme.accent_primary)
         } else {
-            Style::default().fg(Color::White)
+            Style::default().fg(theme.text_primary)
         };
         let display_name = if self.editing_name {
             self.name_input.content.as_str()
@@ -110,9 +111,9 @@ impl DetailScreenState {
             .map(|g| g.name.as_str())
             .unwrap_or("(unknown)");
         let group_style = if self.focus == DetailFocus::Group {
-            Style::default().fg(Color::Yellow)
+            Style::default().fg(theme.accent_primary)
         } else {
-            Style::default().fg(Color::White)
+            Style::default().fg(theme.text_primary)
         };
         let group_text = format!(" Group: {}", group_name);
         frame.render_widget(
@@ -122,9 +123,9 @@ impl DetailScreenState {
 
         // Shell
         let shell_style = if self.focus == DetailFocus::Shell {
-            Style::default().fg(Color::Yellow)
+            Style::default().fg(theme.accent_primary)
         } else {
-            Style::default().fg(Color::White)
+            Style::default().fg(theme.text_primary)
         };
         let shell_text = format!(" Shell: {}", self.set.shell.label());
         frame.render_widget(
@@ -134,9 +135,9 @@ impl DetailScreenState {
 
         // Exec mode
         let mode_style = if self.focus == DetailFocus::ExecMode {
-            Style::default().fg(Color::Yellow)
+            Style::default().fg(theme.accent_primary)
         } else {
-            Style::default().fg(Color::White)
+            Style::default().fg(theme.text_primary)
         };
         let mode_text = format!(" Mode: {}", self.set.exec_mode.label());
         frame.render_widget(
@@ -145,13 +146,13 @@ impl DetailScreenState {
         );
     }
 
-    fn render_variables(&self, frame: &mut Frame, area: Rect) {
+    fn render_variables(&self, frame: &mut Frame, area: Rect, theme: &Theme) {
         let var_block = Block::default()
             .borders(Borders::ALL)
             .border_style(Style::default().fg(if self.focus == DetailFocus::Variables {
-                Color::Yellow
+                theme.accent_primary
             } else {
-                Color::DarkGray
+                theme.surface_border
             }))
             .title(format!(
                 " Variables ({}) ",
@@ -176,18 +177,18 @@ impl DetailScreenState {
                 };
                 let style = if is_editing {
                     Style::default()
-                        .fg(Color::Black)
-                        .bg(Color::Yellow)
+                        .fg(theme.text_on_selected)
+                        .bg(theme.accent_primary)
                         .add_modifier(Modifier::BOLD)
                 } else if i == self.variable_list.selected
                     && self.focus == DetailFocus::Variables
                 {
                     Style::default()
-                        .fg(Color::Black)
-                        .bg(Color::Green)
+                        .fg(theme.text_on_selected)
+                        .bg(theme.selection_bg_secondary)
                         .add_modifier(Modifier::BOLD)
                 } else {
-                    Style::default().fg(Color::White)
+                    Style::default().fg(theme.text_primary)
                 };
                 ListItem::new(Line::from(Span::styled(label, style)))
             })
@@ -198,7 +199,7 @@ impl DetailScreenState {
             && self.edit_state.insert_at.is_some() {
                 let label = format!("  ▶ {}", self.edit_state.edit_input.content);
                 let style = Style::default()
-                    .fg(Color::Yellow)
+                    .fg(theme.accent_primary)
                     .add_modifier(Modifier::BOLD);
                 let preview = ListItem::new(Line::from(Span::styled(label, style)));
                 let pos = self.edit_state.insert_at.unwrap_or(idx.min(items.len()));
@@ -218,13 +219,13 @@ impl DetailScreenState {
         frame.render_stateful_widget(List::new(items), inner, &mut list_state);
     }
 
-    fn render_commands(&self, frame: &mut Frame, area: Rect) {
+    fn render_commands(&self, frame: &mut Frame, area: Rect, theme: &Theme) {
         let cmd_block = Block::default()
             .borders(Borders::ALL)
             .border_style(Style::default().fg(if self.focus == DetailFocus::Commands {
-                Color::Yellow
+                theme.accent_primary
             } else {
-                Color::DarkGray
+                theme.surface_border
             }))
             .title(format!(
                 " Commands ({}) ",
@@ -258,18 +259,18 @@ impl DetailScreenState {
                 let label = format!("  #{}  {}", display_pos, content);
                 let style = if is_editing {
                     Style::default()
-                        .fg(Color::Black)
-                        .bg(Color::Yellow)
+                        .fg(theme.text_on_selected)
+                        .bg(theme.accent_primary)
                         .add_modifier(Modifier::BOLD)
                 } else if i == self.command_list.selected
                     && self.focus == DetailFocus::Commands
                 {
                     Style::default()
-                        .fg(Color::Black)
-                        .bg(Color::Green)
+                        .fg(theme.text_on_selected)
+                        .bg(theme.selection_bg_secondary)
                         .add_modifier(Modifier::BOLD)
                 } else {
-                    Style::default().fg(Color::White)
+                    Style::default().fg(theme.text_primary)
                 };
                 ListItem::new(Line::from(Span::styled(label, style)))
             })
@@ -281,7 +282,7 @@ impl DetailScreenState {
                 let pos = self.edit_state.insert_at.unwrap_or(idx);
                 let label = format!("  #{}▶ {}", pos, self.edit_state.edit_input.content);
                 let style = Style::default()
-                    .fg(Color::Yellow)
+                    .fg(theme.accent_primary)
                     .add_modifier(Modifier::BOLD);
                 let preview = ListItem::new(Line::from(Span::styled(label, style)));
                 let insert_pos = self.edit_state.insert_at.unwrap_or(idx.min(items.len()));
@@ -301,7 +302,7 @@ impl DetailScreenState {
         frame.render_stateful_widget(List::new(items), inner, &mut list_state);
     }
 
-    fn render_status_bar(&self, frame: &mut Frame, area: Rect) {
+    fn render_status_bar(&self, frame: &mut Frame, area: Rect, theme: &Theme) {
         let is_editing = self.edit_state.is_editing();
         let status: String = if is_editing {
             format!(" Editing: {}  [Enter] Confirm  [Esc] Cancel", self.edit_state.edit_input.content)
@@ -318,7 +319,7 @@ impl DetailScreenState {
         frame.render_widget(
             Paragraph::new(Line::from(Span::styled(
                 format!(" {}  |  [Ctrl+S] Save  [Esc] Cancel", status),
-                Style::default().fg(Color::DarkGray),
+                Style::default().fg(theme.text_secondary),
             ))),
             area,
         );
