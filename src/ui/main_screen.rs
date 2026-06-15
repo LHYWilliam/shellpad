@@ -4,7 +4,7 @@ use crate::ui::components::{handle_text_input, ScrollableList, TextInput};
 use ratatui::layout::{Constraint, Layout, Rect};
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
-use ratatui::widgets::{Block, Borders, List, ListItem, Paragraph};
+use ratatui::widgets::{Block, Borders, List, ListItem, Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState};
 use ratatui::Frame;
 
 pub enum MainScreenAction {
@@ -143,7 +143,11 @@ impl MainScreenState {
         let inner = block.inner(area);
         frame.render_widget(&block, area);
 
-        let avail = inner.width as usize;
+        // Split inner area into list + scrollbar
+        let inner_layout = Layout::horizontal([Constraint::Min(1), Constraint::Length(1)]);
+        let [list_area, scrollbar_area] = inner_layout.areas(inner);
+
+        let avail = list_area.width as usize;
         let mut items: Vec<ListItem> = data
             .groups
             .iter()
@@ -184,7 +188,18 @@ impl MainScreenState {
                 .bg(theme.selection_bg_primary)
                 .add_modifier(Modifier::BOLD),
         );
-        frame.render_stateful_widget(list, inner, &mut list_state);
+        frame.render_stateful_widget(list, list_area, &mut list_state);
+
+        // Render scrollbar
+        let content_len = data.groups.len();
+        let mut scrollbar_state = ScrollbarState::new(content_len)
+            .position(self.group_list.selected);
+        frame.render_stateful_widget(
+            Scrollbar::new(ScrollbarOrientation::VerticalRight)
+                .thumb_style(Style::default().fg(theme.surface_border)),
+            scrollbar_area,
+            &mut scrollbar_state,
+        );
     }
 
     fn render_set_panel(
@@ -218,6 +233,10 @@ impl MainScreenState {
         let inner = block.inner(area);
         frame.render_widget(&block, area);
 
+        // Split inner into list + scrollbar
+        let inner_layout = Layout::horizontal([Constraint::Min(1), Constraint::Length(1)]);
+        let [list_area, scrollbar_area] = inner_layout.areas(inner);
+
         let items: Vec<ListItem> = sets
             .iter()
             .enumerate()
@@ -234,7 +253,7 @@ impl MainScreenState {
                 );
                 if self.search_mode {
                     let gname = data.groups.get(gi).map(|g| g.name.as_str()).unwrap_or("?");
-                    let avail = inner.width as usize;
+                    let avail = list_area.width as usize;
                     let pad = avail.saturating_sub(label.len() + gname.len() + 1);
                     label = format!("{}{:>pad$}{}", label, "", gname, pad = pad);
                 }
@@ -265,7 +284,19 @@ impl MainScreenState {
                 .bg(theme.selection_bg_secondary)
                 .add_modifier(Modifier::BOLD),
         );
-        frame.render_stateful_widget(list, inner, &mut list_state);
+        frame.render_stateful_widget(list, list_area, &mut list_state);
+
+        // Render scrollbar
+        let content_len = sets.len();
+        let scroll_pos = selected.unwrap_or(0);
+        let mut scrollbar_state = ScrollbarState::new(content_len)
+            .position(scroll_pos);
+        frame.render_stateful_widget(
+            Scrollbar::new(ScrollbarOrientation::VerticalRight)
+                .thumb_style(Style::default().fg(theme.surface_border)),
+            scrollbar_area,
+            &mut scrollbar_state,
+        );
     }
 
     fn render_status_bar(&self, frame: &mut Frame, area: Rect, theme: &Theme) {
