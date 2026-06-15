@@ -388,7 +388,14 @@ impl App {
                         es.succeeded + es.failed + es.skipped,
                         es.total,
                     );
-                    self.push_toast(summary, ToastSeverity::Success);
+                    let severity = if es.failed > 0 {
+                        ToastSeverity::Error
+                    } else if es.skipped > 0 {
+                        ToastSeverity::Info
+                    } else {
+                        ToastSeverity::Success
+                    };
+                    self.push_toast(summary, severity);
                 }
                 self.kill_execution();
                 self.mode = AppMode::Main;
