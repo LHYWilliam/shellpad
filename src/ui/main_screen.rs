@@ -1,7 +1,8 @@
+use crate::ui::theme::Theme;
 use crate::models::AppData;
 use crate::ui::components::{handle_text_input, ScrollableList, TextInput};
 use ratatui::layout::{Constraint, Layout, Rect};
-use ratatui::style::{Color, Modifier, Style};
+use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, List, ListItem, Paragraph};
 use ratatui::Frame;
@@ -83,7 +84,7 @@ impl MainScreenState {
         }
     }
 
-    pub fn render(&mut self, frame: &mut Frame, area: Rect, data: &AppData) {
+    pub fn render(&mut self, frame: &mut Frame, area: Rect, data: &AppData, theme: &Theme) {
         let vertical = Layout::vertical([Constraint::Min(1), Constraint::Length(1)]);
         let [main_area, status_area] = vertical.areas(area);
 
@@ -97,11 +98,11 @@ impl MainScreenState {
         self.set_list.update_offset(right_vis);
 
         // Left panel: groups
-        self.render_group_panel(frame, left_area, data);
+        self.render_group_panel(frame, left_area, data, theme);
 
         // Right panel: command sets
         let sets = self.visible_sets(data);
-        self.render_set_panel(frame, right_area, data, &sets);
+        self.render_set_panel(frame, right_area, data, &sets, theme);
 
         // Status bar (or rename input when in rename mode)
         if self.rename_mode {
@@ -109,9 +110,9 @@ impl MainScreenState {
             let ren = &self.rename_input;
             let display = format!("{}{}", prefix, ren.content);
             let style = if ren.content.is_empty() {
-                Style::default().fg(Color::DarkGray)
+                Style::default().fg(theme.text_disabled)
             } else {
-                Style::default().fg(Color::White)
+                Style::default().fg(theme.text_primary)
             };
             frame.render_widget(
                 Paragraph::new(Line::from(Span::styled(display, style))),
@@ -124,15 +125,15 @@ impl MainScreenState {
                 status_area.y,
             ));
         } else {
-            self.render_status_bar(frame, status_area);
+            self.render_status_bar(frame, status_area, theme);
         }
     }
 
-    fn render_group_panel(&mut self, frame: &mut Frame, area: Rect, data: &AppData) {
+    fn render_group_panel(&mut self, frame: &mut Frame, area: Rect, data: &AppData, theme: &Theme) {
         let border_color = if self.active_panel == Panel::Groups {
-            Color::Yellow
+            theme.accent_primary
         } else {
-            Color::Cyan
+            theme.surface_border
         };
         let block = Block::default()
             .borders(Borders::ALL)
@@ -156,11 +157,11 @@ impl MainScreenState {
                 let label = format!("{}{:>pad$}{}", name, "", count, pad = pad);
                 let style = if i == self.group_list.selected {
                     Style::default()
-                        .fg(Color::Black)
-                        .bg(Color::Cyan)
+                        .fg(theme.text_on_selected)
+                        .bg(theme.selection_bg_primary)
                         .add_modifier(Modifier::BOLD)
                 } else {
-                    Style::default().fg(Color::White)
+                    Style::default().fg(theme.text_primary)
                 };
                 ListItem::new(Line::from(Span::styled(label, style)))
             })
@@ -170,7 +171,7 @@ impl MainScreenState {
             items.push(
                 ListItem::new(Line::from(Span::styled(
                     " (empty — press g to add) ",
-                    Style::default().fg(Color::DarkGray),
+                    Style::default().fg(theme.text_disabled),
                 ))),
             );
         }
@@ -179,8 +180,8 @@ impl MainScreenState {
             .with_selected(Some(self.group_list.selected));
         let list = List::new(items).highlight_style(
             Style::default()
-                .fg(Color::Black)
-                .bg(Color::Cyan)
+                .fg(theme.text_on_selected)
+                .bg(theme.selection_bg_primary)
                 .add_modifier(Modifier::BOLD),
         );
         frame.render_stateful_widget(list, inner, &mut list_state);
@@ -192,6 +193,7 @@ impl MainScreenState {
         area: Rect,
         data: &AppData,
         sets: &[(usize, usize, &crate::models::CommandSet)],
+        theme: &Theme,
     ) {
         let title = if self.search_mode {
             format!(" Search: {} ", self.search_query)
@@ -204,9 +206,9 @@ impl MainScreenState {
         };
 
         let border_color = if self.active_panel == Panel::Sets {
-            Color::Yellow
+            theme.accent_primary
         } else {
-            Color::Cyan
+            theme.surface_border
         };
         let block = Block::default()
             .borders(Borders::ALL)
@@ -240,11 +242,11 @@ impl MainScreenState {
                     && self.active_panel == Panel::Sets;
                 let style = if is_selected {
                     Style::default()
-                        .fg(Color::Black)
-                        .bg(Color::Green)
+                        .fg(theme.text_on_selected)
+                        .bg(theme.selection_bg_secondary)
                         .add_modifier(Modifier::BOLD)
                 } else {
-                    Style::default().fg(Color::White)
+                    Style::default().fg(theme.text_primary)
                 };
                 ListItem::new(Line::from(Span::styled(label, style)))
             })
@@ -259,17 +261,17 @@ impl MainScreenState {
             .with_selected(selected);
         let list = List::new(items).highlight_style(
             Style::default()
-                .fg(Color::Black)
-                .bg(Color::Green)
+                .fg(theme.text_on_selected)
+                .bg(theme.selection_bg_secondary)
                 .add_modifier(Modifier::BOLD),
         );
         frame.render_stateful_widget(list, inner, &mut list_state);
     }
 
-    fn render_status_bar(&self, frame: &mut Frame, area: Rect) {
+    fn render_status_bar(&self, frame: &mut Frame, area: Rect, theme: &Theme) {
         let text = Line::from(Span::styled(
             " [↑/↓] Nav  [←/→] Panel  [Enter] Run  [e] Edit  [n] New  [d] Del set  [Shift+D] Del group  [g] Group  [/] Search  [?] Help  [q] Quit",
-            Style::default().fg(Color::DarkGray),
+            Style::default().fg(theme.text_secondary),
         ));
         frame.render_widget(Paragraph::new(text), area);
     }
