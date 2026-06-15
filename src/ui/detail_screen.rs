@@ -103,7 +103,14 @@ impl DetailScreenState {
         // Name
         let is_name_focused = self.focus == DetailFocus::Name;
         let name_style = if is_name_focused {
-            Style::default().fg(theme.accent_primary)
+            if self.editing_name {
+                Style::default()
+                    .fg(theme.text_on_selected)
+                    .bg(theme.accent_primary)
+                    .add_modifier(Modifier::BOLD)
+            } else {
+                Style::default().fg(theme.accent_primary)
+            }
         } else {
             Style::default().fg(theme.text_primary)
         };
