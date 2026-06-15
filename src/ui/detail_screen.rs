@@ -563,12 +563,17 @@ impl DetailScreenState {
     }
 
     fn cycle_exec_mode(&mut self, delta: isize) {
-        let variants = [ExecMode::StopOnError, ExecMode::ContinueOnError];
-        let current = variants
-            .iter()
-            .position(|m| *m == self.set.exec_mode)
-            .unwrap_or(0);
-        let next = (current as isize + delta).rem_euclid(variants.len() as isize) as usize;
-        self.set.exec_mode = variants[next];
+        self.set.exec_mode = cycle_enum(
+            &[ExecMode::StopOnError, ExecMode::ContinueOnError],
+            &self.set.exec_mode,
+            delta,
+        );
     }
+}
+
+/// Generic cycle helper for enum variants.
+fn cycle_enum<T: Clone + PartialEq>(variants: &[T], current: &T, delta: isize) -> T {
+    let pos = variants.iter().position(|v| *v == *current).unwrap_or(0);
+    let next = (pos as isize + delta).rem_euclid(variants.len() as isize) as usize;
+    variants[next].clone()
 }
