@@ -68,7 +68,7 @@ impl DetailScreenState {
             Constraint::Length(8), // Properties block (4 rows + borders)
             Constraint::Min(3),    // variables
             Constraint::Min(3),    // commands
-            Constraint::Length(1), // status bar
+            Constraint::Length(2), // status bar (separator + content)
         ]);
         let [meta_area, var_area, cmd_area, status_area] = layout.areas(inner);
 
@@ -421,6 +421,17 @@ impl DetailScreenState {
     }
 
     fn render_status_bar(&self, frame: &mut Frame, area: Rect, theme: &Theme) {
+        // Top separator line
+        let sep = "─".repeat(area.width as usize);
+        frame.render_widget(
+            Paragraph::new(Line::from(Span::styled(
+                sep,
+                Style::default().fg(theme.surface_border),
+            ))),
+            Rect::new(area.x, area.y, area.width, 1),
+        );
+
+        // Status content
         let is_editing = self.edit_state.is_editing();
         let status: String = if is_editing {
             format!(" Editing: {}  [Enter] Confirm  [Esc] Cancel", self.edit_state.edit_input.content)
@@ -434,12 +445,13 @@ impl DetailScreenState {
                 DetailFocus::Commands => "[a] Add  [e] Edit  [d] Delete  [Tab] Next".into(),
             }
         };
+        let status_area = Rect::new(area.x, area.y + 1, area.width, area.height.saturating_sub(1));
         frame.render_widget(
             Paragraph::new(Line::from(Span::styled(
                 format!(" {}  |  [Ctrl+S] Save  [Esc] Cancel", status),
                 Style::default().fg(theme.text_secondary).add_modifier(Modifier::DIM),
             ))),
-            area,
+            status_area,
         );
     }
 
