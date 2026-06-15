@@ -452,6 +452,7 @@ impl MainScreenState {
                 KeyCode::Esc => {
                     self.search_mode = false;
                     self.search_query.clear();
+                    self.search_cursor = 0;
                     self.set_list.reset();
                     self.active_panel = Panel::Groups;
                     MainScreenAction::None
@@ -461,10 +462,11 @@ impl MainScreenState {
                     if let Some((gi, si, _)) = results.get(self.set_list.selected) {
                         self.group_list.selected = *gi;
                         self.set_list.selected = *si;
-                        self.search_mode = false;
                         self.active_panel = Panel::Sets;
                     }
-                    // If no results matched, stay in search mode
+                    self.search_mode = false;
+                    self.search_query.clear();
+                    self.search_cursor = 0;
                     MainScreenAction::None
                 }
                 KeyCode::Up | KeyCode::Char('k') | KeyCode::Char('K') => {
@@ -476,16 +478,54 @@ impl MainScreenState {
                     self.set_list.select_next(n);
                     MainScreenAction::None
                 }
+                KeyCode::Left => {
+                    if self.search_cursor > 0 {
+                        self.search_cursor = self.search_query[..self.search_cursor]
+                            .floor_char_boundary(self.search_cursor - 1);
+                    }
+                    MainScreenAction::None
+                }
+                KeyCode::Right => {
+                    let len = self.search_query.len();
+                    let pos = self.search_query.floor_char_boundary(self.search_cursor);
+                    if let Some(ch) = self.search_query[pos..].chars().next() {
+                        self.search_cursor = (pos + ch.len_utf8()).min(len);
+                    }
+                    MainScreenAction::None
+                }
+                KeyCode::Home => {
+                    self.search_cursor = 0;
+                    MainScreenAction::None
+                }
+                KeyCode::End => {
+                    self.search_cursor = self.search_query.len();
+                    MainScreenAction::None
+                }
                 KeyCode::Char(c) => {
-                    self.search_query.push(c);
+                    let pos = self.search_query.floor_char_boundary(self.search_cursor);
+                    self.search_query.insert(pos, c);
+                    self.search_cursor = pos + c.len_utf8();
                     self.active_panel = Panel::Sets;
                     self.set_list.reset();
                     MainScreenAction::None
                 }
                 KeyCode::Backspace => {
-                    self.search_query.pop();
+                    let pos = self.search_query.floor_char_boundary(self.search_cursor);
+                    if pos > 0 {
+                        let prev = self.search_query[..pos - 1].floor_char_boundary(pos - 1);
+                        self.search_query.remove(prev);
+                        self.search_cursor = prev;
+                    }
                     self.active_panel = Panel::Sets;
                     self.set_list.reset();
+                    MainScreenAction::None
+                }
+                KeyCode::Delete => {
+                    let pos = self.search_query.floor_char_boundary(self.search_cursor);
+                    if pos < self.search_query.len() {
+                        self.search_query.remove(pos);
+                        self.search_cursor = pos;
+                    }
                     MainScreenAction::None
                 }
                 _ => MainScreenAction::None,
