@@ -1,5 +1,5 @@
 use crate::models::CommandSet;
-use crate::ui::components::{centered_rect, handle_text_input, set_cursor_after_prefix, TextInput};
+use crate::ui::components::{centered_rect, fill_row, handle_text_input, set_cursor_after_prefix, TextInput};
 use crate::ui::theme::Theme;
 use crossterm::event::{KeyCode, KeyEvent};
 use ratatui::layout::Rect;
@@ -110,8 +110,9 @@ impl VariableScreenState {
             };
             let row = Rect::new(inner.x, inner.y + i as u16, inner.width, 1);
             let display = format!(" {} = {}", self.names[i], self.inputs[i].content);
+            let var_line = fill_row(Line::from(Span::styled(display, row_style)), row_style, row.width);
             frame.render_widget(
-                Paragraph::new(Line::from(Span::styled(display, row_style))),
+                Paragraph::new(var_line),
                 row,
             );
             if focused {
