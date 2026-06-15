@@ -12,9 +12,9 @@ use crate::ui::execution_screen::{ExecutionScreenAction, ExecutionScreenState};
 use crate::ui::help_screen::draw_help;
 use crate::ui::main_screen::{MainScreenAction, MainScreenState, Panel};
 use crossterm::event::{self, Event, KeyEventKind};
-use ratatui::layout::Alignment;
-use ratatui::style::{Color, Style};
-use ratatui::text::Line;
+use ratatui::layout::{Alignment, Constraint, Layout};
+use ratatui::style::{Color, Modifier, Style};
+use ratatui::text::{Line, Span};
 use ratatui::widgets::Paragraph;
 use ratatui::Frame;
 use std::io;
@@ -106,27 +106,52 @@ impl App {
             return;
         }
 
+        // Split off title bar
+        let layout = Layout::vertical([Constraint::Length(1), Constraint::Min(1)]);
+        let [title_area, content_area] = layout.areas(area);
+
+        // Render title bar
+        let mode_str = match self.mode {
+            AppMode::Main => "Main",
+            AppMode::Detail => "Edit",
+            AppMode::Execution => "Run",
+            AppMode::Help => "Help",
+        };
+        let group_count = self.data.groups.len();
+        let set_count: usize = self.data.groups.iter().map(|g| g.sets.len()).sum();
+        let title_text = format!(
+            " Launcher  |  {}  |  {} groups, {} sets  |  ? Help  q Quit",
+            mode_str, group_count, set_count,
+        );
+        let title_paragraph = Paragraph::new(Line::from(Span::styled(
+            title_text,
+            Style::default()
+                .fg(self.theme.text_secondary)
+                .add_modifier(Modifier::DIM),
+        )));
+        frame.render_widget(title_paragraph, title_area);
+
         match self.mode {
             AppMode::Main => {
-                self.main_screen.render(frame, area, &self.data, &self.theme);
+                self.main_screen.render(frame, content_area, &self.data, &self.theme);
             }
             AppMode::Detail => {
                 if let Some(ref mut ds) = self.detail_screen {
-                    ds.render(frame, area, &self.theme);
+                    ds.render(frame, content_area, &self.theme);
                 }
             }
             AppMode::Execution => {
                 if let Some(ref es) = self.exec_screen {
-                    es.render(frame, area, &self.theme);
+                    es.render(frame, content_area, &self.theme);
                 }
             }
             AppMode::Help => {
-                self.main_screen.render(frame, area, &self.data, &self.theme);
-                draw_help(frame, area, &self.theme);
+                self.main_screen.render(frame, content_area, &self.data, &self.theme);
+                draw_help(frame, content_area, &self.theme);
             }
         }
 
-        self.variable_screen.render(frame, area, &self.theme);
+        self.variable_screen.render(frame, content_area, &self.theme);
     }
 
     fn handle_key(&mut self, key: crossterm::event::KeyEvent) {
