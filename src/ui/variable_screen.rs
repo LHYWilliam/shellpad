@@ -3,7 +3,7 @@ use crate::ui::components::{handle_text_input, TextInput};
 use crate::ui::theme::Theme;
 use crossterm::event::{KeyCode, KeyEvent};
 use ratatui::layout::Rect;
-use ratatui::style::Style;
+use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Clear, Paragraph};
 use ratatui::Frame;
@@ -136,7 +136,7 @@ impl VariableScreenState {
         frame.render_widget(
             Paragraph::new(Line::from(Span::styled(
                 " [Enter] Execute  [Esc] Cancel  [Tab/Down] Next  [Up] Prev",
-                Style::default().fg(theme.text_secondary),
+                Style::default().fg(theme.text_secondary).add_modifier(Modifier::DIM),
             ))),
             Rect::new(inner.x, hint_y, inner.width, 1),
         );

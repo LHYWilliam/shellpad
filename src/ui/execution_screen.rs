@@ -274,7 +274,7 @@ impl ExecutionScreenState {
         frame.render_widget(
             Paragraph::new(Line::from(Span::styled(
                 footer_text,
-                Style::default().fg(theme.text_secondary),
+                Style::default().fg(theme.text_secondary).add_modifier(Modifier::DIM),
             ))),
             footer_area,
         );

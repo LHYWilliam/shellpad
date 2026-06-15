@@ -319,7 +319,7 @@ impl DetailScreenState {
         frame.render_widget(
             Paragraph::new(Line::from(Span::styled(
                 format!(" {}  |  [Ctrl+S] Save  [Esc] Cancel", status),
-                Style::default().fg(theme.text_secondary),
+                Style::default().fg(theme.text_secondary).add_modifier(Modifier::DIM),
             ))),
             area,
         );

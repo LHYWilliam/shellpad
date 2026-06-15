@@ -171,7 +171,7 @@ impl MainScreenState {
             items.push(
                 ListItem::new(Line::from(Span::styled(
                     " (empty — press g to add) ",
-                    Style::default().fg(theme.text_disabled),
+                    Style::default().fg(theme.text_disabled).add_modifier(Modifier::ITALIC),
                 ))),
             );
         }
@@ -271,7 +271,7 @@ impl MainScreenState {
     fn render_status_bar(&self, frame: &mut Frame, area: Rect, theme: &Theme) {
         let text = Line::from(Span::styled(
             " [↑/↓] Nav  [←/→] Panel  [Enter] Run  [e] Edit  [n] New  [d] Del set  [Shift+D] Del group  [g] Group  [/] Search  [?] Help  [q] Quit",
-            Style::default().fg(theme.text_secondary),
+            Style::default().fg(theme.text_secondary).add_modifier(Modifier::DIM),
         ));
         frame.render_widget(Paragraph::new(text), area);
     }
