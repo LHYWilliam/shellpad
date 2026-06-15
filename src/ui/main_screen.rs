@@ -211,7 +211,12 @@ impl MainScreenState {
             .enumerate()
             .map(|(i, g)| {
                 let marker = if i == self.group_list.selected { "▶ " } else { "  " };
-                let name = format!("{}{}", marker, g.name);
+                let display_name = if self.rename_mode && i == self.group_list.selected {
+                    &self.rename_input.content
+                } else {
+                    &g.name
+                };
+                let name = format!("{}{}", marker, display_name);
                 let count = format!("({})", g.sets.len());
                 let name_width = unicode_width::UnicodeWidthStr::width(name.as_str());
                 let pad = avail.saturating_sub(name_width + count.len());
