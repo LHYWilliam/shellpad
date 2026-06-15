@@ -106,18 +106,21 @@ impl VariableScreenState {
         let inner = block.inner(dialog);
 
         for i in 0..count {
-            let focus = i == self.focus;
-            let color = if focus { theme.accent_primary } else { theme.text_primary };
+            let focused = i == self.focus;
+            let row_style = if focused {
+                Style::default()
+                    .fg(theme.text_on_selected)
+                    .bg(theme.selection_bg_primary)
+            } else {
+                Style::default().fg(theme.text_primary)
+            };
             let row = Rect::new(inner.x, inner.y + i as u16, inner.width, 1);
             let display = format!(" {} = {}", self.names[i], self.inputs[i].content);
             frame.render_widget(
-                Paragraph::new(Line::from(Span::styled(
-                    display,
-                    Style::default().fg(color),
-                ))),
+                Paragraph::new(Line::from(Span::styled(display, row_style))),
                 row,
             );
-            if focus {
+            if focused {
                 let prefix_w = unicode_width::UnicodeWidthStr::width(" ") // leading space
                     + unicode_width::UnicodeWidthStr::width(self.names[i].as_str())
                     + unicode_width::UnicodeWidthStr::width(" = ");
