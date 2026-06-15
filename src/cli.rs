@@ -90,7 +90,7 @@ fn handle_run(
     };
 
     // Resolve shell executable
-    let shell = set_ref.shell.resolve_executable();
+    let shell_cmd = set_ref.shell.resolve_command();
 
     // Resolve variables
     let use_defaults = var.len() == 1 && var[0].eq_ignore_ascii_case("default");
@@ -112,7 +112,7 @@ fn handle_run(
     };
 
     // Execute
-    match crate::executor::execute_set_blocking(set_ref, &shell, &resolved_vars) {
+    match crate::executor::execute_set_blocking(set_ref, &shell_cmd, &resolved_vars) {
         Ok(r) => {
             if r.failed > 0 {
                 eprintln!(

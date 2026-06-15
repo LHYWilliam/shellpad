@@ -360,7 +360,7 @@ impl App {
             return;
         }
         let set = &self.data.groups[gi].sets[si];
-        let shell = set.shell.resolve_executable();
+        let shell_cmd = set.shell.resolve_command();
 
         let (commands, index_offset) = if start_from == 0 {
             // Full execution: create fresh screen
@@ -382,7 +382,7 @@ impl App {
             commands,
             set.exec_mode,
             set.variables.clone(),
-            &shell,
+            shell_cmd,
             tx,
             Arc::clone(&self.kill_signal),
             index_offset,

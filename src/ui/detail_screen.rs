@@ -527,12 +527,12 @@ impl DetailScreenState {
         };
         let variants = ShellType::builtin_variants();
         let current = match &self.set.shell {
-            ShellType::Custom(_) => 4usize,
+            ShellType::Custom(_) => 5usize,
             other => variants.iter().position(|s| std::mem::discriminant(s) == std::mem::discriminant(other))
                 .unwrap_or(0),
         };
-        let next = ((current as isize + delta).rem_euclid(5)) as usize;
-        self.set.shell = if next == 4 {
+        let next = ((current as isize + delta).rem_euclid(6)) as usize;
+        self.set.shell = if next == 5 {
             ShellType::Custom(saved_custom.unwrap_or_else(|| "/usr/bin/sh".to_string()))
         } else {
             variants[next].clone()

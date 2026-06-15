@@ -47,7 +47,6 @@ stateDiagram-v2
     RenameMode --> GroupsPanel : Enter 确认
     RenameMode --> GroupsPanel : Esc 取消
 ```
-```
 
 ### Main 屏布局
 
@@ -94,17 +93,18 @@ stateDiagram-v2
     CmdEdit --> NavCmd : Enter / Esc
     NavCmd --> CmdInsert : a
     CmdInsert --> NavCmd : Enter / Esc
-```
 
     Note -- 6个焦点区域用Tab/BackTab循环切换
     Note -- 导航模式下 ←/→ 切换 Group/Shell/ExecMode
     Note -- d 删除选中的 Variable/Command
     Note -- Ctrl+S 保存全屏, Esc 取消返回
+
 ```
 
 ### Detail 屏布局
 
 ```
+
 ┌─── Edit: CommandSetName ──────────────────────────┐
 │  Name:  [deploy backend              ]     ← Enter编辑 │
 │  Group: Deploy                             ← ←/→切换   │
@@ -125,14 +125,17 @@ stateDiagram-v2
 │                                                    │
 │  [a] Add  [e] Edit  [d] Delete  [Tab] Next  Ctrl+S │
 └────────────────────────────────────────────────────┘
+
 ```
 
 ### 变量编辑按键保护
 
 ```
+
 变量格式： name=value
             ^-- 不可删除/←移动到此左边
                ^-- 光标自由在此区域
+
 ```
 
 | 按键 | 效果 |
@@ -158,7 +161,6 @@ stateDiagram-v2
     Completed --> CmdN : n继续执行剩余
     Completed --> Cmd1 : r重新执行全部
     Completed --> BackMain : q
-```
 
     state "命令状态" as States {
         ⏳ Pending → ▶ Running → ✅ Success
@@ -166,11 +168,13 @@ stateDiagram-v2
         ▶ Running → ⏭ Skipped (通过 s/Ctrl+C)
         ⏳ Pending → ⏭ Skipped (剩余命令)
     }
+
 ```
 
 ### Execution 屏布局
 
 ```
+
 ┌─── Executing: CommandSetName [Running...] ────────┐
 │                                                    │
 │  ✅ $ echo "Hello" (0.15s)                        │
@@ -186,6 +190,7 @@ stateDiagram-v2
 │                                                    │
 │ [q] Back to main  [s] Skip current  [Ctrl+C]       │
 └────────────────────────────────────────────────────┘
+
 ```
 
 ## 5. 变量输入覆盖层（VariableScreen）

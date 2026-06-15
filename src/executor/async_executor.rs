@@ -1,5 +1,5 @@
 use crate::executor::events::ExecutionEvent;
-use crate::models::{Command, CommandSet, ExecMode, Variable};
+use crate::models::{Command, CommandSet, ExecMode, ShellCommand, Variable};
 use std::io::{BufRead, BufReader, Read};
 use std::process::{Child, Command as StdCommand, Stdio};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -17,9 +17,9 @@ pub fn substitute_variables(template: &str, set: &CommandSet) -> String {
 }
 
 /// Spawn a shell command and return the child process.
-fn spawn_shell_command(shell: &str, command: &str) -> std::io::Result<Child> {
-    let mut cmd = StdCommand::new(shell);
-    cmd.arg("-c").arg(command);
+fn spawn_shell_command(shell_cmd: &ShellCommand, command: &str) -> std::io::Result<Child> {
+    let mut cmd = StdCommand::new(&shell_cmd.program);
+    cmd.arg(&shell_cmd.flag).arg(command);
     cmd.stdout(Stdio::piped());
     cmd.stderr(Stdio::piped());
     cmd.spawn()
@@ -63,13 +63,11 @@ pub fn execute_set(
     commands: Vec<Command>,
     exec_mode: ExecMode,
     variables: Vec<Variable>,
-    shell: &str,
+    shell_cmd: ShellCommand,
     tx: mpsc::Sender<ExecutionEvent>,
     kill_signal: Arc<AtomicBool>,
     index_offset: usize,
 ) -> thread::JoinHandle<()> {
-    let shell = shell.to_string();
-
     thread::spawn(move || {
         let start = std::time::Instant::now();
         let mut succeeded = 0usize;
@@ -96,7 +94,7 @@ pub fn execute_set(
 
             let cmd_start = std::time::Instant::now();
 
-            let mut child = match spawn_shell_command(&shell, &resolved) {
+            let mut child = match spawn_shell_command(&shell_cmd, &resolved) {
                 Ok(c) => c,
                 Err(e) => {
                     let _ = tx.send(ExecutionEvent::StderrLine {

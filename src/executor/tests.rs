@@ -1,11 +1,25 @@
 use super::async_executor::{execute_set, substitute_variables};
 use super::blocking::{execute_set_blocking, ExecuteError, ExecuteResult, substitute_variables_from_map};
 use super::events::ExecutionEvent;
-use crate::models::{Command, CommandSet, ExecMode, Variable};
+use crate::models::{Command, CommandSet, ExecMode, ShellCommand, Variable};
 use std::collections::HashMap;
 use std::sync::atomic::AtomicBool;
 use std::sync::{mpsc, Arc};
 use uuid::Uuid;
+
+/// Platform-appropriate shell command for tests.
+fn test_shell_cmd() -> ShellCommand {
+    #[cfg(windows)]
+    { ShellCommand { program: "cmd.exe".to_string(), flag: "/C".to_string() } }
+    #[cfg(not(windows))]
+    { ShellCommand { program: "sh".to_string(), flag: "-c".to_string() } }
+}
+
+/// Command that exits with non-zero status.
+fn false_cmd() -> &'static str {
+    #[cfg(windows)] { "exit 1" }
+    #[cfg(not(windows))] { "false" }
+}
 
 #[test]
 fn test_substitute_single_variable() {
@@ -80,7 +94,7 @@ fn test_execute_echo() {
     });
     set.exec_mode = ExecMode::StopOnError;
 
-    let handle = execute_set(set.commands.clone(), set.exec_mode, set.variables.clone(), "sh", tx.clone(), Arc::new(AtomicBool::new(false)), 0);
+    let handle = execute_set(set.commands.clone(), set.exec_mode, set.variables.clone(), test_shell_cmd(), tx.clone(), Arc::new(AtomicBool::new(false)), 0);
     handle.join().unwrap();
     drop(tx);
 
@@ -99,7 +113,7 @@ fn test_execute_failure_continue_on_error() {
     let mut set = CommandSet::new("test".to_string(), Uuid::new_v4());
     set.commands.push(Command {
         position: 0,
-        command: "false".to_string(),
+        command: false_cmd().to_string(),
     });
     set.commands.push(Command {
         position: 1,
@@ -107,7 +121,7 @@ fn test_execute_failure_continue_on_error() {
     });
     set.exec_mode = ExecMode::ContinueOnError;
 
-    let handle = execute_set(set.commands.clone(), set.exec_mode, set.variables.clone(), "sh", tx.clone(), Arc::new(AtomicBool::new(false)), 0);
+    let handle = execute_set(set.commands.clone(), set.exec_mode, set.variables.clone(), test_shell_cmd(), tx.clone(), Arc::new(AtomicBool::new(false)), 0);
     handle.join().unwrap();
     drop(tx);
 
@@ -134,7 +148,7 @@ fn test_execute_failure_stop_on_error() {
     let mut set = CommandSet::new("test".to_string(), Uuid::new_v4());
     set.commands.push(Command {
         position: 0,
-        command: "false".to_string(),
+        command: false_cmd().to_string(),
     });
     set.commands.push(Command {
         position: 1,
@@ -142,7 +156,7 @@ fn test_execute_failure_stop_on_error() {
     });
     set.exec_mode = ExecMode::StopOnError;
 
-    let handle = execute_set(set.commands.clone(), set.exec_mode, set.variables.clone(), "sh", tx.clone(), Arc::new(AtomicBool::new(false)), 0);
+    let handle = execute_set(set.commands.clone(), set.exec_mode, set.variables.clone(), test_shell_cmd(), tx.clone(), Arc::new(AtomicBool::new(false)), 0);
     handle.join().unwrap();
     drop(tx);
 
@@ -214,7 +228,7 @@ fn test_execute_set_blocking_echo() {
     });
     set.exec_mode = ExecMode::StopOnError;
     let vars = HashMap::new();
-    let result = execute_set_blocking(&set, "sh", &vars);
+    let result = execute_set_blocking(&set, &test_shell_cmd(), &vars);
     assert!(result.is_ok());
     let r = result.unwrap();
     assert_eq!(r.succeeded, 1);
@@ -225,22 +239,22 @@ fn test_execute_set_blocking_false_fails() {
     let mut set = CommandSet::new("test".to_string(), Uuid::new_v4());
     set.commands.push(Command {
         position: 0,
-        command: "false".to_string(),
+        command: false_cmd().to_string(),
     });
     set.exec_mode = ExecMode::StopOnError;
     let vars = HashMap::new();
-    let result = execute_set_blocking(&set, "sh", &vars);
+    let result = execute_set_blocking(&set, &test_shell_cmd(), &vars);
     assert!(result.is_err());
 }
 
 #[test]
 fn test_execute_set_blocking_continue_on_error() {
     let mut set = CommandSet::new("test".to_string(), Uuid::new_v4());
-    set.commands.push(Command { position: 0, command: "false".to_string() });
+    set.commands.push(Command { position: 0, command: false_cmd().to_string() });
     set.commands.push(Command { position: 1, command: "echo ok".to_string() });
     set.exec_mode = ExecMode::ContinueOnError;
     let vars = HashMap::new();
-    let result = execute_set_blocking(&set, "sh", &vars);
+    let result = execute_set_blocking(&set, &test_shell_cmd(), &vars);
     assert!(result.is_ok());
     let r = result.unwrap();
     assert_eq!(r.succeeded, 1);
@@ -250,10 +264,10 @@ fn test_execute_set_blocking_continue_on_error() {
 #[test]
 fn test_execute_set_blocking_stop_on_error() {
     let mut set = CommandSet::new("test".to_string(), Uuid::new_v4());
-    set.commands.push(Command { position: 0, command: "false".to_string() });
+    set.commands.push(Command { position: 0, command: false_cmd().to_string() });
     set.commands.push(Command { position: 1, command: "echo no".to_string() });
     set.exec_mode = ExecMode::StopOnError;
     let vars = HashMap::new();
-    let result = execute_set_blocking(&set, "sh", &vars);
+    let result = execute_set_blocking(&set, &test_shell_cmd(), &vars);
     assert!(result.is_err());
 }

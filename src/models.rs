@@ -6,6 +6,16 @@ use uuid::Uuid;
 // Enums
 // ---------------------------------------------------------------------------
 
+/// A resolved shell executable and the flag used to pass a command string.
+///
+/// On Unix: `program` = "bash"/"zsh"/"sh", `flag` = "-c"
+/// On Windows: `program` = "cmd.exe", `flag` = "/C"
+#[derive(Debug, Clone)]
+pub struct ShellCommand {
+    pub program: String,
+    pub flag: String,
+}
+
 /// Supported shell types for executing commands.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum ShellType {
@@ -17,6 +27,8 @@ pub enum ShellType {
     Zsh,
     #[serde(rename = "fish")]
     Fish,
+    #[serde(rename = "powershell")]
+    PowerShell,
     #[serde(rename = "custom")]
     Custom(String),
 }
@@ -29,6 +41,7 @@ impl ShellType {
             ShellType::Bash => Some("bash"),
             ShellType::Zsh => Some("zsh"),
             ShellType::Fish => Some("fish"),
+            ShellType::PowerShell => None,
             ShellType::Custom(path) => Some(path.as_str()),
         }
     }
@@ -40,7 +53,43 @@ impl ShellType {
             ShellType::Bash => "bash".to_string(),
             ShellType::Zsh => "zsh".to_string(),
             ShellType::Fish => "fish".to_string(),
+            ShellType::PowerShell => "powershell".to_string(),
             ShellType::Custom(path) => path.clone(),
+        }
+    }
+
+    /// Returns the platform-appropriate ShellCommand (program + flag).
+    /// This is the preferred method over `resolve_executable()`.
+    pub fn resolve_command(&self) -> ShellCommand {
+        match self {
+            ShellType::SystemDefault => {
+                #[cfg(windows)]
+                {
+                    let comspec = std::env::var("ComSpec")
+                        .unwrap_or_else(|_| "cmd.exe".to_string());
+                    ShellCommand { program: comspec, flag: "/C".to_string() }
+                }
+                #[cfg(not(windows))]
+                {
+                    let shell = std::env::var("SHELL")
+                        .unwrap_or_else(|_| "sh".to_string());
+                    ShellCommand { program: shell, flag: "-c".to_string() }
+                }
+            }
+            ShellType::Bash | ShellType::Zsh | ShellType::Fish => ShellCommand {
+                program: self.executable().unwrap().to_string(),
+                flag: "-c".to_string(),
+            },
+            ShellType::PowerShell => {
+                #[cfg(windows)]
+                { ShellCommand { program: "powershell.exe".to_string(), flag: "-Command".to_string() } }
+                #[cfg(not(windows))]
+                { ShellCommand { program: "pwsh".to_string(), flag: "-Command".to_string() } }
+            }
+            ShellType::Custom(path) => ShellCommand {
+                program: path.clone(),
+                flag: "-c".to_string(),
+            },
         }
     }
 
@@ -51,6 +100,7 @@ impl ShellType {
             ShellType::Bash => "bash".to_string(),
             ShellType::Zsh => "zsh".to_string(),
             ShellType::Fish => "fish".to_string(),
+            ShellType::PowerShell => "PowerShell".to_string(),
             ShellType::Custom(path) => format!("custom: {}", path),
         }
     }
@@ -62,6 +112,7 @@ impl ShellType {
             ShellType::Bash,
             ShellType::Zsh,
             ShellType::Fish,
+            ShellType::PowerShell,
         ]
     }
 }
@@ -339,7 +390,7 @@ mod tests {
 
     #[test]
     fn test_builtin_variants_count() {
-        assert_eq!(ShellType::builtin_variants().len(), 4);
+        assert_eq!(ShellType::builtin_variants().len(), 5);
     }
 
     #[test]

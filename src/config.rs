@@ -5,14 +5,23 @@ use std::path::PathBuf;
 pub const MIN_TERMINAL_WIDTH: u16 = 80;
 pub const MIN_TERMINAL_HEIGHT: u16 = 24;
 
-/// Returns the project data directory (~/.config/launcher/ on Linux)
+/// Returns the project data directory (~/.config/launcher/ on Linux, %APPDATA%/launcher on Windows)
 pub fn data_dir() -> PathBuf {
     ProjectDirs::from("com", "launcher", "launcher")
         .map(|d| d.config_dir().to_path_buf())
         .unwrap_or_else(|| {
-            let home = std::env::var("HOME")
-                .unwrap_or_else(|_| "/tmp".to_string());
-            PathBuf::from(home).join(".config/launcher")
+            #[cfg(windows)]
+            {
+                let appdata = std::env::var("APPDATA")
+                    .unwrap_or_else(|_| "C:\\Users\\Default\\AppData\\Roaming".to_string());
+                PathBuf::from(appdata).join("launcher")
+            }
+            #[cfg(not(windows))]
+            {
+                let home = std::env::var("HOME")
+                    .unwrap_or_else(|_| "/tmp".to_string());
+                PathBuf::from(home).join(".config/launcher")
+            }
         })
 }
 

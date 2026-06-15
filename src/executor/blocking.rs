@@ -1,4 +1,4 @@
-use crate::models::{CommandSet, ExecMode};
+use crate::models::{CommandSet, ExecMode, ShellCommand};
 use std::collections::HashMap;
 use std::process::{Command, Stdio};
 
@@ -45,7 +45,7 @@ impl std::error::Error for ExecuteError {}
 /// Execute a command set synchronously, piping output directly to stdout/stderr.
 pub fn execute_set_blocking(
     set: &CommandSet,
-    shell: &str,
+    shell_cmd: &ShellCommand,
     vars: &HashMap<String, String>,
 ) -> Result<ExecuteResult, ExecuteError> {
     let mut succeeded = 0usize;
@@ -57,8 +57,8 @@ pub fn execute_set_blocking(
 
         eprintln!("[{}/{}] $ {}", idx + 1, total, resolved);
 
-        let mut child = Command::new(shell)
-            .arg("-c")
+        let mut child = Command::new(&shell_cmd.program)
+            .arg(&shell_cmd.flag)
             .arg(&resolved)
             .stdout(Stdio::inherit())
             .stderr(Stdio::inherit())
