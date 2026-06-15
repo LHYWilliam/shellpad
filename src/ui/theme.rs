@@ -1,4 +1,4 @@
-use ratatui::style::{Color, Modifier, Style};
+use ratatui::style::Color;
 
 /// Central theme containing all named styles used across the application.
 /// Each screen uses `theme.field_name` instead of hardcoded colors.
