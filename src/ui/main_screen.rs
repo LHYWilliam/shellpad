@@ -247,19 +247,9 @@ impl MainScreenState {
                     crate::models::ExecMode::ContinueOnError => "⏩",
                 };
                 let cmd_count = set.commands.len();
-                let mut label = format!(
-                    " {}  {}  [{}] ({} cmd)",
-                    mode_label, set.name, shell_label, cmd_count
-                );
-                if self.search_mode {
-                    let gname = data.groups.get(gi).map(|g| g.name.as_str()).unwrap_or("?");
-                    let avail = list_area.width as usize;
-                    let pad = avail.saturating_sub(label.len() + gname.len() + 1);
-                    label = format!("{}{:>pad$}{}", label, "", gname, pad = pad);
-                }
                 let is_selected = i == self.set_list.selected
                     && self.active_panel == Panel::Sets;
-                let style = if is_selected {
+                let text_style = if is_selected {
                     Style::default()
                         .fg(theme.text_on_selected)
                         .bg(theme.selection_bg_secondary)
@@ -267,7 +257,60 @@ impl MainScreenState {
                 } else {
                     Style::default().fg(theme.text_primary)
                 };
-                ListItem::new(Line::from(Span::styled(label, style)))
+
+                let prefix = format!(" {}  ", mode_label);
+                let suffix = format!("  [{}] ({} cmd)", shell_label, cmd_count);
+
+                // Build name part with optional search highlighting
+                let name_part: Vec<Span> = if self.search_mode && !self.search_query.is_empty() && !is_selected {
+                    let query = self.search_query.as_str();
+                    let lower_name = set.name.to_lowercase();
+                    let lower_q = query.to_lowercase();
+                    let mut spans: Vec<Span> = Vec::new();
+                    let mut last = 0usize;
+                    while let Some(pos) = lower_name[last..].find(&lower_q) {
+                        let match_start = last + pos;
+                        if match_start > last {
+                            spans.push(Span::styled(&set.name[last..match_start], text_style));
+                        }
+                        let match_end = match_start + query.len();
+                        spans.push(Span::styled(
+                            &set.name[match_start..match_end],
+                            Style::default().fg(theme.accent_primary).add_modifier(Modifier::BOLD),
+                        ));
+                        last = match_end;
+                        if query.is_empty() { break; }
+                    }
+                    if last < set.name.len() {
+                        spans.push(Span::styled(&set.name[last..], text_style));
+                    }
+                    if spans.is_empty() {
+                        spans.push(Span::styled(set.name.clone(), text_style));
+                    }
+                    spans
+                } else {
+                    vec![Span::styled(set.name.clone(), text_style)]
+                };
+
+                let mut parts = vec![Span::styled(prefix, text_style)];
+                parts.extend(name_part);
+                parts.push(Span::styled(suffix, text_style));
+
+                // Right-aligned group name in search mode
+                if self.search_mode {
+                    let gname = data.groups.get(gi).map(|g| g.name.as_str()).unwrap_or("?");
+                    let text_width: usize = parts.iter().map(|s| {
+                        unicode_width::UnicodeWidthStr::width(s.content.as_ref())
+                    }).sum();
+                    let pad = list_area.width as usize;
+                    let padding = pad.saturating_sub(text_width + gname.len() + 1);
+                    if padding > 0 {
+                        parts.push(Span::styled(" ".repeat(padding), text_style));
+                    }
+                    parts.push(Span::styled(gname, text_style));
+                }
+
+                ListItem::new(Line::from(parts))
             })
             .collect();
 
