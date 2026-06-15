@@ -1,4 +1,4 @@
-use ratatui::style::Color;
+use ratatui::style::{Color, Modifier, Style};
 
 /// Central theme containing all named styles used across the application.
 /// Each screen uses `theme.field_name` instead of hardcoded colors.
@@ -81,5 +81,38 @@ impl Theme {
             selection_bg_primary: Color::Rgb(137, 180, 250), // blue
             selection_bg_secondary: Color::Rgb(166, 227, 161), // green
         }
+    }
+
+    /// Style for a selected/highlighted list item.
+    pub fn selected_style(&self, bg: Color) -> Style {
+        Style::default()
+            .fg(self.text_on_selected)
+            .bg(bg)
+            .add_modifier(Modifier::BOLD)
+    }
+
+    /// Style for a normal (unselected) list item.
+    pub fn normal_style(&self) -> Style {
+        Style::default().fg(self.text_primary)
+    }
+
+    /// Style for a focused (but not editing) label.
+    pub fn focused_style(&self) -> Style {
+        Style::default().fg(self.accent_primary)
+    }
+
+    /// Style for disabled/empty-state text.
+    pub fn disabled_style(&self) -> Style {
+        Style::default().fg(self.text_disabled).add_modifier(Modifier::ITALIC)
+    }
+
+    /// Style for status bar / dim hints.
+    pub fn dim_style(&self) -> Style {
+        Style::default().fg(self.text_secondary).add_modifier(Modifier::DIM)
+    }
+
+    /// Style for a block border that optionally highlights on focus.
+    pub fn border_style(&self, focused: bool) -> Style {
+        Style::default().fg(if focused { self.accent_primary } else { self.surface_border })
     }
 }
