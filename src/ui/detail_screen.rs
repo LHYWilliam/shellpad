@@ -3,7 +3,7 @@ use crate::ui::components::{ScrollableList, TextInput};
 use crate::ui::detail_editor::DetailEditState;
 use crate::ui::theme::Theme;
 use ratatui::layout::{Constraint, Layout, Rect};
-use ratatui::style::{Color, Modifier, Style};
+use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, List, ListItem, Paragraph};
 use ratatui::Frame;

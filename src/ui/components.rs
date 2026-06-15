@@ -1,5 +1,6 @@
+use crate::ui::theme::Theme;
 use ratatui::layout::Rect;
-use ratatui::style::{Color, Style};
+use ratatui::style::Style;
 use ratatui::text::Line;
 use ratatui::widgets::{Block, Borders, Paragraph};
 use ratatui::Frame;
@@ -79,11 +80,11 @@ impl TextInput {
     }
 
     /// Render the text input inside a given area.
-    pub fn render(&self, frame: &mut Frame, area: Rect, focused: bool, title: &str) {
+    pub fn render(&self, frame: &mut Frame, area: Rect, focused: bool, title: &str, theme: &Theme) {
         let border_style = if focused {
-            Style::default().fg(Color::Yellow)
+            Style::default().fg(theme.accent_primary)
         } else {
-            Style::default().fg(Color::DarkGray)
+            Style::default().fg(theme.surface_border)
         };
 
         let block = Block::default()

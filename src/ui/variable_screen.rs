@@ -1,8 +1,9 @@
 use crate::models::CommandSet;
 use crate::ui::components::{handle_text_input, TextInput};
+use crate::ui::theme::Theme;
 use crossterm::event::{KeyCode, KeyEvent};
 use ratatui::layout::Rect;
-use ratatui::style::{Color, Style};
+use ratatui::style::Style;
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Clear, Paragraph};
 use ratatui::Frame;
@@ -79,7 +80,7 @@ impl VariableScreenState {
         }
     }
 
-    pub fn render(&self, frame: &mut Frame, area: Rect) {
+    pub fn render(&self, frame: &mut Frame, area: Rect, theme: &Theme) {
         if !self.active {
             return;
         }
@@ -97,16 +98,16 @@ impl VariableScreenState {
 
         let block = Block::default()
             .borders(Borders::ALL)
-            .border_style(Style::default().fg(Color::Cyan))
+            .border_style(Style::default().fg(theme.accent_info))
             .title(" Set Variables ")
-            .style(Style::default().bg(Color::DarkGray));
+            .style(Style::default().bg(theme.surface));
         frame.render_widget(&block, dialog);
 
         let inner = block.inner(dialog);
 
         for i in 0..count {
             let focus = i == self.focus;
-            let color = if focus { Color::Yellow } else { Color::White };
+            let color = if focus { theme.accent_primary } else { theme.text_primary };
             let row = Rect::new(inner.x, inner.y + i as u16, inner.width, 1);
             let display = format!(" {} = {}", self.names[i], self.inputs[i].content);
             frame.render_widget(
@@ -135,7 +136,7 @@ impl VariableScreenState {
         frame.render_widget(
             Paragraph::new(Line::from(Span::styled(
                 " [Enter] Execute  [Esc] Cancel  [Tab/Down] Next  [Up] Prev",
-                Style::default().fg(Color::DarkGray),
+                Style::default().fg(theme.text_secondary),
             ))),
             Rect::new(inner.x, hint_y, inner.width, 1),
         );

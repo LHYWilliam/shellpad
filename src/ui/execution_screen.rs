@@ -1,6 +1,7 @@
 use crate::executor::ExecutionEvent;
+use crate::ui::theme::Theme;
 use ratatui::layout::{Constraint, Layout, Rect};
-use ratatui::style::{Color, Modifier, Style};
+use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, List, ListItem, Paragraph};
 use ratatui::Frame;
@@ -151,7 +152,7 @@ impl ExecutionScreenState {
         }
     }
 
-    pub fn render(&self, frame: &mut Frame, area: Rect) {
+    pub fn render(&self, frame: &mut Frame, area: Rect, theme: &Theme) {
         let vertical = Layout::vertical([Constraint::Length(3), Constraint::Min(1)]);
         let [header_area, body_area] = vertical.areas(area);
 
@@ -165,15 +166,15 @@ impl ExecutionScreenState {
             Span::styled(
                 format!(" Executing: {} ", self.set_name),
                 Style::default()
-                    .fg(Color::Cyan)
+                    .fg(theme.accent_info)
                     .add_modifier(Modifier::BOLD),
             ),
             Span::styled(
                 format!(" [{}]", status_text),
                 Style::default().fg(if self.completed {
-                    Color::Green
+                    theme.accent_success
                 } else {
-                    Color::Yellow
+                    theme.accent_warning
                 }),
             ),
         ]));
@@ -193,11 +194,11 @@ impl ExecutionScreenState {
             };
 
             let status_color = match state.status {
-                CmdStatus::Success => Color::Green,
-                CmdStatus::Failure => Color::Red,
-                CmdStatus::Running => Color::Yellow,
-                CmdStatus::Pending => Color::DarkGray,
-                CmdStatus::Skipped => Color::DarkGray,
+                CmdStatus::Success => theme.accent_success,
+                CmdStatus::Failure => theme.accent_error,
+                CmdStatus::Running => theme.accent_warning,
+                CmdStatus::Pending => theme.text_disabled,
+                CmdStatus::Skipped => theme.text_disabled,
             };
 
             let duration_str = state
@@ -217,7 +218,7 @@ impl ExecutionScreenState {
                 let is_stderr = line.starts_with("[stderr]");
                 items.push(ListItem::new(Line::from(Span::styled(
                     format!("   {}", line),
-                    Style::default().fg(if is_stderr { Color::Red } else { Color::White }),
+                    Style::default().fg(if is_stderr { theme.accent_error } else { theme.text_primary }),
                 ))));
             }
 
@@ -245,7 +246,7 @@ impl ExecutionScreenState {
                     total_dur
                 ),
                 Style::default()
-                    .fg(Color::Cyan)
+                    .fg(theme.accent_info)
                     .add_modifier(Modifier::BOLD),
             ))));
         }
@@ -266,14 +267,14 @@ impl ExecutionScreenState {
 
         let list_block = Block::default()
             .borders(Borders::ALL)
-            .border_style(Style::default().fg(Color::DarkGray));
+            .border_style(Style::default().fg(theme.surface_border));
         let list = List::new(items).block(list_block);
         frame.render_widget(list, list_area);
 
         frame.render_widget(
             Paragraph::new(Line::from(Span::styled(
                 footer_text,
-                Style::default().fg(Color::DarkGray),
+                Style::default().fg(theme.text_secondary),
             ))),
             footer_area,
         );
