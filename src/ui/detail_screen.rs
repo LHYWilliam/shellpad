@@ -228,7 +228,8 @@ impl DetailScreenState {
             && let Some(label) = &preview_label
         {
             let style = Style::default()
-                .fg(theme.accent_primary)
+                .fg(theme.text_on_selected)
+                .bg(theme.accent_primary)
                 .add_modifier(Modifier::BOLD);
             let preview = ListItem::new(fill_row(Line::from(Span::styled(label.clone(), style)), style, list_area.width));
             let pos = insert_at.unwrap_or(idx.min(items.len()));
