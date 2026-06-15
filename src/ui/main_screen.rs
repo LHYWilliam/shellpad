@@ -141,49 +141,8 @@ impl MainScreenState {
         let sets = self.visible_sets(data);
         self.render_set_panel(frame, right_area, data, &sets, theme);
 
-        // Status bar (or rename/search input)
-        if self.rename_mode {
-            let prefix = " Rename: ";
-            let ren = &self.rename_input;
-            let display = format!("{}{}", prefix, ren.content);
-            let style = if ren.content.is_empty() {
-                Style::default().fg(theme.text_disabled)
-            } else {
-                Style::default().fg(theme.text_primary)
-            };
-            frame.render_widget(
-                Paragraph::new(Line::from(Span::styled(display, style))),
-                status_area,
-            );
-            let prefix_w = unicode_width::UnicodeWidthStr::width(prefix);
-            set_cursor_after_prefix(
-                frame,
-                &ren.content,
-                ren.cursor,
-                prefix_w as u16,
-                Rect::new(status_area.x, status_area.y, status_area.width, 1),
-            );
-        } else if self.search_mode {
-            let prefix = " Search: ";
-            let display = format!("{}{}", prefix, self.search_query);
-            frame.render_widget(
-                Paragraph::new(Line::from(Span::styled(
-                    display,
-                    Style::default().fg(theme.text_primary),
-                ))),
-                status_area,
-            );
-            let prefix_w = unicode_width::UnicodeWidthStr::width(prefix);
-            set_cursor_after_prefix(
-                frame,
-                &self.search_query,
-                self.search_cursor,
-                prefix_w as u16,
-                Rect::new(status_area.x, status_area.y, status_area.width, 1),
-            );
-        } else {
-            self.render_status_bar(frame, status_area, theme);
-        }
+        // Status bar (key hints always visible)
+        self.render_status_bar(frame, status_area, theme);
     }
 
     fn render_group_panel(&mut self, frame: &mut Frame, area: Rect, data: &AppData, theme: &Theme) {
@@ -262,6 +221,23 @@ impl MainScreenState {
             scrollbar_area,
             &mut scrollbar_state,
         );
+
+        // Cursor for rename mode at the selected group name position
+        if self.rename_mode && !data.groups.is_empty() {
+            let offset = self.group_list.offset;
+            let selected = self.group_list.selected;
+            let item_y = list_area.y + selected.saturating_sub(offset) as u16;
+            if item_y < list_area.y + list_area.height {
+                let prefix_width = unicode_width::UnicodeWidthStr::width("▶ ");
+                set_cursor_after_prefix(
+                    frame,
+                    &self.rename_input.content,
+                    self.rename_input.cursor,
+                    prefix_width as u16,
+                    Rect::new(list_area.x, item_y, list_area.width, 1),
+                );
+            }
+        }
     }
 
     fn render_set_panel(
