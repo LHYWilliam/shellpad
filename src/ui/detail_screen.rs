@@ -434,7 +434,7 @@ impl DetailScreenState {
         // Status content
         let is_editing = self.edit_state.is_editing();
         let status: String = if is_editing {
-            format!(" Editing: {}  [Enter] Confirm  [Esc] Cancel", self.edit_state.edit_input.content)
+            " [Enter] Confirm  [Esc] Cancel".into()
         } else {
             match self.focus {
                 DetailFocus::Name => "[Enter] Edit name  [Tab] Next".into(),
