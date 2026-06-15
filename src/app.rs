@@ -63,7 +63,7 @@ impl App {
             kill_signal: Arc::new(AtomicBool::new(false)),
             variable_screen: VariableScreenState::new(),
             pending_set: None,
-            theme: Theme::default_simple(),
+            theme: Theme::default_dark(),
         }
     }
 
