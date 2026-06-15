@@ -67,6 +67,7 @@ pub struct MainScreenState {
     pub active_panel: Panel,
     pub search_mode: bool,
     pub search_query: String,
+    pub search_cursor: usize,
     pub rename_mode: bool,
     pub rename_input: TextInput,
 }
@@ -79,6 +80,7 @@ impl MainScreenState {
             active_panel: Panel::Groups,
             search_mode: false,
             search_query: String::new(),
+            search_cursor: 0,
             rename_mode: false,
             rename_input: TextInput::new(String::new()),
         }
