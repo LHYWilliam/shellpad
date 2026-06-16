@@ -142,9 +142,12 @@ without updating this section.
 
 ### Render Functions
 
-- **Block construction** — always use `bordered_block_zone(frame, area,
-  theme, " Title ", focused)` from `crate::ui::render`. Never construct
-  `Block::default().borders(Borders::ALL)` directly in screen code.
+- **Block construction** — always use one of the two helpers from
+  `crate::ui::render`: `bordered_block_zone(frame, area, theme, title,
+  focused)` for normal panels, `bordered_block_info_zone(frame, area,
+  theme, title)` for overlays/dialogs (Help, variable prompt). Never
+  construct `Block::default().borders(Borders::ALL)` directly in screen
+  code.
 
 - **Block titles** — always include surrounding spaces: `" Groups "`,
   `" Properties "`, `" Output "`. Dynamic titles use
@@ -215,9 +218,12 @@ without updating this section.
   `self.detail_screen = None` + `self.mode = AppMode::Main`. SaveSet
   copies changes into `self.data` first; CancelEdit discards.
 
-- **Mode transitions** — all transitions happen in `handle_action` via
-  `self.mode = AppMode::X`. The `prev_mode` field is used exclusively
-  for Help screen overlay restoration.
+- **Mode transitions** — most transitions happen in `handle_action` via
+  `self.mode = AppMode::X`. Two intentional exceptions: Help overlay
+  dismiss (any key restores `prev_mode` directly in `handle_key` at
+  `app/handler.rs:44`) and execution lifecycle (`do_execute_with` sets
+  `AppMode::Execution` at `app.rs:152,173`). The `prev_mode` field is
+  used exclusively for Help screen overlay restoration.
 
 ### Error Handling
 
@@ -241,8 +247,9 @@ without updating this section.
 
 ### Module & Type Conventions
 
-- **Sub-module visibility** — screen sub-modules under `app/` and `ui/`
-  use `pub(crate) mod`. Top-level modules in `lib.rs` use `pub mod`.
+- **Sub-module visibility** — (informational: `pub mod` and `pub(crate) mod`
+  are equivalent for this binary crate. The current mix is historical;
+  either is acceptable for new modules.)
 
 - **Import order** — `crate::` imports first, then external crates
   (`ratatui`, `crossterm`, etc.), then `super::` imports.
