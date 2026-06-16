@@ -29,6 +29,7 @@ impl ExecutionManager {
         shell_cmd: crate::models::ShellCommand,
         index_offset: usize,
     ) {
+        self.kill_signal.store(false, Ordering::Relaxed);
         let (tx, rx) = mpsc::channel();
         let handle = execute_set(
             commands,
@@ -50,6 +51,5 @@ impl ExecutionManager {
         if let Some(h) = self.handle.take() {
             let _ = h.join();
         }
-        self.kill_signal.store(false, Ordering::Relaxed);
     }
 }
