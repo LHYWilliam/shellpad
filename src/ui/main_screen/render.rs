@@ -1,4 +1,4 @@
-use crate::bordered_block_zone;
+use crate::ui::render::bordered_block_zone;
 use crate::models::AppData;
 use crate::ui::main_screen::search::find_matches_case_insensitive;
 use crate::ui::main_screen::{MainScreenState, Panel};
@@ -21,7 +21,7 @@ impl MainScreenState {
         data: &AppData,
         theme: &Theme,
     ) {
-        let inner = bordered_block_zone!(
+        let inner = bordered_block_zone(
             frame,
             area,
             theme,
@@ -118,7 +118,7 @@ impl MainScreenState {
         };
 
         let inner =
-            bordered_block_zone!(frame, area, theme, &title, self.active_panel == Panel::Sets);
+            bordered_block_zone(frame, area, theme, &title, self.active_panel == Panel::Sets);
 
         // When in search mode, split inner into search line + list area
         let (list_area, scrollbar_area) = if self.search_mode {

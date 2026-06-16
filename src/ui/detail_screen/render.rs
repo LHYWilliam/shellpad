@@ -1,5 +1,5 @@
 use super::{DetailFocus, DetailScreenState};
-use crate::bordered_block_zone;
+use crate::ui::render::bordered_block_zone;
 use crate::ui::render::{
     empty_hint, fill_row, list_item_style, list_scrollbar_areas, render_inline_cursor,
     render_scrollbar, render_status_bar, set_cursor_after_prefix, styled_list_item,
@@ -18,7 +18,7 @@ impl DetailScreenState {
             self.focus,
             DetailFocus::Name | DetailFocus::Group | DetailFocus::Shell | DetailFocus::ExecMode
         );
-        let inner = bordered_block_zone!(frame, area, theme, " Properties ", props_focused);
+        let inner = bordered_block_zone(frame, area, theme, " Properties ", props_focused);
 
         // Name, Group+Shell, ExecMode in rows inside the block
         let rows = Layout::vertical([
@@ -138,7 +138,7 @@ impl DetailScreenState {
     where
         F: Fn(usize, bool) -> (String, Style),
     {
-        let inner = bordered_block_zone!(frame, area, theme, title, focused);
+        let inner = bordered_block_zone(frame, area, theme, title, focused);
 
         let (list_area, scrollbar_area) = list_scrollbar_areas(inner);
 

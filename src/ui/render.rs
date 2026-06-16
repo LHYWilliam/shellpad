@@ -166,26 +166,31 @@ pub fn list_item_style(is_editing: bool, is_selected: bool, theme: &Theme) -> St
     }
 }
 
-/// Render a bordered block and return its inner area.
-#[macro_export]
-macro_rules! bordered_block_zone {
-    ($frame:expr, $area:expr, $theme:expr, $title:expr, $focused:expr) => {{
-        let block = $crate::ui::render::bordered_block($theme, $title, $focused);
-        let inner = block.inner($area);
-        $frame.render_widget(&block, $area);
-        inner
-    }};
+/// Render a bordered block onto the frame, then return the inner Rect.
+pub fn bordered_block_zone(
+    frame: &mut Frame,
+    area: Rect,
+    theme: &Theme,
+    title: &str,
+    focused: bool,
+) -> Rect {
+    let block = bordered_block(theme, title, focused);
+    let inner = block.inner(area);
+    frame.render_widget(&block, area);
+    inner
 }
 
-/// Render a bordered info block and return its inner area.
-#[macro_export]
-macro_rules! bordered_block_info_zone {
-    ($frame:expr, $area:expr, $theme:expr, $title:expr) => {{
-        let block = $crate::ui::render::bordered_block_info($theme, $title);
-        let inner = block.inner($area);
-        $frame.render_widget(&block, $area);
-        inner
-    }};
+/// Render a bordered info block onto the frame, then return the inner Rect.
+pub fn bordered_block_info_zone(
+    frame: &mut Frame,
+    area: Rect,
+    theme: &Theme,
+    title: &str,
+) -> Rect {
+    let block = bordered_block_info(theme, title);
+    let inner = block.inner(area);
+    frame.render_widget(&block, area);
+    inner
 }
 
 /// Create a styled ListItem with full-row background fill.
