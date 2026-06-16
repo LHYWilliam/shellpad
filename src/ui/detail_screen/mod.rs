@@ -71,7 +71,7 @@ impl DetailScreenState {
 
         // Split into top metadata and bottom command areas
         let layout = Layout::vertical([
-            Constraint::Length(8), // Properties block (4 rows + borders)
+            Constraint::Length(9), // Properties block (5 rows + borders)
             Constraint::Min(3),    // variables
             Constraint::Min(3),    // commands
             Constraint::Length(2), // status bar (separator + content)

@@ -32,14 +32,15 @@ impl DetailScreenState {
         );
         let inner = bordered_block_zone(frame, area, theme, " Properties ", props_focused);
 
-        // Name, Group+Shell, ExecMode, WorkDir in rows inside the block
+        // Text Fields (inline edit, full width) + Options (cycle, 2 per row)
         let rows = Layout::vertical([
             Constraint::Length(1),
             Constraint::Length(1),
             Constraint::Length(1),
             Constraint::Length(1),
+            Constraint::Length(1),
         ]);
-        let [name_row, gs_row, mode_row, workdir_row] = rows.areas(inner);
+        let [name_row, workdir_row, sep_row, gs_row, mode_row] = rows.areas(inner);
 
         // Name
         let is_name_focused = self.focus == DetailFocus::Name;
@@ -79,6 +80,63 @@ impl DetailScreenState {
                 name_row,
             );
         }
+
+        // WorkDir
+        let is_workdir_focused = self.focus == DetailFocus::WorkDir;
+        let workdir_style = if is_workdir_focused {
+            if self.workdir_editing {
+                Style::default()
+                    .fg(theme.text_on_selected)
+                    .bg(theme.accent_primary)
+                    .add_modifier(Modifier::BOLD)
+            } else {
+                Style::default().fg(theme.accent_primary)
+            }
+        } else {
+            theme.normal_style()
+        };
+        let wd_text = if self.workdir_editing {
+            format!(" WorkDir: {}", self.workdir_input.content)
+        } else {
+            match &self.set.working_dir {
+                Some(p) => format!(" WorkDir: {}", p),
+                None => format!(" WorkDir: (default — launcher CWD)"),
+            }
+        };
+        let wd_display_style = if !is_workdir_focused && self.set.working_dir.is_none() {
+            Style::default()
+                .fg(theme.text_disabled)
+                .add_modifier(Modifier::DIM)
+        } else {
+            workdir_style
+        };
+        let wd_line = fill_row(
+            Line::from(Span::styled(wd_text, wd_display_style)),
+            wd_display_style,
+            workdir_row.width,
+        );
+        frame.render_widget(Paragraph::new(wd_line), workdir_row);
+
+        // Cursor for workdir editing
+        if self.workdir_editing {
+            let prefix_width = unicode_width::UnicodeWidthStr::width(" WorkDir: ");
+            set_cursor_after_prefix(
+                frame,
+                &self.workdir_input.content,
+                self.workdir_input.cursor,
+                prefix_width as u16,
+                workdir_row,
+            );
+        }
+
+        // Separator
+        frame.render_widget(
+            Paragraph::new(Line::from(Span::styled(
+                format!(" ── Options {} ", "─".repeat(sep_row.width.saturating_sub(12) as usize)),
+                Style::default().fg(theme.text_disabled).add_modifier(Modifier::DIM),
+            ))),
+            sep_row,
+        );
 
         // Group and Shell on the same row (side by side)
         let group_name = self
@@ -128,53 +186,6 @@ impl DetailScreenState {
             mode_row,
         );
 
-        // WorkDir
-        let is_workdir_focused = self.focus == DetailFocus::WorkDir;
-        let workdir_style = if is_workdir_focused {
-            if self.workdir_editing {
-                Style::default()
-                    .fg(theme.text_on_selected)
-                    .bg(theme.accent_primary)
-                    .add_modifier(Modifier::BOLD)
-            } else {
-                Style::default().fg(theme.accent_primary)
-            }
-        } else {
-            theme.normal_style()
-        };
-        let wd_text = if self.workdir_editing {
-            format!(" WorkDir: {}", self.workdir_input.content)
-        } else {
-            match &self.set.working_dir {
-                Some(p) => format!(" WorkDir: {}", p),
-                None => format!(" WorkDir: (default — launcher CWD)"),
-            }
-        };
-        let wd_display_style = if !is_workdir_focused && self.set.working_dir.is_none() {
-            Style::default()
-                .fg(theme.text_disabled)
-                .add_modifier(Modifier::DIM)
-        } else {
-            workdir_style
-        };
-        let wd_line = fill_row(
-            Line::from(Span::styled(wd_text, wd_display_style)),
-            wd_display_style,
-            workdir_row.width,
-        );
-        frame.render_widget(Paragraph::new(wd_line), workdir_row);
-
-        // Cursor for workdir editing
-        if self.workdir_editing {
-            let prefix_width = unicode_width::UnicodeWidthStr::width(" WorkDir: ");
-            set_cursor_after_prefix(
-                frame,
-                &self.workdir_input.content,
-                self.workdir_input.cursor,
-                prefix_width as u16,
-                workdir_row,
-            );
-        }
     }
 
     /// Shared list renderer for Variables and Commands.
