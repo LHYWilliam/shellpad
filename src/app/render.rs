@@ -2,7 +2,7 @@ use crate::config::MIN_TERMINAL_HEIGHT;
 use crate::config::MIN_TERMINAL_WIDTH;
 use crate::mode::AppMode;
 use crate::ui::help_screen::draw_help;
-use crate::ui::notification::ToastSeverity;
+use crate::ui::toast::ToastSeverity;
 use ratatui::Frame;
 use ratatui::layout::{Alignment, Constraint, Layout, Rect};
 use ratatui::style::{Color, Modifier, Style};

@@ -4,7 +4,7 @@ use crate::models::CommandSet;
 use crate::storage;
 use crate::ui::detail_screen::DetailScreenState;
 use crate::ui::main_screen::Panel;
-use crate::ui::notification::ToastSeverity;
+use crate::ui::toast::ToastSeverity;
 
 use super::App;
 

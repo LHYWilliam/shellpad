@@ -1,4 +1,4 @@
-use crate::ui::notification::{Toast, ToastSeverity};
+use crate::ui::toast::{Toast, ToastSeverity};
 use std::time::Duration;
 
 const TOAST_DURATION: Duration = Duration::from_secs(3);
