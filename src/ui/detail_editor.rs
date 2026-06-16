@@ -89,3 +89,88 @@ pub fn handle_command_edit(
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::action::AppAction;
+    use crate::models::Variable;
+    use crate::ui::widget::{InlineEdit, ScrollableList};
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+
+    fn make_key(code: KeyCode) -> KeyEvent {
+        KeyEvent::new(code, KeyModifiers::empty())
+    }
+
+    #[test]
+    fn test_handle_variable_edit_enter_commits() {
+        let mut edit = InlineEdit::new();
+        edit.editing = Some(0);
+        edit.edit_input = crate::ui::widget::TextInput::new("x=y".to_string());
+        let mut vars = vec![Variable {
+            name: "old".into(),
+            default_value: "old".into(),
+        }];
+        let mut list = ScrollableList::new();
+        let action =
+            handle_variable_edit(&mut edit, make_key(KeyCode::Enter), 0, &mut vars, &mut list);
+        assert!(matches!(action, AppAction::None));
+        assert_eq!(vars[0].name, "x");
+        assert_eq!(vars[0].default_value, "y");
+        assert!(edit.editing.is_none());
+    }
+
+    #[test]
+    fn test_handle_variable_edit_esc_cancels() {
+        let mut edit = InlineEdit::new();
+        edit.editing = Some(0);
+        edit.edit_input = crate::ui::widget::TextInput::new("a=b".to_string());
+        let mut vars = vec![Variable {
+            name: "orig".into(),
+            default_value: "orig".into(),
+        }];
+        let mut list = ScrollableList::new();
+        let action =
+            handle_variable_edit(&mut edit, make_key(KeyCode::Esc), 0, &mut vars, &mut list);
+        assert!(matches!(action, AppAction::None));
+        assert_eq!(vars[0].name, "orig"); // unchanged
+        assert!(edit.editing.is_none());
+    }
+
+    #[test]
+    fn test_handle_variable_edit_text_input() {
+        let mut edit = InlineEdit::new();
+        edit.editing = Some(0);
+        edit.edit_input = crate::ui::widget::TextInput::new(String::new());
+        let mut vars = vec![Variable {
+            name: "a".into(),
+            default_value: "b".into(),
+        }];
+        let mut list = ScrollableList::new();
+        let action = handle_variable_edit(
+            &mut edit,
+            make_key(KeyCode::Char('x')),
+            0,
+            &mut vars,
+            &mut list,
+        );
+        assert!(matches!(action, AppAction::None));
+        assert_eq!(edit.edit_input.content, "x");
+    }
+
+    #[test]
+    fn test_handle_command_edit_enter_commits() {
+        let mut edit = InlineEdit::new();
+        edit.editing = Some(0);
+        edit.edit_input = crate::ui::widget::TextInput::new("echo new".to_string());
+        let mut cmds = vec![crate::models::Command {
+            position: 0,
+            command: "echo old".to_string(),
+        }];
+        let mut list = ScrollableList::new();
+        let action =
+            handle_command_edit(&mut edit, make_key(KeyCode::Enter), 0, &mut cmds, &mut list);
+        assert!(matches!(action, AppAction::None));
+        assert_eq!(cmds[0].command, "echo new");
+    }
+}

@@ -100,3 +100,138 @@ impl ExecutionScreenState {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::executor::ExecutionEvent;
+    use std::sync::mpsc;
+
+    fn make_state(commands: &[&str]) -> ExecutionScreenState {
+        let cmds: Vec<_> = commands
+            .iter()
+            .map(|c| crate::models::Command {
+                position: 0,
+                command: c.to_string(),
+            })
+            .collect();
+        ExecutionScreenState::new("test".to_string(), &cmds)
+    }
+
+    #[test]
+    fn test_process_starting() {
+        let mut state = make_state(&["echo hello"]);
+        let (tx, rx) = mpsc::channel();
+        tx.send(ExecutionEvent::Starting {
+            index: 0,
+            command: "echo hello".to_string(),
+        })
+        .unwrap();
+        state.process_events(&rx);
+        assert_eq!(state.cmd_states[0].status, CmdStatus::Running);
+    }
+
+    #[test]
+    fn test_process_stdout_line() {
+        let mut state = make_state(&["echo hi"]);
+        let (tx, rx) = mpsc::channel();
+        tx.send(ExecutionEvent::StdoutLine {
+            index: 0,
+            line: "hi".to_string(),
+        })
+        .unwrap();
+        state.process_events(&rx);
+        assert_eq!(state.cmd_states[0].output_lines, vec!["hi"]);
+    }
+
+    #[test]
+    fn test_process_stderr_line() {
+        let mut state = make_state(&["error"]);
+        let (tx, rx) = mpsc::channel();
+        tx.send(ExecutionEvent::StderrLine {
+            index: 0,
+            line: "err".to_string(),
+        })
+        .unwrap();
+        state.process_events(&rx);
+        assert_eq!(state.cmd_states[0].output_lines, vec!["[stderr] err"]);
+    }
+
+    #[test]
+    fn test_process_finished_success() {
+        let mut state = make_state(&["ok"]);
+        let (tx, rx) = mpsc::channel();
+        tx.send(ExecutionEvent::Starting {
+            index: 0,
+            command: "ok".to_string(),
+        })
+        .unwrap();
+        tx.send(ExecutionEvent::Finished {
+            index: 0,
+            success: true,
+            duration_ms: 100,
+        })
+        .unwrap();
+        state.process_events(&rx);
+        assert_eq!(state.cmd_states[0].status, CmdStatus::Success);
+        assert_eq!(state.succeeded, 1);
+    }
+
+    #[test]
+    fn test_process_finished_failure() {
+        let mut state = make_state(&["fail"]);
+        let (tx, rx) = mpsc::channel();
+        tx.send(ExecutionEvent::Starting {
+            index: 0,
+            command: "fail".to_string(),
+        })
+        .unwrap();
+        tx.send(ExecutionEvent::Finished {
+            index: 0,
+            success: false,
+            duration_ms: 50,
+        })
+        .unwrap();
+        state.process_events(&rx);
+        assert_eq!(state.cmd_states[0].status, CmdStatus::Failure);
+        assert_eq!(state.failed, 1);
+    }
+
+    #[test]
+    fn test_process_completed_all() {
+        let mut state = make_state(&["a", "b"]);
+        let (tx, rx) = mpsc::channel();
+        tx.send(ExecutionEvent::CompletedAll {
+            total: 2,
+            succeeded: 1,
+            failed: 1,
+            total_duration_ms: 500,
+        })
+        .unwrap();
+        state.process_events(&rx);
+        assert!(state.completed);
+        assert_eq!(state.total_duration_ms, Some(500));
+    }
+
+    #[test]
+    fn test_process_interrupted() {
+        let mut state = make_state(&["a"]);
+        let (tx, rx) = mpsc::channel();
+        tx.send(ExecutionEvent::Interrupted { last_index: 0 })
+            .unwrap();
+        state.process_events(&rx);
+        assert!(state.completed);
+    }
+
+    #[test]
+    fn test_mark_remaining_as_skipped() {
+        let mut state = make_state(&["a", "b", "c"]);
+        state.mark_remaining_as_skipped();
+        assert!(state.completed);
+        for (i, cmd) in state.cmd_states.iter().enumerate() {
+            assert_eq!(cmd.status, CmdStatus::Skipped, "cmd {i} should be skipped");
+        }
+        assert_eq!(state.skipped, 3);
+        assert_eq!(state.continue_from, Some(0));
+    }
+}
