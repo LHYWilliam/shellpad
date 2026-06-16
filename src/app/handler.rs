@@ -283,8 +283,7 @@ mod tests {
         app.handle_action(AppAction::NewGroup);
         assert_eq!(app.data.groups.len(), 1);
         assert_eq!(app.data.groups[0].name, "Group 1");
-        assert!(app.toasts.toasts.len() > 0);
-        assert!(app.toasts.toasts[0].message.contains("Group created"));
+        assert!(app.toasts.toasts.iter().any(|t| t.message.contains("Group created")));
     }
 
     // ---- RenameGroup ----
