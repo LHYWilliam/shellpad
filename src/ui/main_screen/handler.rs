@@ -180,7 +180,6 @@ impl MainScreenState {
                 self.active_panel = crate::ui::main_screen::Panel::Sets;
                 AppAction::None
             }
-            KeyCode::Char('?') => AppAction::Help,
             KeyCode::Char('h') | KeyCode::Char('H') => {
                 if key
                     .modifiers
@@ -290,11 +289,12 @@ mod tests {
     }
 
     #[test]
-    fn test_question_mark_returns_help() {
+    fn test_question_mark_is_delegated_to_app() {
         let mut state = MainScreenState::new();
         let data = make_data();
         let action = state.handle_key(make_key(KeyCode::Char('?')), &data);
-        assert!(matches!(action, AppAction::Help));
+        // '?' is now a global shortcut in App::handle_key, not in MainScreenState
+        assert!(matches!(action, AppAction::None));
     }
 
     #[test]

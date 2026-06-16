@@ -5,6 +5,7 @@ use crate::storage;
 use crate::ui::detail_screen::DetailScreenState;
 use crate::ui::main_screen::Panel;
 use crate::ui::toast::ToastSeverity;
+use crossterm::event::KeyCode;
 
 use super::{App, ExecutionState};
 
@@ -15,6 +16,13 @@ impl App {
             self.handle_action(action);
             return;
         }
+
+        // Global Help shortcut — works in all modes
+        if key.code == KeyCode::Char('?') {
+            self.handle_action(AppAction::Help);
+            return;
+        }
+
         match self.mode {
             AppMode::Main => {
                 let action = self.main_screen.handle_key(key, &self.data);
@@ -606,5 +614,43 @@ mod tests {
         app.handle_action(AppAction::ReExec);
         assert_eq!(app.mode, AppMode::Execution);
         assert!(matches!(app.execution_state, ExecutionState::Running { .. }));
+    }
+
+    #[test]
+    fn test_help_from_detail_mode() {
+        let mut app = make_app();
+        app.data = make_data_with_one_group();
+        let set = app.data.groups[0].sets[0].clone();
+        let groups = app.data.groups.clone();
+        app.detail_screen = Some(DetailScreenState::new(set, groups));
+        app.mode = AppMode::Detail;
+
+        let key = crossterm::event::KeyEvent::new(
+            crossterm::event::KeyCode::Char('?'),
+            crossterm::event::KeyModifiers::empty(),
+        );
+        app.handle_key(key);
+        assert_eq!(app.mode, AppMode::Help);
+    }
+
+    #[test]
+    fn test_help_from_execution_mode() {
+        use crate::ui::execution_screen::ExecutionScreenState;
+        use crate::models::Command;
+        let mut app = make_app();
+        let cmds = vec![Command { position: 0, command: "x".to_string() }];
+        app.execution_state = ExecutionState::Running {
+            screen: ExecutionScreenState::new("t".to_string(), &cmds),
+            manager: ExecutionManager::new(),
+            pending_set: (0, 0),
+        };
+        app.mode = AppMode::Execution;
+
+        let key = crossterm::event::KeyEvent::new(
+            crossterm::event::KeyCode::Char('?'),
+            crossterm::event::KeyModifiers::empty(),
+        );
+        app.handle_key(key);
+        assert_eq!(app.mode, AppMode::Help);
     }
 }
