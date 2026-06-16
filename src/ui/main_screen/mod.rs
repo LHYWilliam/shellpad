@@ -24,6 +24,12 @@ pub struct MainScreenState {
     pub rename_input: TextInput,
 }
 
+impl Default for MainScreenState {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl MainScreenState {
     pub fn new() -> Self {
         Self {

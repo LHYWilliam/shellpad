@@ -21,6 +21,12 @@ pub struct VariableScreenState {
     pub si: usize,
 }
 
+impl Default for VariableScreenState {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl VariableScreenState {
     pub fn new() -> Self {
         Self {

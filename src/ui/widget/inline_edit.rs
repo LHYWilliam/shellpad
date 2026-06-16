@@ -9,6 +9,12 @@ pub struct InlineEdit {
     pub insert_at: Option<usize>, // Some(pos) = inserting new item at pos
 }
 
+impl Default for InlineEdit {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl InlineEdit {
     pub fn new() -> Self {
         Self {

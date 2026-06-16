@@ -3,6 +3,12 @@ pub struct ScrollableList {
     pub offset: usize,
 }
 
+impl Default for ScrollableList {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ScrollableList {
     pub fn new() -> Self {
         Self {

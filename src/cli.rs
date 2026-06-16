@@ -135,12 +135,12 @@ fn handle_run(
     }
 }
 
-pub(crate) fn resolve_set<'a>(
-    data: &'a AppData,
+pub(crate) fn resolve_set(
+    data: &AppData,
     id: Option<String>,
     group: Option<String>,
     set: Option<String>,
-) -> Result<(&'a crate::models::CommandSet, usize, usize), CliError> {
+) -> Result<(&crate::models::CommandSet, usize, usize), CliError> {
     if let Some(id_str) = id {
         let uuid = Uuid::parse_str(&id_str).map_err(|_| CliError::InvalidUuid(id_str.clone()))?;
         let id_str_clone = uuid.to_string();

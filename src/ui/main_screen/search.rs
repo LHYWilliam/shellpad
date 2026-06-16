@@ -1,7 +1,7 @@
 /// Find case-insensitive matches of `query` in `text`, returning byte-offset pairs
 /// into `text` that are guaranteed valid for slicing.
 /// Uses character-level case folding to avoid to_lowercase() byte-length mismatch.
-pub fn find_matches_case_insensitive<'a>(text: &'a str, query: &str) -> Vec<(usize, usize)> {
+pub fn find_matches_case_insensitive(text: &str, query: &str) -> Vec<(usize, usize)> {
     if query.is_empty() {
         return Vec::new();
     }

@@ -35,6 +35,12 @@ pub struct App {
     pub toasts: ToastManager,
 }
 
+impl Default for App {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl App {
     pub fn new() -> Self {
         let data = storage::load_app_data().unwrap_or_else(|e| {
