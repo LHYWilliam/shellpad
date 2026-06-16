@@ -295,7 +295,7 @@ impl DetailScreenState {
         let text: String = if is_editing {
             "[Enter] Confirm  [Esc] Cancel".into()
         } else {
-            let status = match self.focus {
+            let status: String = match self.focus {
                 DetailFocus::Name => "[Enter] Edit name  [Tab] Next".into(),
                 DetailFocus::Group => "[←/→] Change group  [Tab] Next".into(),
                 DetailFocus::Shell => "[←/→] Change shell  [Tab] Next".into(),
