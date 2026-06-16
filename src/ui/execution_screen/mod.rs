@@ -73,7 +73,7 @@ impl ExecutionScreenState {
                     .modifiers
                     .contains(crossterm::event::KeyModifiers::CONTROL) =>
             {
-                AppAction::KillExec
+                AppAction::SkipCurrent
             }
             KeyCode::Char('s') if !self.completed => AppAction::SkipCurrent,
             KeyCode::Char('n') if self.completed && self.continue_from.is_some() => {

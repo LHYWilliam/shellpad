@@ -193,7 +193,7 @@ impl App {
                 self.teardown_execution(false, false);
                 self.mode = AppMode::Main;
             }
-            AppAction::KillExec | AppAction::SkipCurrent => {
+            AppAction::SkipCurrent => {
                 self.teardown_execution(true, true);
                 self.mode = AppMode::Execution;
             }

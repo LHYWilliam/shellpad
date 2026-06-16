@@ -28,7 +28,6 @@ pub enum AppAction {
     DeleteCommand(usize),
 
     // === Execution screen ===
-    KillExec,
     SkipCurrent,
     ContinueFrom(usize),
     ReExec,
