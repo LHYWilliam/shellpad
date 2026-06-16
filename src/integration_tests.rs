@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use crate::action::{AppAction, DeleteKind};
+    use crate::action::{AppAction, DeleteKind, ReorderKind};
     use crate::mode::AppMode;
     use crate::models::{AppData, CommandSet, Group, Variable};
     use crate::storage;
@@ -197,5 +197,36 @@ mod tests {
         app.handle_key(y_key);
         assert_eq!(app.mode, AppMode::Main);
         assert!(app.data.groups[0].sets.is_empty());
+    }
+
+    // ------------------------------------------------------------------
+    // 5.7 Command reorder flow
+    // ------------------------------------------------------------------
+    #[test]
+    fn test_reorder_command_flow() {
+        let mut app = make_app();
+        let mut g = Group::new("G".to_string());
+        let mut set = CommandSet::new("S".to_string(), g.id);
+        set.commands.push(crate::models::Command { position: 0, command: "first".to_string() });
+        set.commands.push(crate::models::Command { position: 1, command: "second".to_string() });
+        g.sets.push(set);
+        app.data = AppData { groups: vec![g] };
+        let set_clone = app.data.groups[0].sets[0].clone();
+        app.detail_screen = Some(DetailScreenState::new(set_clone, app.data.groups.clone()));
+        app.mode = AppMode::Detail;
+
+        // Move second command up
+        app.handle_action(AppAction::Reorder(ReorderKind::Command(1), -1));
+        let ds = app.detail_screen.as_ref().unwrap();
+        assert_eq!(ds.set.commands[0].command, "second");
+        assert_eq!(ds.set.commands[0].position, 0);
+        assert_eq!(ds.set.commands[1].command, "first");
+        assert_eq!(ds.set.commands[1].position, 1);
+
+        // Move first command down (back to original order)
+        app.handle_action(AppAction::Reorder(ReorderKind::Command(0), 1));
+        let ds2 = app.detail_screen.as_ref().unwrap();
+        assert_eq!(ds2.set.commands[0].command, "first");
+        assert_eq!(ds2.set.commands[1].command, "second");
     }
 }
