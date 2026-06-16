@@ -84,7 +84,23 @@ impl DetailScreenState {
         self.command_list
             .update_offset(cmd_area.height.saturating_sub(2) as usize);
 
-        self.render_metadata(frame, meta_area, theme);
+        // When an Option is focused, split into Properties (left) + Picker (right)
+        let show_picker = matches!(
+            self.focus,
+            DetailFocus::Group | DetailFocus::Shell | DetailFocus::ExecMode
+        );
+        if show_picker {
+            let split = Layout::horizontal([
+                Constraint::Ratio(1, 2),
+                Constraint::Ratio(1, 2),
+            ]);
+            let [props_area, picker_area] = split.areas(meta_area);
+            self.render_metadata(frame, props_area, theme);
+            self.render_picker(frame, picker_area, theme);
+        } else {
+            self.render_metadata(frame, meta_area, theme);
+        }
+
         self.render_variables(frame, var_area, theme);
         self.render_commands(frame, cmd_area, theme);
         self.render_status_bar(frame, status_area, theme);

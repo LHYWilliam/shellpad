@@ -10,7 +10,7 @@ use ratatui::Frame;
 use ratatui::layout::{Constraint, Layout, Rect};
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
-use ratatui::widgets::{Clear, List, ListItem, Paragraph};
+use ratatui::widgets::{List, ListItem, Paragraph};
 use super::{DetailFocus, DetailScreenState};
 
 /// Editor context bundle for `render_items_list`.
@@ -195,9 +195,8 @@ impl DetailScreenState {
         );
     }
 
-    fn render_picker(&self, frame: &mut Frame, area: Rect, theme: &Theme) {
+    pub(crate) fn render_picker(&self, frame: &mut Frame, area: Rect, theme: &Theme) {
         let max_items: usize = 5;
-        use crate::ui::render::{bordered_block, centered_rect};
         use ratatui::layout::Alignment;
 
         let (names, selected_idx, title): (Vec<String>, Option<usize>, &str) = match self.focus {
@@ -254,20 +253,11 @@ impl DetailScreenState {
         let start = current_page * max_items;
         let end = (start + max_items).min(total);
 
+        let inner = crate::ui::render::bordered_block_info_zone(frame, area, theme, title);
+
         let has_footer = total > max_items;
         let content_lines = (end - start).max(1);
         let footer_lines = if has_footer { 1 } else { 0 };
-        let picker_inner_h = content_lines as u16 + footer_lines + 2; // +2 borders
-
-        let picker_w = area.width.min(22);
-        let picker_rect = centered_rect(area, picker_w, picker_inner_h);
-
-        frame.render_widget(Clear, picker_rect);
-
-        let block = bordered_block(theme, title, true);
-        let inner = block.inner(picker_rect);
-        frame.render_widget(&block, picker_rect);
-
         let lines_layout = Layout::vertical([
             Constraint::Length(content_lines as u16),
             Constraint::Length(footer_lines),
