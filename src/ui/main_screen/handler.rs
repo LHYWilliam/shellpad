@@ -201,3 +201,108 @@ impl MainScreenState {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::action::AppAction;
+    use crate::models::{AppData, CommandSet, Group};
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+
+    fn make_data() -> AppData {
+        let mut g = Group::new("Test Group".to_string());
+        let set = CommandSet::new("Test Set".to_string(), g.id);
+        g.sets.push(set);
+        AppData { groups: vec![g] }
+    }
+
+    fn make_key(code: KeyCode) -> KeyEvent {
+        KeyEvent::new(code, KeyModifiers::empty())
+    }
+
+    #[test]
+    fn test_nav_down_returns_none() {
+        let mut state = MainScreenState::new();
+        let data = make_data();
+        let action = state.handle_key(make_key(KeyCode::Down), &data);
+        assert!(matches!(action, AppAction::None));
+        assert_eq!(state.group_list.selected, 0); // stays at first
+    }
+
+    #[test]
+    fn test_enter_on_set_returns_execute_set() {
+        let mut state = MainScreenState::new();
+        state.active_panel = crate::ui::main_screen::Panel::Sets;
+        let data = make_data();
+        let action = state.handle_key(make_key(KeyCode::Enter), &data);
+        assert!(matches!(action, AppAction::ExecuteSet(0, 0)));
+    }
+
+    #[test]
+    fn test_e_returns_edit_set() {
+        let mut state = MainScreenState::new();
+        state.active_panel = crate::ui::main_screen::Panel::Sets;
+        let data = make_data();
+        let action = state.handle_key(make_key(KeyCode::Char('e')), &data);
+        assert!(matches!(action, AppAction::EditSet(0, 0)));
+    }
+
+    #[test]
+    fn test_n_returns_new_set() {
+        let mut state = MainScreenState::new();
+        let data = make_data();
+        let action = state.handle_key(make_key(KeyCode::Char('n')), &data);
+        assert!(matches!(action, AppAction::NewSet(0)));
+    }
+
+    #[test]
+    fn test_d_returns_delete_set() {
+        let mut state = MainScreenState::new();
+        state.active_panel = crate::ui::main_screen::Panel::Sets;
+        let data = make_data();
+        let action = state.handle_key(make_key(KeyCode::Char('d')), &data);
+        assert!(matches!(action, AppAction::DeleteSet(0, 0)));
+    }
+
+    #[test]
+    fn test_big_d_returns_delete_group() {
+        let mut state = MainScreenState::new();
+        state.active_panel = crate::ui::main_screen::Panel::Groups;
+        let data = make_data();
+        let action = state.handle_key(make_key(KeyCode::Char('D')), &data);
+        assert!(matches!(action, AppAction::DeleteGroup(0)));
+    }
+
+    #[test]
+    fn test_g_returns_new_group() {
+        let mut state = MainScreenState::new();
+        let data = make_data();
+        let action = state.handle_key(make_key(KeyCode::Char('g')), &data);
+        assert!(matches!(action, AppAction::NewGroup));
+    }
+
+    #[test]
+    fn test_q_returns_quit() {
+        let mut state = MainScreenState::new();
+        let data = make_data();
+        let action = state.handle_key(make_key(KeyCode::Char('q')), &data);
+        assert!(matches!(action, AppAction::Quit));
+    }
+
+    #[test]
+    fn test_question_mark_returns_help() {
+        let mut state = MainScreenState::new();
+        let data = make_data();
+        let action = state.handle_key(make_key(KeyCode::Char('?')), &data);
+        assert!(matches!(action, AppAction::Help));
+    }
+
+    #[test]
+    fn test_slash_enters_search_mode() {
+        let mut state = MainScreenState::new();
+        let data = make_data();
+        let action = state.handle_key(make_key(KeyCode::Char('/')), &data);
+        assert!(matches!(action, AppAction::None));
+        assert!(state.search_mode);
+    }
+}

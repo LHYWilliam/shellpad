@@ -131,3 +131,44 @@ impl VariableScreenState {
         );
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::action::AppAction;
+    use crate::models::CommandSet;
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+
+    fn make_key(code: KeyCode) -> KeyEvent {
+        KeyEvent::new(code, KeyModifiers::empty())
+    }
+
+    #[test]
+    fn test_tab_advances_focus() {
+        let mut state = VariableScreenState::new();
+        let set = CommandSet::new("test".to_string(), uuid::Uuid::new_v4());
+        state.activate(&set, 0, 0);
+        let _ = state.handle_key(make_key(KeyCode::Tab));
+        assert_eq!(state.focus, 0); // no variables to navigate
+    }
+
+    #[test]
+    fn test_enter_with_variables_returns_confirm() {
+        let mut state = VariableScreenState::new();
+        state.active = true;
+        state.inputs.push(TextInput::new("val".to_string()));
+        state.names.push("x".to_string());
+        state.gi = 0;
+        state.si = 0;
+        let action = state.handle_key(make_key(KeyCode::Enter));
+        assert!(matches!(action, AppAction::ConfirmVariables));
+    }
+
+    #[test]
+    fn test_esc_returns_cancel_variables() {
+        let mut state = VariableScreenState::new();
+        state.active = true;
+        let action = state.handle_key(make_key(KeyCode::Esc));
+        assert!(matches!(action, AppAction::CancelVariables));
+    }
+}

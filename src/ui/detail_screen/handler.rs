@@ -196,3 +196,110 @@ impl DetailScreenState {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::action::AppAction;
+    use crate::models::{CommandSet, Group};
+    use crate::ui::detail_screen::DetailFocus;
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+
+    fn make_state() -> DetailScreenState {
+        let group = Group::new("G".to_string());
+        let set = CommandSet::new("S".to_string(), group.id);
+        DetailScreenState::new(set, vec![group])
+    }
+
+    fn make_key(code: KeyCode) -> KeyEvent {
+        KeyEvent::new(code, KeyModifiers::empty())
+    }
+
+    #[test]
+    fn test_tab_cycles_focus_forward() {
+        let mut state = make_state();
+        assert_eq!(state.focus, DetailFocus::Name);
+        state.handle_key(make_key(KeyCode::Tab));
+        assert_eq!(state.focus, DetailFocus::Group);
+        state.handle_key(make_key(KeyCode::Tab));
+        assert_eq!(state.focus, DetailFocus::Shell);
+        state.handle_key(make_key(KeyCode::Tab));
+        assert_eq!(state.focus, DetailFocus::ExecMode);
+        state.handle_key(make_key(KeyCode::Tab));
+        assert_eq!(state.focus, DetailFocus::Variables);
+        state.handle_key(make_key(KeyCode::Tab));
+        assert_eq!(state.focus, DetailFocus::Commands);
+        state.handle_key(make_key(KeyCode::Tab));
+        assert_eq!(state.focus, DetailFocus::Name); // wraps around
+    }
+
+    #[test]
+    fn test_backtab_cycles_focus_backward() {
+        let mut state = make_state();
+        // Start at Name (index 0), send backtab -> goes to Commands (last)
+        state.handle_key(make_key(KeyCode::BackTab));
+        assert_eq!(state.focus, DetailFocus::Commands);
+    }
+
+    #[test]
+    fn test_enter_on_name_starts_editing() {
+        let mut state = make_state();
+        assert_eq!(state.focus, DetailFocus::Name);
+        assert!(!state.editing_name);
+        state.handle_key(make_key(KeyCode::Enter));
+        assert!(state.editing_name);
+    }
+
+    #[test]
+    fn test_enter_on_variables_enters_edit_mode() {
+        let mut state = make_state();
+        // Add a variable
+        state.set.variables.push(crate::models::Variable {
+            name: "x".to_string(),
+            default_value: "y".to_string(),
+        });
+        state.focus = DetailFocus::Variables;
+        state.handle_key(make_key(KeyCode::Enter));
+        assert!(state.var_edit.is_editing());
+    }
+
+    #[test]
+    fn test_a_on_variables_triggers_insert() {
+        let mut state = make_state();
+        state.set.variables.push(crate::models::Variable {
+            name: "a".to_string(),
+            default_value: "b".to_string(),
+        });
+        state.focus = DetailFocus::Variables;
+        let action = state.handle_key(make_key(KeyCode::Char('a')));
+        assert!(matches!(action, AppAction::None));
+        assert!(state.var_edit.insert_at.is_some());
+    }
+
+    #[test]
+    fn test_d_on_variables_returns_delete_variable() {
+        let mut state = make_state();
+        state.set.variables.push(crate::models::Variable {
+            name: "x".to_string(),
+            default_value: "y".to_string(),
+        });
+        state.focus = DetailFocus::Variables;
+        let action = state.handle_key(make_key(KeyCode::Char('d')));
+        assert!(matches!(action, AppAction::DeleteVariable(0)));
+    }
+
+    #[test]
+    fn test_ctrl_s_returns_save_set() {
+        let mut state = make_state();
+        let ctrl_s = KeyEvent::new(KeyCode::Char('s'), KeyModifiers::CONTROL);
+        let action = state.handle_key(ctrl_s);
+        assert!(matches!(action, AppAction::SaveSet(_)));
+    }
+
+    #[test]
+    fn test_esc_returns_cancel_edit() {
+        let mut state = make_state();
+        let action = state.handle_key(make_key(KeyCode::Esc));
+        assert!(matches!(action, AppAction::CancelEdit));
+    }
+}
