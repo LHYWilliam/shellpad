@@ -1,4 +1,4 @@
-use crate::action::AppAction;
+use crate::action::{AppAction, DeleteKind};
 use crate::mode::AppMode;
 use crate::models::CommandSet;
 use crate::storage;
@@ -23,7 +23,7 @@ impl App {
             return;
         }
 
-        match self.mode {
+        match &self.mode {
             AppMode::Main => {
                 let action = self.main_screen.handle_key(key, &self.data);
                 self.handle_action(action);
@@ -40,6 +40,32 @@ impl App {
                     self.handle_action(action);
                 }
             }
+            AppMode::ConfirmDelete { kind, prev } => {
+                match key.code {
+                    KeyCode::Char('y') | KeyCode::Char('Y') => {
+                        let action = match kind {
+                            DeleteKind::Set {
+                                group_index, set_index, ..
+                            } => AppAction::DeleteSet(*group_index, *set_index),
+                            DeleteKind::Group { group_index, .. } => {
+                                AppAction::DeleteGroup(*group_index)
+                            }
+                            DeleteKind::Variable { var_index, .. } => {
+                                AppAction::DeleteVariable(*var_index)
+                            }
+                            DeleteKind::Command { cmd_index, .. } => {
+                                AppAction::DeleteCommand(*cmd_index)
+                            }
+                        };
+                        self.mode = (**prev).clone();
+                        self.handle_action(action);
+                    }
+                    KeyCode::Char('n') | KeyCode::Char('N') | KeyCode::Esc => {
+                        self.mode = (**prev).clone();
+                    }
+                    _ => {} // Ignore all other keys during confirmation
+                }
+            }
             AppMode::Help => {
                 self.mode = self.prev_mode.take().unwrap_or(AppMode::Main);
             }
@@ -54,7 +80,7 @@ impl App {
                 if self.mode == AppMode::Help {
                     self.mode = self.prev_mode.take().unwrap_or(AppMode::Main);
                 } else {
-                    self.prev_mode = Some(self.mode);
+                    self.prev_mode = Some(self.mode.clone());
                     self.mode = AppMode::Help;
                 }
             }
@@ -253,8 +279,12 @@ impl App {
                 }
                 self.do_execute();
             }
-            // Temporary: RequestDelete is handled via ConfirmDelete mode (Task 6)
-            AppAction::RequestDelete(_) => {}
+            AppAction::RequestDelete(kind) => {
+                self.mode = AppMode::ConfirmDelete {
+                    kind,
+                    prev: Box::new(self.mode.clone()),
+                };
+            }
 
             AppAction::CancelVariables => {
                 self.variable_screen = crate::ui::variable_screen::VariableScreenState::new();
@@ -276,14 +306,14 @@ impl App {
 #[cfg(test)]
 mod tests {
     use super::ExecutionState;
-    use crate::action::AppAction;
+    use crate::action::{AppAction, DeleteKind};
     use crate::app::execution::ExecutionManager;
     use crate::mode::AppMode;
     use crate::models::{AppData, CommandSet, Group};
     use crate::test_utils::{make_app, make_key};
     use crate::ui::detail_screen::DetailScreenState;
     use crate::ui::main_screen::Panel;
-    use crossterm::event::KeyCode;
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
     fn make_data_with_one_group() -> AppData {
         let mut g = Group::new("Deploy".to_string());
@@ -654,5 +684,236 @@ mod tests {
         // execution_state should NOT be cleaned up — Help is an overlay
         assert!(matches!(app.execution_state, ExecutionState::Running { .. }));
         assert_eq!(app.prev_mode, Some(AppMode::Execution));
+    }
+
+    // ---- RequestDelete / ConfirmDelete ----
+    fn make_data_for_delete_test() -> AppData {
+        let mut g = Group::new("Deploy".to_string());
+        let mut set = CommandSet::new("Prod".to_string(), g.id);
+        set.commands.push(crate::models::Command { position: 0, command: "echo hi".to_string() });
+        g.sets.push(set);
+        AppData { groups: vec![g] }
+    }
+
+    #[test]
+    fn test_request_delete_set_enters_confirm_mode() {
+        let mut app = make_app();
+        app.data = make_data_for_delete_test();
+        app.handle_action(AppAction::RequestDelete(DeleteKind::Set {
+            group_index: 0,
+            set_index: 0,
+            set_name: "Prod".to_string(),
+        }));
+        assert!(
+            matches!(app.mode, AppMode::ConfirmDelete { .. }),
+            "Expected ConfirmDelete mode after RequestDelete"
+        );
+    }
+
+    #[test]
+    fn test_request_delete_group_enters_confirm_mode() {
+        let mut app = make_app();
+        app.data = make_data_for_delete_test();
+        app.handle_action(AppAction::RequestDelete(DeleteKind::Group {
+            group_index: 0,
+            group_name: "Deploy".to_string(),
+            set_count: 1,
+        }));
+        assert!(matches!(app.mode, AppMode::ConfirmDelete { .. }));
+    }
+
+    #[test]
+    fn test_request_delete_variable_enters_confirm_mode() {
+        use crate::models::Variable;
+        let mut app = make_app();
+        let mut g = Group::new("G".to_string());
+        let mut set = CommandSet::new("S".to_string(), g.id);
+        set.variables.push(Variable { name: "host".to_string(), default_value: "".to_string() });
+        g.sets.push(set);
+        app.data = AppData { groups: vec![g] };
+        let set_clone = app.data.groups[0].sets[0].clone();
+        app.detail_screen = Some(DetailScreenState::new(set_clone, app.data.groups.clone()));
+        app.mode = AppMode::Detail;
+
+        app.handle_action(AppAction::RequestDelete(DeleteKind::Variable {
+            var_index: 0,
+            var_name: "host".to_string(),
+        }));
+        assert!(matches!(app.mode, AppMode::ConfirmDelete { .. }));
+    }
+
+    #[test]
+    fn test_request_delete_command_enters_confirm_mode() {
+        let mut app = make_app();
+        app.data = make_data_for_delete_test();
+        let set = app.data.groups[0].sets[0].clone();
+        app.detail_screen = Some(DetailScreenState::new(set, app.data.groups.clone()));
+        app.mode = AppMode::Detail;
+
+        app.handle_action(AppAction::RequestDelete(DeleteKind::Command {
+            cmd_index: 0,
+            cmd_preview: "echo hi".to_string(),
+        }));
+        assert!(matches!(app.mode, AppMode::ConfirmDelete { .. }));
+    }
+
+    #[test]
+    fn test_confirm_delete_y_executes_delete_set() {
+        let mut app = make_app();
+        app.data = make_data_for_delete_test();
+        app.mode = AppMode::ConfirmDelete {
+            kind: DeleteKind::Set {
+                group_index: 0,
+                set_index: 0,
+                set_name: "Prod".to_string(),
+            },
+            prev: Box::new(AppMode::Main),
+        };
+        let y_key = KeyEvent::new(KeyCode::Char('y'), KeyModifiers::empty());
+        app.handle_key(y_key);
+        assert!(app.data.groups[0].sets.is_empty());
+        assert_eq!(app.mode, AppMode::Main);
+    }
+
+    #[test]
+    fn test_confirm_delete_y_executes_delete_group() {
+        let mut app = make_app();
+        app.data = make_data_for_delete_test();
+        app.mode = AppMode::ConfirmDelete {
+            kind: DeleteKind::Group {
+                group_index: 0,
+                group_name: "Deploy".to_string(),
+                set_count: 1,
+            },
+            prev: Box::new(AppMode::Main),
+        };
+        let y_key = KeyEvent::new(KeyCode::Char('y'), KeyModifiers::empty());
+        app.handle_key(y_key);
+        assert!(app.data.groups.is_empty());
+        assert_eq!(app.mode, AppMode::Main);
+    }
+
+    #[test]
+    fn test_confirm_delete_y_executes_delete_variable() {
+        use crate::models::Variable;
+        let mut app = make_app();
+        let mut g = Group::new("G".to_string());
+        let mut set = CommandSet::new("S".to_string(), g.id);
+        set.variables.push(Variable { name: "host".to_string(), default_value: "".to_string() });
+        g.sets.push(set);
+        app.data = AppData { groups: vec![g] };
+        let set_clone = app.data.groups[0].sets[0].clone();
+        app.detail_screen = Some(DetailScreenState::new(set_clone, app.data.groups.clone()));
+
+        app.mode = AppMode::ConfirmDelete {
+            kind: DeleteKind::Variable {
+                var_index: 0,
+                var_name: "host".to_string(),
+            },
+            prev: Box::new(AppMode::Detail),
+        };
+        let y_key = KeyEvent::new(KeyCode::Char('y'), KeyModifiers::empty());
+        app.handle_key(y_key);
+        let ds = app.detail_screen.as_ref().unwrap();
+        assert!(ds.set.variables.is_empty());
+        assert_eq!(app.mode, AppMode::Detail);
+    }
+
+    #[test]
+    fn test_confirm_delete_y_executes_delete_command() {
+        let mut app = make_app();
+        app.data = make_data_for_delete_test();
+        let set = app.data.groups[0].sets[0].clone();
+        app.detail_screen = Some(DetailScreenState::new(set, app.data.groups.clone()));
+
+        app.mode = AppMode::ConfirmDelete {
+            kind: DeleteKind::Command {
+                cmd_index: 0,
+                cmd_preview: "echo hi".to_string(),
+            },
+            prev: Box::new(AppMode::Detail),
+        };
+        let y_key = KeyEvent::new(KeyCode::Char('y'), KeyModifiers::empty());
+        app.handle_key(y_key);
+        let ds = app.detail_screen.as_ref().unwrap();
+        assert!(ds.set.commands.is_empty());
+        assert_eq!(app.mode, AppMode::Detail);
+    }
+
+    #[test]
+    fn test_confirm_delete_n_cancels() {
+        let mut app = make_app();
+        app.data = make_data_for_delete_test();
+        app.mode = AppMode::ConfirmDelete {
+            kind: DeleteKind::Set {
+                group_index: 0,
+                set_index: 0,
+                set_name: "Prod".to_string(),
+            },
+            prev: Box::new(AppMode::Main),
+        };
+        let n_key = KeyEvent::new(KeyCode::Char('n'), KeyModifiers::empty());
+        app.handle_key(n_key);
+        // Set should NOT be deleted
+        assert_eq!(app.data.groups[0].sets.len(), 1);
+        assert_eq!(app.mode, AppMode::Main);
+    }
+
+    #[test]
+    fn test_confirm_delete_esc_cancels() {
+        let mut app = make_app();
+        app.data = make_data_for_delete_test();
+        app.mode = AppMode::ConfirmDelete {
+            kind: DeleteKind::Set {
+                group_index: 0,
+                set_index: 0,
+                set_name: "Prod".to_string(),
+            },
+            prev: Box::new(AppMode::Main),
+        };
+        app.handle_key(make_key(KeyCode::Esc));
+        // Set should NOT be deleted
+        assert_eq!(app.data.groups[0].sets.len(), 1);
+        assert_eq!(app.mode, AppMode::Main);
+    }
+
+    #[test]
+    fn test_confirm_delete_other_key_ignored() {
+        let mut app = make_app();
+        app.data = make_data_for_delete_test();
+        app.mode = AppMode::ConfirmDelete {
+            kind: DeleteKind::Set {
+                group_index: 0,
+                set_index: 0,
+                set_name: "Prod".to_string(),
+            },
+            prev: Box::new(AppMode::Main),
+        };
+        // Press a key that is not y, n, or Esc
+        app.handle_key(make_key(KeyCode::Char('x')));
+        // Should still be in ConfirmDelete mode
+        assert!(matches!(app.mode, AppMode::ConfirmDelete { .. }));
+        // Set should NOT be deleted
+        assert_eq!(app.data.groups[0].sets.len(), 1);
+    }
+
+    #[test]
+    fn test_help_still_works_during_confirm_delete() {
+        let mut app = make_app();
+        app.data = make_data_for_delete_test();
+        app.mode = AppMode::ConfirmDelete {
+            kind: DeleteKind::Set {
+                group_index: 0,
+                set_index: 0,
+                set_name: "Prod".to_string(),
+            },
+            prev: Box::new(AppMode::Main),
+        };
+        // Press '?' for help
+        app.handle_key(make_key(KeyCode::Char('?')));
+        assert_eq!(app.mode, AppMode::Help);
+        // Dismiss Help — should restore to ConfirmDelete
+        app.handle_key(make_key(KeyCode::Esc));
+        assert!(matches!(app.mode, AppMode::ConfirmDelete { .. }));
     }
 }
