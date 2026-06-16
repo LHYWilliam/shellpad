@@ -1,4 +1,4 @@
-use crate::action::{AppAction, DeleteKind};
+use crate::action::{AppAction, DeleteKind, ReorderKind};
 use crate::models::AppData;
 use crate::ui::main_screen::MainScreenState;
 use crate::ui::widget::TextInput;
@@ -71,6 +71,30 @@ impl MainScreenState {
         }
 
         match key.code {
+            KeyCode::Up if key.modifiers.contains(crossterm::event::KeyModifiers::CONTROL) => {
+                match self.active_panel {
+                    Panel::Groups if let Some(gi) = self.selected_group_idx(data) => {
+                        return AppAction::Reorder(ReorderKind::Group(gi), -1);
+                    }
+                    Panel::Sets if let Some((gi, si)) = self.selected_set_idx(data) => {
+                        return AppAction::Reorder(ReorderKind::Set(gi, si), -1);
+                    }
+                    _ => {}
+                }
+                AppAction::None
+            }
+            KeyCode::Down if key.modifiers.contains(crossterm::event::KeyModifiers::CONTROL) => {
+                match self.active_panel {
+                    Panel::Groups if let Some(gi) = self.selected_group_idx(data) => {
+                        return AppAction::Reorder(ReorderKind::Group(gi), 1);
+                    }
+                    Panel::Sets if let Some((gi, si)) = self.selected_set_idx(data) => {
+                        return AppAction::Reorder(ReorderKind::Set(gi, si), 1);
+                    }
+                    _ => {}
+                }
+                AppAction::None
+            }
             KeyCode::Up | KeyCode::Char('k') | KeyCode::Char('K') => {
                 match self.active_panel {
                     Panel::Groups => self.group_list.select_previous(),
@@ -212,10 +236,10 @@ impl MainScreenState {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::action::{AppAction, DeleteKind};
+    use crate::action::{AppAction, DeleteKind, ReorderKind};
     use crate::models::{AppData, CommandSet, Group};
     use crate::test_utils::make_key;
-    use crossterm::event::KeyCode;
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
     fn make_data() -> AppData {
         let mut g = Group::new("Test Group".to_string());
@@ -329,5 +353,39 @@ mod tests {
         let action = state.handle_key(make_key(KeyCode::Char('/')), &data);
         assert!(matches!(action, AppAction::None));
         assert!(state.search_mode);
+    }
+
+    #[test]
+    fn test_ctrl_up_returns_reorder_group() {
+        let mut state = MainScreenState::new();
+        state.active_panel = Panel::Groups;
+        state.group_list.selected = 1;
+        let mut data = make_data();
+        data.groups.push(Group::new("G2".to_string()));
+        let ctrl_up = KeyEvent::new(KeyCode::Up, KeyModifiers::CONTROL);
+        let action = state.handle_key(ctrl_up, &data);
+        assert!(matches!(action, AppAction::Reorder(ReorderKind::Group(1), -1)));
+    }
+
+    #[test]
+    fn test_ctrl_down_returns_reorder_set() {
+        let mut state = MainScreenState::new();
+        state.active_panel = Panel::Sets;
+        state.set_list.selected = 0;
+        let mut data = make_data();
+        let set2 = CommandSet::new("S2".to_string(), data.groups[0].id);
+        data.groups[0].sets.push(set2);
+        let ctrl_down = KeyEvent::new(KeyCode::Down, KeyModifiers::CONTROL);
+        let action = state.handle_key(ctrl_down, &data);
+        assert!(matches!(action, AppAction::Reorder(ReorderKind::Set(0, 0), 1)));
+    }
+
+    #[test]
+    fn test_ctrl_up_ignored_in_groups_when_no_group_selected() {
+        let mut state = MainScreenState::new();
+        let empty_data = AppData::empty();
+        let ctrl_up = KeyEvent::new(KeyCode::Up, KeyModifiers::CONTROL);
+        let action = state.handle_key(ctrl_up, &empty_data);
+        assert!(matches!(action, AppAction::None));
     }
 }

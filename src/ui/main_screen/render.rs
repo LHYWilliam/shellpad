@@ -257,7 +257,7 @@ impl MainScreenState {
         } else if self.search_mode {
             "[Enter] Confirm  [Esc] Cancel  [↑/↓] Nav — searching"
         } else {
-            "[↑/↓] Nav  [←/→] Panel  [Enter] Run  [e] Edit  [n] New  [R] Rename  [d] Del set  [D] Del group  [g] New group  [/] Search  [q] Quit"
+            "[↑/↓] Nav  [←/→] Panel  [Ctrl+↑/↓] Move  [Enter] Run  [e] Edit  [n] New  [R] Rename  [d] Del set  [D] Del group  [g] New group  [/] Search  [q] Quit"
         };
         render_status_bar(frame, area, theme, text);
     }
