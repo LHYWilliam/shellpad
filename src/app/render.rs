@@ -36,6 +36,7 @@ impl App {
             AppMode::Detail => "Edit",
             AppMode::Execution => "Run",
             AppMode::Help => "Help",
+            AppMode::ConfirmDelete { .. } => "Confirm",
         };
         let group_count = self.data.groups.len();
         let set_count: usize = self.data.groups.iter().map(|g| g.sets.len()).sum();
@@ -51,7 +52,7 @@ impl App {
         )));
         frame.render_widget(title_paragraph, title_area);
 
-        match self.mode {
+        match &self.mode {
             AppMode::Main => {
                 self.main_screen
                     .render(frame, content_area, &self.data, &self.theme);
@@ -84,6 +85,28 @@ impl App {
                     }
                 }
                 draw_help(frame, content_area, &self.theme);
+            }
+            AppMode::ConfirmDelete { kind, prev } => {
+                // Render underlying screen based on the stored prev mode
+                match prev.as_ref() {
+                    AppMode::Detail => {
+                        if let Some(ref mut ds) = self.detail_screen {
+                            ds.render(frame, content_area, &self.theme);
+                        }
+                    }
+                    AppMode::Execution => {
+                        if let ExecutionState::Running { ref screen, .. } = self.execution_state {
+                            screen.render(frame, content_area, &self.theme);
+                        }
+                    }
+                    _ => {
+                        self.main_screen
+                            .render(frame, content_area, &self.data, &self.theme);
+                    }
+                }
+                crate::ui::confirm_dialog::draw_confirm_dialog(
+                    frame, content_area, &self.theme, kind,
+                );
             }
         }
 
