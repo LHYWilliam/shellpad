@@ -139,8 +139,6 @@ without updating this section.
 
 ### Render Functions
 
-- **Visibility** — all render methods are `pub(crate)`.
-
 - **Block construction** — always use `bordered_block_zone(frame, area,
   theme, " Title ", focused)` from `crate::ui::render`. Never construct
   `Block::default().borders(Borders::ALL)` directly in screen code.
@@ -176,8 +174,9 @@ without updating this section.
   `make_app() -> App` live in `src/test_utils.rs` (`#[cfg(test)]`).
   Do not redefine these; import: `use crate::test_utils::make_key;`
 
-- **Import style** — unit test modules use `use super::*;` as their first
-  import. Pull only what `super::*` doesn't cover from `crate::`.
+- **Import style** — use explicit imports (`use super::TypeName`,
+  `use crate::module::Type`) in test modules. Avoid `use super::*`
+  — it obscures where names come from. Import only what the tests use.
 
 - **Integration tests** (`src/integration_tests.rs`) use `crate::` paths.
   No `super` available — this is correct.
@@ -224,7 +223,9 @@ without updating this section.
   Applies to all event types: Starting, StderrLine, StdoutLine, Finished,
   CompletedAll.
 
-- **CLI error output** — use `eprintln!("Error: {}", e)`. No other prefix.
+- **Error output** — use `eprintln!("{e}")`. Error types implement
+  `Display` via `thiserror` and already produce descriptive messages.
+  Do not add a redundant `"Error: "` prefix.
 
 - **UI error paths** — do not propagate `Result` through handler or render
   functions. Handle errors locally: `unwrap_or_else(|| fallback)` for
