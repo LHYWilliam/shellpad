@@ -61,6 +61,14 @@ pub fn bordered_block_info<'a>(theme: &Theme, title: &'a str) -> Block<'a> {
         .title(title)
 }
 
+/// Create a bordered Block with accent_error color for danger overlays.
+pub fn bordered_block_error<'a>(theme: &Theme, title: &'a str) -> Block<'a> {
+    Block::default()
+        .borders(Borders::ALL)
+        .border_style(Style::default().fg(theme.accent_error))
+        .title(title)
+}
+
 /// Create a disabled/italic ListItem for empty-state guidance.
 pub fn empty_hint<'a>(theme: &Theme, text: &'a str) -> ListItem<'a> {
     ListItem::new(Line::from(Span::styled(
@@ -188,6 +196,19 @@ pub fn bordered_block_info_zone(
     title: &str,
 ) -> Rect {
     let block = bordered_block_info(theme, title);
+    let inner = block.inner(area);
+    frame.render_widget(&block, area);
+    inner
+}
+
+/// Render a bordered error block onto the frame, then return the inner Rect.
+pub fn bordered_block_error_zone(
+    frame: &mut Frame,
+    area: Rect,
+    theme: &Theme,
+    title: &str,
+) -> Rect {
+    let block = bordered_block_error(theme, title);
     let inner = block.inner(area);
     frame.render_widget(&block, area);
     inner
