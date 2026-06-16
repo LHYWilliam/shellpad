@@ -33,23 +33,27 @@ impl DetailScreenState {
         match key.code {
             KeyCode::Tab | KeyCode::Char('\t') => {
                 self.commit_name_edit();
+                self.commit_workdir_edit();
                 self.focus = match self.focus {
                     DetailFocus::Name => DetailFocus::Group,
                     DetailFocus::Group => DetailFocus::Shell,
                     DetailFocus::Shell => DetailFocus::ExecMode,
-                    DetailFocus::ExecMode => DetailFocus::Variables,
+                    DetailFocus::ExecMode => DetailFocus::WorkDir,
+                    DetailFocus::WorkDir => DetailFocus::Variables,
                     DetailFocus::Variables => DetailFocus::Commands,
                     DetailFocus::Commands => DetailFocus::Name,
                 };
             }
             KeyCode::BackTab => {
                 self.commit_name_edit();
+                self.commit_workdir_edit();
                 self.focus = match self.focus {
                     DetailFocus::Name => DetailFocus::Commands,
                     DetailFocus::Group => DetailFocus::Name,
                     DetailFocus::Shell => DetailFocus::Group,
                     DetailFocus::ExecMode => DetailFocus::Shell,
-                    DetailFocus::Variables => DetailFocus::ExecMode,
+                    DetailFocus::WorkDir => DetailFocus::ExecMode,
+                    DetailFocus::Variables => DetailFocus::WorkDir,
                     DetailFocus::Commands => DetailFocus::Variables,
                 };
             }
@@ -146,6 +150,21 @@ impl DetailScreenState {
                             self.editing_name = true;
                         }
                     }
+                    DetailFocus::WorkDir => {
+                        if self.workdir_editing {
+                            let content = self.workdir_input.content.clone();
+                            self.set.working_dir = if content.trim().is_empty() {
+                                None
+                            } else {
+                                Some(content)
+                            };
+                            self.workdir_editing = false;
+                        } else {
+                            self.workdir_input =
+                                TextInput::new(self.set.working_dir.clone().unwrap_or_default());
+                            self.workdir_editing = true;
+                        }
+                    }
                     DetailFocus::Variables if !self.set.variables.is_empty() => {
                         let idx = self
                             .variable_list
@@ -227,6 +246,8 @@ impl DetailScreenState {
             KeyCode::Esc => {
                 if self.editing_name {
                     self.editing_name = false;
+                } else if self.workdir_editing {
+                    self.workdir_editing = false;
                 } else {
                     return AppAction::CancelEdit;
                 }
@@ -238,6 +259,9 @@ impl DetailScreenState {
         if self.editing_name {
             handle_text_input(&mut self.name_input, key);
         }
+        if self.workdir_editing {
+            handle_text_input(&mut self.workdir_input, key);
+        }
 
         AppAction::None
     }
@@ -246,6 +270,18 @@ impl DetailScreenState {
         if self.editing_name {
             self.set.name = self.name_input.content.clone();
             self.editing_name = false;
+        }
+    }
+
+    fn commit_workdir_edit(&mut self) {
+        if self.workdir_editing {
+            let content = self.workdir_input.content.clone();
+            self.set.working_dir = if content.trim().is_empty() {
+                None
+            } else {
+                Some(content)
+            };
+            self.workdir_editing = false;
         }
     }
 
@@ -296,6 +332,8 @@ mod tests {
         assert_eq!(state.focus, DetailFocus::Shell);
         state.handle_key(make_key(KeyCode::Tab));
         assert_eq!(state.focus, DetailFocus::ExecMode);
+        state.handle_key(make_key(KeyCode::Tab));
+        assert_eq!(state.focus, DetailFocus::WorkDir);
         state.handle_key(make_key(KeyCode::Tab));
         assert_eq!(state.focus, DetailFocus::Variables);
         state.handle_key(make_key(KeyCode::Tab));
@@ -439,5 +477,64 @@ mod tests {
         let ctrl_up = KeyEvent::new(KeyCode::Up, KeyModifiers::CONTROL);
         let action = state.handle_key(ctrl_up);
         assert!(matches!(action, AppAction::None));
+    }
+
+    // ---- WorkDir ----
+    #[test]
+    fn test_enter_on_workdir_starts_editing() {
+        let mut state = make_state();
+        state.focus = DetailFocus::WorkDir;
+        assert!(!state.workdir_editing);
+        state.handle_key(make_key(KeyCode::Enter));
+        assert!(state.workdir_editing);
+    }
+
+    #[test]
+    fn test_enter_on_workdir_confirms_editing() {
+        let mut state = make_state();
+        state.focus = DetailFocus::WorkDir;
+        state.handle_key(make_key(KeyCode::Enter)); // start editing
+        assert!(state.workdir_editing);
+        state.workdir_input = crate::ui::widget::TextInput::new("/tmp/test".to_string());
+        state.handle_key(make_key(KeyCode::Enter)); // confirm
+        assert!(!state.workdir_editing);
+        assert_eq!(state.set.working_dir, Some("/tmp/test".to_string()));
+    }
+
+    #[test]
+    fn test_enter_on_workdir_empty_string_stores_none() {
+        let mut state = make_state();
+        state.set.working_dir = Some("/old/path".to_string());
+        state.focus = DetailFocus::WorkDir;
+        state.handle_key(make_key(KeyCode::Enter)); // start editing
+        state.workdir_input = crate::ui::widget::TextInput::new(String::new());
+        state.handle_key(make_key(KeyCode::Enter)); // confirm with empty
+        assert!(!state.workdir_editing);
+        assert_eq!(state.set.working_dir, None);
+    }
+
+    #[test]
+    fn test_esc_cancels_workdir_editing() {
+        let mut state = make_state();
+        state.set.working_dir = Some("/existing".to_string());
+        state.focus = DetailFocus::WorkDir;
+        state.handle_key(make_key(KeyCode::Enter)); // start editing
+        assert!(state.workdir_editing);
+        state.workdir_input = crate::ui::widget::TextInput::new("/changed".to_string());
+        state.handle_key(make_key(KeyCode::Esc));
+        assert!(!state.workdir_editing);
+        assert_eq!(state.set.working_dir, Some("/existing".to_string()));
+    }
+
+    #[test]
+    fn test_tab_commits_workdir_editing() {
+        let mut state = make_state();
+        state.focus = DetailFocus::WorkDir;
+        state.handle_key(make_key(KeyCode::Enter)); // start editing
+        state.workdir_input = crate::ui::widget::TextInput::new("/committed".to_string());
+        state.handle_key(make_key(KeyCode::Tab)); // Tab commits + moves
+        assert!(!state.workdir_editing);
+        assert_eq!(state.set.working_dir, Some("/committed".to_string()));
+        assert_eq!(state.focus, DetailFocus::Variables);
     }
 }
