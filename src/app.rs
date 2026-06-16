@@ -54,7 +54,7 @@ pub struct App {
     pub main_screen: MainScreenState,
     pub detail_screen: Option<DetailScreenState>,
 
-    pub execution_state: ExecutionState,
+    pub(crate) execution_state: ExecutionState,
     pub variable_screen: VariableScreenState,
 
     pub theme: Theme,
@@ -106,10 +106,9 @@ impl App {
                 ref mut screen,
                 ref manager, ..
             } = self.execution_state
+                && let Some(ref rx) = manager.rx
             {
-                if let Some(ref rx) = manager.rx {
-                    screen.process_events(rx);
-                }
+                screen.process_events(rx);
             }
         }
         Ok(())
