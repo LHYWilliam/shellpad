@@ -196,7 +196,6 @@ impl DetailScreenState {
     }
 
     pub(crate) fn render_picker(&self, frame: &mut Frame, area: Rect, theme: &Theme) {
-        let max_items: usize = 5;
         use ratatui::layout::Alignment;
 
         let (names, selected_idx, title): (Vec<String>, Option<usize>, &str) = match self.focus {
@@ -248,55 +247,80 @@ impl DetailScreenState {
 
         let total = names.len();
         let sel = selected_idx.unwrap_or(0);
-        let total_pages = (total + max_items - 1) / max_items;
-        let current_page = sel / max_items;
-        let start = current_page * max_items;
-        let end = (start + max_items).min(total);
-
         let inner = crate::ui::render::bordered_block_info_zone(frame, area, theme, title);
 
-        let has_footer = total > max_items;
-        let content_lines = (end - start).max(1);
-        let footer_lines = if has_footer { 1 } else { 0 };
+        // 7 rows: row 3 (0-indexed position 2) always holds sel
+        const VISIBLE: usize = 7;
+        const SEL_ROW: isize = 3;
+        let sel_isize = sel as isize;
+        let total_isize = total as isize;
+
+        let mut items: Vec<ListItem<'_>> = Vec::new();
+        let mut sel_visual = None;
+        for visual_row in 0..VISIBLE {
+            let offset = visual_row as isize - SEL_ROW;
+            let idx = sel_isize + offset;
+            let in_bounds = idx >= 0 && idx < total_isize;
+            if in_bounds {
+                let i = idx as usize;
+                let is_selected = offset == 0;
+                let is_peek = offset == -SEL_ROW || offset == SEL_ROW;
+                let style = if is_selected {
+                    Style::default().fg(theme.accent_primary)
+                } else if is_peek {
+                    Style::default()
+                        .fg(theme.text_disabled)
+                        .add_modifier(Modifier::DIM)
+                } else {
+                    theme.normal_style()
+                };
+                if is_selected {
+                    sel_visual = Some(items.len());
+                }
+                items.push(styled_list_item(format!(" {}", names[i]), style, inner.width));
+            } else {
+                items.push(styled_list_item(
+                    String::new(), theme.normal_style(), inner.width,
+                ));
+                if offset == 0 {
+                    sel_visual = Some(items.len() - 1);
+                }
+            }
+        }
+
         let lines_layout = Layout::vertical([
-            Constraint::Length(content_lines as u16),
-            Constraint::Length(footer_lines),
+            Constraint::Length(VISIBLE as u16),
+            Constraint::Length(1), // footer
         ]);
         let [list_area, footer_area] = lines_layout.areas(inner);
 
-        let list_items: Vec<ListItem<'_>> = names[start..end].iter().enumerate().map(|(i, name)| {
-            let is_current = start + i == sel;
-            let style = if is_current {
-                Style::default().fg(theme.accent_primary)
-            } else {
-                theme.normal_style()
-            };
-            styled_list_item(format!(" {}", name), style, list_area.width)
-        }).collect();
-
         let mut list_state = ratatui::widgets::ListState::default();
-        list_state.select(Some(sel - start));
+        if total > 0 {
+            list_state.select(sel_visual);
+        }
         frame.render_stateful_widget(
-            List::new(list_items).highlight_style(
+            List::new(items).highlight_style(
                 Style::default().bg(theme.surface_border),
             ),
             list_area,
             &mut list_state,
         );
 
-        if has_footer {
-            let page_text = format!(" ◀ {}/{} ▶ ", current_page + 1, total_pages);
-            frame.render_widget(
-                Paragraph::new(Line::from(Span::styled(
-                    page_text,
-                    Style::default()
-                        .fg(theme.text_disabled)
-                        .add_modifier(Modifier::DIM),
-                )))
-                .alignment(Alignment::Center),
-                footer_area,
-            );
-        }
+        // Footer — right-aligned
+        let max_items: usize = 5;
+        let total_pages = (total.saturating_sub(1) / max_items) + 1;
+        let current_page = sel / max_items + 1;
+        let page_text = format!(" ◀ {}/{} ▶ ", current_page, total_pages);
+        frame.render_widget(
+            Paragraph::new(Line::from(Span::styled(
+                page_text,
+                Style::default()
+                    .fg(theme.text_disabled)
+                    .add_modifier(Modifier::DIM),
+            )))
+            .alignment(Alignment::Right),
+            footer_area,
+        );
     }
 
     /// Shared list renderer for Variables and Commands.
