@@ -87,12 +87,15 @@ impl App {
                 self.handle_key(key);
             }
 
-            // Collect execution events on each tick
-            if self.mode == AppMode::Execution
-                && let Some(ref rx) = self.execution.rx
-                && let Some(ref mut es) = self.exec_screen
-            {
-                es.process_events(rx);
+            // Drain execution events on each tick
+            if let Some(ref rx) = self.execution.rx {
+                if let Some(ref mut es) = self.exec_screen {
+                    es.process_events(rx);
+                } else {
+                    // Drain channel even when screen is gone — the sender
+                    // thread may still push events before kill_signal takes effect.
+                    while rx.try_recv().is_ok() {}
+                }
             }
         }
         Ok(())
