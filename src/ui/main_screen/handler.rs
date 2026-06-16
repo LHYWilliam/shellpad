@@ -38,7 +38,7 @@ impl MainScreenState {
                     self.search_mode = false;
                     self.search_input = TextInput::new(String::new());
                     self.set_list.reset();
-                    self.active_panel = Groups;
+                    self.active_panel = Panel::Groups;
                     AppAction::None
                 }
                 KeyCode::Enter => {
@@ -46,7 +46,7 @@ impl MainScreenState {
                     if let Some((gi, si, _)) = results.get(self.set_list.selected) {
                         self.group_list.selected = *gi;
                         self.set_list.selected = *si;
-                        self.active_panel = Sets;
+                        self.active_panel = Panel::Sets;
                     }
                     self.search_mode = false;
                     self.search_input = TextInput::new(String::new());
@@ -63,7 +63,7 @@ impl MainScreenState {
                 }
                 _ => {
                     handle_text_input(&mut self.search_input, key);
-                    self.active_panel = Sets;
+                    self.active_panel = Panel::Sets;
                     self.set_list.reset();
                     AppAction::None
                 }
@@ -73,10 +73,10 @@ impl MainScreenState {
         match key.code {
             KeyCode::Up | KeyCode::Char('k') | KeyCode::Char('K') => {
                 match self.active_panel {
-                    Groups => self.group_list.select_previous(),
-                    Sets => {
+                    Panel::Groups => self.group_list.select_previous(),
+                    Panel::Sets => {
                         if self.visible_sets(data).is_empty() {
-                            self.active_panel = Groups;
+                            self.active_panel = Panel::Groups;
                         } else {
                             self.set_list.select_previous();
                         }
@@ -86,13 +86,13 @@ impl MainScreenState {
             }
             KeyCode::Down | KeyCode::Char('j') | KeyCode::Char('J') => {
                 match self.active_panel {
-                    Groups => {
+                    Panel::Groups => {
                         self.group_list.select_next(data.groups.len())
                     }
-                    Sets => {
+                    Panel::Sets => {
                         let n = self.visible_sets(data).len();
                         if n == 0 {
-                            self.active_panel = Groups;
+                            self.active_panel = Panel::Groups;
                         } else {
                             self.set_list.select_next(n);
                         }
@@ -102,30 +102,30 @@ impl MainScreenState {
             }
             KeyCode::Left => {
                 match self.active_panel {
-                    Sets => {
-                        self.active_panel = Groups
+                    Panel::Sets => {
+                        self.active_panel = Panel::Groups
                     }
-                    Groups => { /* already on the leftmost panel */ }
+                    Panel::Groups => { /* already on the leftmost panel */ }
                 }
                 AppAction::None
             }
             KeyCode::Right => {
                 match self.active_panel {
-                    Groups => {
+                    Panel::Groups => {
                         let has_sets = self
                             .selected_group_idx(data)
                             .map(|gi| !data.groups[gi].sets.is_empty())
                             .unwrap_or(false);
                         if has_sets {
-                            self.active_panel = Sets;
+                            self.active_panel = Panel::Sets;
                         }
                     }
-                    Sets => { /* already on the rightmost panel */ }
+                    Panel::Sets => { /* already on the rightmost panel */ }
                 }
                 AppAction::None
             }
             KeyCode::Enter => {
-                if self.active_panel == Sets
+                if self.active_panel == Panel::Sets
                     && let Some((gi, si)) = self.selected_set_idx(data)
                 {
                     return AppAction::ExecuteSet(gi, si);
@@ -133,7 +133,7 @@ impl MainScreenState {
                 AppAction::None
             }
             KeyCode::Char('e') | KeyCode::Char('E') => {
-                if self.active_panel == Sets
+                if self.active_panel == Panel::Sets
                     && let Some((gi, si)) = self.selected_set_idx(data)
                 {
                     return AppAction::EditSet(gi, si);
@@ -148,7 +148,7 @@ impl MainScreenState {
                 }
             }
             KeyCode::Char('d') => {
-                if self.active_panel == Sets
+                if self.active_panel == Panel::Sets
                     && let Some((gi, si)) = self.selected_set_idx(data)
                 {
                     return AppAction::DeleteSet(gi, si);
@@ -156,7 +156,7 @@ impl MainScreenState {
                 AppAction::None
             }
             KeyCode::Char('D') => {
-                if self.active_panel == Groups
+                if self.active_panel == Panel::Groups
                     && let Some(gi) = self.selected_group_idx(data)
                 {
                     return AppAction::DeleteGroup(gi);
@@ -165,7 +165,7 @@ impl MainScreenState {
             }
             KeyCode::Char('g') => AppAction::NewGroup,
             KeyCode::Char('R') => {
-                if self.active_panel == Groups
+                if self.active_panel == Panel::Groups
                     && let Some(gi) = self.selected_group_idx(data)
                 {
                     let current = data.groups[gi].name.clone();
@@ -178,7 +178,7 @@ impl MainScreenState {
                 self.search_mode = true;
                 self.search_input.content.clear();
                 self.set_list.reset();
-                self.active_panel = Sets;
+                self.active_panel = Panel::Sets;
                 AppAction::None
             }
             KeyCode::Char('h') | KeyCode::Char('H')
@@ -204,17 +204,14 @@ mod tests {
     use super::*;
     use crate::action::AppAction;
     use crate::models::{AppData, CommandSet, Group};
-    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+    use crate::test_utils::make_key;
+    use crossterm::event::KeyCode;
 
     fn make_data() -> AppData {
         let mut g = Group::new("Test Group".to_string());
         let set = CommandSet::new("Test Set".to_string(), g.id);
         g.sets.push(set);
         AppData { groups: vec![g] }
-    }
-
-    fn make_key(code: KeyCode) -> KeyEvent {
-        KeyEvent::new(code, KeyModifiers::empty())
     }
 
     #[test]
@@ -229,7 +226,7 @@ mod tests {
     #[test]
     fn test_enter_on_set_returns_execute_set() {
         let mut state = MainScreenState::new();
-        state.active_panel = Sets;
+        state.active_panel = Panel::Sets;
         let data = make_data();
         let action = state.handle_key(make_key(KeyCode::Enter), &data);
         assert!(matches!(action, AppAction::ExecuteSet(0, 0)));
@@ -238,7 +235,7 @@ mod tests {
     #[test]
     fn test_e_returns_edit_set() {
         let mut state = MainScreenState::new();
-        state.active_panel = Sets;
+        state.active_panel = Panel::Sets;
         let data = make_data();
         let action = state.handle_key(make_key(KeyCode::Char('e')), &data);
         assert!(matches!(action, AppAction::EditSet(0, 0)));
@@ -255,7 +252,7 @@ mod tests {
     #[test]
     fn test_d_returns_delete_set() {
         let mut state = MainScreenState::new();
-        state.active_panel = Sets;
+        state.active_panel = Panel::Sets;
         let data = make_data();
         let action = state.handle_key(make_key(KeyCode::Char('d')), &data);
         assert!(matches!(action, AppAction::DeleteSet(0, 0)));
@@ -264,7 +261,7 @@ mod tests {
     #[test]
     fn test_big_d_returns_delete_group() {
         let mut state = MainScreenState::new();
-        state.active_panel = Groups;
+        state.active_panel = Panel::Groups;
         let data = make_data();
         let action = state.handle_key(make_key(KeyCode::Char('D')), &data);
         assert!(matches!(action, AppAction::DeleteGroup(0)));

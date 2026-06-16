@@ -143,11 +143,8 @@ mod tests {
     use super::*;
     use crate::action::AppAction;
     use crate::models::CommandSet;
-    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
-
-    fn make_key(code: KeyCode) -> KeyEvent {
-        KeyEvent::new(code, KeyModifiers::empty())
-    }
+    use crate::test_utils::make_key;
+    use crossterm::event::KeyCode;
 
     #[test]
     fn test_tab_advances_focus() {

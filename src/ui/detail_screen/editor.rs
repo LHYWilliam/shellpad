@@ -82,12 +82,9 @@ mod tests {
     use super::*;
     use crate::action::AppAction;
     use crate::models::Variable;
+    use crate::test_utils::make_key;
     use crate::ui::widget::{InlineEdit, ScrollableList};
-    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
-
-    fn make_key(code: KeyCode) -> KeyEvent {
-        KeyEvent::new(code, KeyModifiers::empty())
-    }
+    use crossterm::event::KeyCode;
 
     #[test]
     fn test_handle_variable_edit_enter_commits() {

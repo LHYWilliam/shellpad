@@ -12,3 +12,6 @@ pub mod ui;
 
 #[cfg(test)]
 mod integration_tests;
+
+#[cfg(test)]
+mod test_utils;

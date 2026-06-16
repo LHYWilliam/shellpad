@@ -230,6 +230,7 @@ mod tests {
     use super::*;
     use crate::action::AppAction;
     use crate::models::{CommandSet, Group};
+    use crate::test_utils::make_key;
     use crate::ui::detail_screen::DetailFocus;
     use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
@@ -237,10 +238,6 @@ mod tests {
         let group = Group::new("G".to_string());
         let set = CommandSet::new("S".to_string(), group.id);
         DetailScreenState::new(set, vec![group])
-    }
-
-    fn make_key(code: KeyCode) -> KeyEvent {
-        KeyEvent::new(code, KeyModifiers::empty())
     }
 
     #[test]
