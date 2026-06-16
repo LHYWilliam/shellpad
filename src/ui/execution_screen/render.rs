@@ -1,6 +1,6 @@
 use super::{CmdStatus, ExecutionScreenState};
 use crate::ui::render::bordered_block_zone;
-use crate::ui::render::{list_scrollbar_areas, render_scrollbar, render_status_bar};
+use crate::ui::render::{empty_hint, list_scrollbar_areas, render_scrollbar, render_status_bar};
 use crate::ui::theme::Theme;
 use ratatui::Frame;
 use ratatui::layout::{Constraint, Layout, Rect};
@@ -122,6 +122,11 @@ impl ExecutionScreenState {
                         .add_modifier(Modifier::DIM),
                 ))));
             }
+        }
+
+        // Empty-state hint when no commands
+        if self.cmd_states.is_empty() {
+            items.push(empty_hint(theme, " (no commands — press q to go back) "));
         }
 
         // Summary at bottom if completed
