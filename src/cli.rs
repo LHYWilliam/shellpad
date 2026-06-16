@@ -129,7 +129,7 @@ fn handle_run(
             }
         }
         Err(e) => {
-            eprintln!("Execution error: {}", e);
+            eprintln!("Error: {}", e);
             1
         }
     }
