@@ -105,81 +105,196 @@ pub(crate) fn save_app_data_to(data: &AppData, path: &Path, tmp: &Path) -> io::R
 
 测试用临时路径不经过 `config.rs`。`data_file_path()` 等函数保持不变。
 
+### 4.2 `cli.rs` — 暴露解析函数为 `pub(crate)`
+
+为了让 `integration_tests.rs` 调用 CLI 解析函数（`Cli` 结构体私有，无法直接访问），两个解析函数改为 `pub(crate)`：
+
+```rust
+// 当前：fn resolve_set(...) -> ...
+// 改为：
+pub(crate) fn resolve_set(...) -> ...
+
+// 当前：fn resolve_variables(...) -> ...
+// 改为：
+pub(crate) fn resolve_variables(...) -> ...
+```
+
 ## 5. 集成测试设计
 
-### 5.1 存储全生命周期测试
+### 6.1 存储全生命周期测试
 
 ```rust
 #[test]
 fn test_storage_full_lifecycle() {
-    // 1. 在临时目录中创建空的 AppData
-    // 2. save 到临时路径
-    // 3. load 回来 → 验证为空
-    // 4. 添加 Group + CommandSet，save
-    // 5. load 回来 → 验证包含数据
-    // 6. 覆盖 save（第二次）
-    // 7. load 回来 → 验证数据一致
-    // 8. 确认没有遗留 .tmp 文件
+    let tmp = std::env::temp_dir().join(format!("launcher_test_{}", uuid::Uuid::new_v4()));
+    let path = tmp.join("sets.json");
+    let tmp_path = tmp.join("sets.json.tmp");
+    std::fs::create_dir_all(&tmp).unwrap();
+
+    // 1. 保存空数据
+    let empty = crate::models::AppData::empty();
+    crate::storage::save_app_data_to(&empty, &path, &tmp_path).unwrap();
+
+    // 2. 加载 → 空
+    let loaded = crate::storage::load_app_data_from(&path).unwrap();
+    assert!(loaded.groups.is_empty());
+
+    // 3. 添加数据后保存
+    let mut group = crate::models::Group::new("test".to_string());
+    group.sets.push(crate::models::CommandSet::new("s1".to_string(), group.id));
+    let data = crate::models::AppData { groups: vec![group] };
+    crate::storage::save_app_data_to(&data, &path, &tmp_path).unwrap();
+
+    // 4. 加载 → 验证数据
+    let reloaded = crate::storage::load_app_data_from(&path).unwrap();
+    assert_eq!(reloaded.groups.len(), 1);
+    assert_eq!(reloaded.groups[0].name, "test");
+    assert_eq!(reloaded.groups[0].sets.len(), 1);
+    assert_eq!(reloaded.groups[0].sets[0].name, "s1");
+
+    // 5. 无残留 .tmp 文件
+    assert!(!tmp_path.exists());
+
+    let _ = std::fs::remove_dir_all(&tmp);
 }
 ```
 
-### 5.2 App CRUD 循环测试
+### 6.2 App CRUD 循环测试
+
+直接构造 `App` 结构体（所有字段均为 `pub`），避免 `App::new()` 加载/写入真实配置。
 
 ```rust
+fn create_test_app() -> crate::app::App {
+    crate::app::App {
+        data: crate::models::AppData::empty(),
+        mode: crate::mode::AppMode::Main,
+        running: true,
+        main_screen: crate::ui::main_screen::MainScreenState::new(),
+        detail_screen: None,
+        exec_screen: None,
+        execution: crate::app::execution::ExecutionManager::new(),
+        variable_screen: crate::ui::variable_screen::VariableScreenState::new(),
+        pending_set: None,
+        theme: crate::ui::theme::Theme::default_dark(),
+        toasts: crate::app::toast::ToastManager::new(),
+    }
+}
+
 #[test]
 fn test_app_crud_cycle() {
-    // 1. 创建 App 实例
-    // 2. dispatch AppAction::NewGroup
-    // 3. 验证 data.groups.len() == 1
-    // 4. dispatch AppAction::RenameGroup(0, "new name")
-    // 5. 验证 data.groups[0].name == "new name"
-    // 6. dispatch AppAction::NewSet(0)
-    // 7. 验证 data.groups[0].sets.len() == 1
-    // 8. dispatch AppAction::DeleteSet(0, 0)
-    // 9. 验证 data.groups[0].sets.is_empty()
-    // 10. dispatch AppAction::DeleteGroup(0)
-    // 11. 验证 data.groups.is_empty()
+    let mut app = create_test_app();
+    use crate::action::AppAction;
+
+    app.handle_action(AppAction::NewGroup);
+    assert_eq!(app.data.groups.len(), 1);
+
+    app.handle_action(AppAction::RenameGroup(0, "renamed".to_string()));
+    assert_eq!(app.data.groups[0].name, "renamed");
+
+    app.handle_action(AppAction::NewSet(0));
+    assert_eq!(app.data.groups[0].sets.len(), 1);
+    assert_eq!(app.data.groups[0].sets[0].name, "New Command Set");
+
+    app.handle_action(AppAction::DeleteSet(0, 0));
+    assert!(app.data.groups[0].sets.is_empty());
+
+    app.handle_action(AppAction::DeleteGroup(0));
+    assert!(app.data.groups.is_empty());
 }
 ```
 
-注意：此测试中 `auto_save()` 会尝试写入真实配置路径。当前实现中 `unwrap_or_else` 会静默吞掉写入错误，因此测试行为不受影响。但更好的做法是在测试前备份并恢复。
+### 6.3 CLI 解析端到端测试
 
-### 5.3 CLI 参数解析端到端测试
+`resolve_set` 和 `resolve_variables` 已改为 `pub(crate)`，可在 `integration_tests.rs` 中直接调用：
 
 ```rust
 #[test]
-fn test_cli_resolve_full_flow() {
-    // 1. 构造测试 AppData
-    // 2. 用 Cli::try_parse_from 模拟 --id 参数
-    // 3. resolve_set 返回正确 set
-    // 4. 用 Cli::try_parse_from 模拟 --group --set 参数
-    // 5. resolve_set 返回正确 set
-    // 6. resolve_variables 解析 key=value 对
-    // 7. 测试缺失参数 → MissingArgs 错误
-    // 8. 测试无效 UUID → InvalidUuid 错误
+fn test_cli_resolve_with_variables() {
+    use crate::cli::{resolve_set, resolve_variables};
+    use crate::models::{AppData, Group, CommandSet};
+
+    let mut g = Group::new("G".to_string());
+    let mut set = CommandSet::new("S".to_string(), g.id);
+    set.variables.push(crate::models::Variable {
+        name: "host".to_string(),
+        default_value: "localhost".to_string(),
+    });
+    g.sets.push(set);
+    let data = AppData { groups: vec![g] };
+
+    let (s, _, _) = resolve_set(&data, None, Some("G".into()), Some("S".into())).unwrap();
+    assert_eq!(s.name, "S");
+
+    let vars = resolve_variables(s, &["host=prod".to_string()]).unwrap();
+    assert_eq!(vars.get("host").unwrap(), "prod");
 }
 ```
 
-### 5.4 搜索高亮 + 过滤集成测试
+### 6.4 跨组件操作测试（main→detail 流程）
 
 ```rust
 #[test]
-fn test_search_then_edit_then_verify() {
-    // 1. 创建 detail_screen + groups
-    // 2. 模拟搜索、选中结果
-    // 3. 进入 detail_screen
-    // 4. 修改变量/命令
-    // 5. Save → 验证数据持久化
+fn test_main_to_detail_flow() {
+    use crate::action::AppAction;
+    use crate::models::{AppData, Group, CommandSet};
+
+    let mut g = Group::new("Test".to_string());
+    g.sets.push(CommandSet::new("Demo".to_string(), g.id));
+    let data = AppData { groups: vec![g] };
+
+    let mut main_screen = crate::ui::main_screen::MainScreenState::new();
+    main_screen.active_panel = crate::ui::main_screen::Panel::Sets;
+
+    let enter = crossterm::event::KeyEvent::new(
+        crossterm::event::KeyCode::Enter,
+        crossterm::event::KeyModifiers::empty(),
+    );
+    assert!(matches!(main_screen.handle_key(enter, &data), AppAction::ExecuteSet(0, 0)));
+
+    let e_key = crossterm::event::KeyEvent::new(
+        crossterm::event::KeyCode::Char('e'),
+        crossterm::event::KeyModifiers::empty(),
+    );
+    assert!(matches!(main_screen.handle_key(e_key, &data), AppAction::EditSet(0, 0)));
+
+    // Detail screen: edit name → Ctrl+S save
+    let group = Group::new("Test".to_string());
+    let set = CommandSet::new("Demo".to_string(), group.id);
+    let groups = data.groups.clone();
+    let mut detail = crate::ui::detail_screen::DetailScreenState::new(set, groups);
+    detail.focus = crate::ui::detail_screen::DetailFocus::Name;
+    detail.handle_key(enter);
+    assert!(detail.editing_name);
+
+    let ctrl_s = crossterm::event::KeyEvent::new(
+        crossterm::event::KeyCode::Char('s'),
+        crossterm::event::KeyModifiers::CONTROL,
+    );
+    assert!(matches!(detail.handle_key(ctrl_s), AppAction::SaveSet(_)));
 }
 ```
 
-### 5.5 合并 match 测试计划
+### 6.5 安全变体不 panic
 
 ```rust
 #[test]
-fn test_all_modes_do_not_panic() {
-    // 验证 handle_action 对每个 AppAction 变体都能正常返回而不 panic
-    // 不需要验证副作用，只需要不 panic
+fn test_safe_actions_do_not_panic() {
+    let mut app = create_test_app();
+    use crate::action::AppAction;
+
+    let actions = vec![
+        AppAction::None,
+        AppAction::Help,
+        AppAction::NewGroup,
+        AppAction::CancelEdit,
+        AppAction::BackToMain,
+        AppAction::ToggleAutoScroll,
+        AppAction::CancelVariables,
+    ];
+
+    for action in actions {
+        app.handle_action(action);
+    }
 }
 ```
 
@@ -191,6 +306,7 @@ fn test_all_modes_do_not_panic() {
 | `src/main.rs` | 修改 | `mod` → `use launcher::...` |
 | `src/integration_tests.rs` | 新建 | 5 组集成测试 |
 | `src/storage.rs` | 修改 | `load_app_data_from` + `save_app_data_to` 改为 `pub(crate)` |
+| `src/cli.rs` | 修改 | `resolve_set` + `resolve_variables` 改为 `pub(crate)` |
 
 ## 7. 非目标
 
