@@ -458,12 +458,12 @@ impl DetailScreenState {
         let is_editing = self.var_edit.is_editing() || self.cmd_edit.is_editing();
         let text = match (is_editing, self.focus) {
             (true, _) => "[Enter] Confirm  [Esc] Cancel",
-            (false, DetailFocus::Name) => "[Enter] Edit name  [Tab] Next  |  [Ctrl+S] Save",
-            (false, DetailFocus::Group) => "[←/→] Change group  [Tab] Next  |  [Ctrl+S] Save",
-            (false, DetailFocus::Shell) => "[←/→] Change shell  [Tab] Next  |  [Ctrl+S] Save",
-            (false, DetailFocus::ExecMode) => "[←/→] Change mode  [Tab] Next  |  [Ctrl+S] Save",
+            (false, DetailFocus::Name) => "[Enter] Edit  [↑/↓] Navigate  [Tab] Next  |  [Ctrl+S] Save",
+            (false, DetailFocus::Group) => "[←/→] Change  [↑/↓] Navigate  [Tab] Next  |  [Ctrl+S] Save",
+            (false, DetailFocus::Shell) => "[←/→] Change  [↑/↓] Navigate  [Tab] Next  |  [Ctrl+S] Save",
+            (false, DetailFocus::ExecMode) => "[←/→] Change  [↑/↓] Navigate  [Tab] Next  |  [Ctrl+S] Save",
             (false, DetailFocus::WorkDir) => {
-                "[Enter] Edit work dir  [Tab] Next  |  [Ctrl+S] Save"
+                "[Enter] Edit  [↑/↓] Navigate  [Tab] Next  |  [Ctrl+S] Save"
             }
             (false, DetailFocus::Variables) => {
                 "[a] Add  [e/Enter] Edit  [d] Delete  [↑/↓] Nav  [Ctrl+↑/↓] Move  [Tab] Next  |  [Ctrl+S] Save"
