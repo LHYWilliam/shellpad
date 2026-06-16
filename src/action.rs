@@ -5,6 +5,30 @@
 
 use crate::models::CommandSet;
 
+/// What the user is about to delete — carries enough context
+/// for the confirm dialog to render a descriptive prompt.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum DeleteKind {
+    Set {
+        group_index: usize,
+        set_index: usize,
+        set_name: String,
+    },
+    Group {
+        group_index: usize,
+        group_name: String,
+        set_count: usize,
+    },
+    Variable {
+        var_index: usize,
+        var_name: String,
+    },
+    Command {
+        cmd_index: usize,
+        cmd_preview: String,
+    },
+}
+
 /// Unified action enum returned by all screens.
 /// The `app/handler.rs` handles all variants centrally.
 pub enum AppAction {
@@ -36,4 +60,7 @@ pub enum AppAction {
     // === Variable overlay ===
     ConfirmVariables, // handler reads from variable_screen.inputs
     CancelVariables,
+
+    // === Confirmation ===
+    RequestDelete(DeleteKind),
 }

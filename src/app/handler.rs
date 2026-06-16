@@ -253,6 +253,9 @@ impl App {
                 }
                 self.do_execute();
             }
+            // Temporary: RequestDelete is handled via ConfirmDelete mode (Task 6)
+            AppAction::RequestDelete(_) => {}
+
             AppAction::CancelVariables => {
                 self.variable_screen = crate::ui::variable_screen::VariableScreenState::new();
                 if let ExecutionState::Idle { ref mut pending_set } = self.execution_state {
