@@ -1,10 +1,14 @@
 use crate::executor::events::ExecutionEvent;
 use crate::models::{Command, CommandSet, ExecMode, ShellCommand, Variable};
 use std::io::{BufRead, BufReader, Read};
+use std::time::Duration;
 use std::process::{Child, Command as StdCommand, Stdio};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, mpsc};
 use std::thread;
+
+/// Polling interval for child process status (milliseconds).
+const POLL_MS: u64 = 50;
 
 /// Substitute `{{var}}` placeholders in `template` with values from the command set.
 pub fn substitute_variables(template: &str, set: &CommandSet) -> String {
@@ -121,7 +125,7 @@ pub fn execute_set(
                 }
                 match child.try_wait() {
                     Ok(Some(status)) => break status.success(),
-                    Ok(None) => thread::sleep(std::time::Duration::from_millis(50)),
+                    Ok(None) => thread::sleep(Duration::from_millis(POLL_MS)),
                     Err(_) => break false,
                 }
             };

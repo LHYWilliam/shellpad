@@ -20,6 +20,9 @@ use crossterm::event::{self, Event, KeyEventKind};
 use std::io;
 use std::time::Duration;
 
+/// Event loop tick interval (milliseconds).
+const TICK_RATE_MS: u64 = 100;
+
 pub(crate) mod execution;
 pub(crate) mod handler;
 pub(crate) mod render;
@@ -70,7 +73,7 @@ impl App {
     }
 
     pub fn run(&mut self, terminal: &mut TuiTerminal) -> io::Result<()> {
-        let tick_rate = Duration::from_millis(100);
+        let tick_rate = Duration::from_millis(TICK_RATE_MS);
 
         while self.running {
             self.toasts.clean_expired();
