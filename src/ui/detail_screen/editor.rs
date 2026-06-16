@@ -3,39 +3,17 @@ use crate::models::{Command, Variable};
 use crate::ui::widget::{InlineEdit, ScrollableList};
 use crossterm::event::{KeyCode, KeyEvent};
 
-pub fn handle_variable_edit(
+/// Generic inline-edit enter/esc/default dispatcher.
+/// `on_commit` is called when Enter is pressed; `on_other` for non-Enter non-Esc keys.
+fn dispatch_inline_edit(
     edit: &mut InlineEdit,
     key: KeyEvent,
-    idx: usize,
-    variables: &mut Vec<Variable>,
-    list: &mut ScrollableList,
+    on_commit: impl FnOnce(&mut InlineEdit),
+    on_other: impl FnOnce(&mut InlineEdit),
 ) -> AppAction {
     match key.code {
         KeyCode::Enter => {
-            let input = edit.edit_input.content.clone();
-            if let Some(eq_pos) = input.find('=') {
-                let name = input[..eq_pos].trim().to_string();
-                let value = input[eq_pos + 1..].trim().to_string();
-                edit.commit(
-                    idx,
-                    variables,
-                    Variable {
-                        name,
-                        default_value: value,
-                    },
-                    list,
-                );
-            } else if !input.is_empty() {
-                edit.commit(
-                    idx,
-                    variables,
-                    Variable {
-                        name: input.trim().to_string(),
-                        default_value: String::new(),
-                    },
-                    list,
-                );
-            }
+            on_commit(edit);
             AppAction::None
         }
         KeyCode::Esc => {
@@ -43,14 +21,39 @@ pub fn handle_variable_edit(
             AppAction::None
         }
         _ => {
-            let n = variables.len();
-            if (n > 0 || edit.insert_at.is_some()) && edit.editing.is_some() {
-                let protect = edit.edit_input.content.find('=').map(|p| p + 1);
-                edit.handle_key_protected(key, protect);
+            if edit.editing.is_some() {
+                on_other(edit);
             }
             AppAction::None
         }
     }
+}
+
+pub fn handle_variable_edit(
+    edit: &mut InlineEdit,
+    key: KeyEvent,
+    idx: usize,
+    variables: &mut Vec<Variable>,
+    list: &mut ScrollableList,
+) -> AppAction {
+    dispatch_inline_edit(edit, key,
+        // on_commit: parse "name=value" or name-only
+        |e| {
+            let input = e.edit_input.content.clone();
+            if let Some(eq_pos) = input.find('=') {
+                let name = input[..eq_pos].trim().to_string();
+                let value = input[eq_pos + 1..].trim().to_string();
+                e.commit(idx, variables, Variable { name, default_value: value }, list);
+            } else if !input.is_empty() {
+                e.commit(idx, variables, Variable { name: input.trim().to_string(), default_value: String::new() }, list);
+            }
+        },
+        // on_other: protect name part from deletion
+        |e| {
+            let protect = e.edit_input.content.find('=').map(|p| p + 1);
+            e.handle_key_protected(key, protect);
+        },
+    )
 }
 
 pub fn handle_command_edit(
@@ -60,32 +63,18 @@ pub fn handle_command_edit(
     commands: &mut Vec<Command>,
     list: &mut ScrollableList,
 ) -> AppAction {
-    match key.code {
-        KeyCode::Enter => {
-            let cmd = edit.edit_input.content.clone();
-            edit.commit(
-                idx,
-                commands,
-                Command {
-                    position: idx,
-                    command: cmd,
-                },
-                list,
-            );
+    dispatch_inline_edit(edit, key,
+        // on_commit: build Command from text, commit, renumber positions
+        |e| {
+            let cmd = e.edit_input.content.clone();
+            e.commit(idx, commands, Command { position: idx, command: cmd }, list);
             for (i, c) in commands.iter_mut().enumerate() {
                 c.position = i;
             }
-            AppAction::None
-        }
-        KeyCode::Esc => {
-            edit.cancel();
-            AppAction::None
-        }
-        _ => {
-            edit.handle_key(key);
-            AppAction::None
-        }
-    }
+        },
+        // on_other: plain text input
+        |e| e.handle_key(key),
+    )
 }
 
 #[cfg(test)]
