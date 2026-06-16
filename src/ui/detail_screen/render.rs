@@ -131,20 +131,6 @@ impl DetailScreenState {
             );
         }
 
-        // Vertical divider — 2/3 width, from group_row to mode_row bottom
-        let bar_x = inner.x + inner.width * 2 / 3;
-        let label_width = (bar_x.saturating_sub(inner.x)).max(20);
-        let right_x = bar_x + 1;
-        let right_width = (inner.x + inner.width).saturating_sub(right_x);
-        let vdiv_h = mode_row.y + mode_row.height - group_row.y;
-
-        frame.render_widget(
-            Paragraph::new(Line::from(Span::styled(
-                "│", Style::default().fg(theme.surface_border),
-            ))),
-            Rect::new(bar_x, group_row.y, 1, vdiv_h),
-        );
-
         // Separator — full width
         frame.render_widget(
             Paragraph::new(Line::from(Span::styled(
@@ -154,11 +140,7 @@ impl DetailScreenState {
             sep_row,
         );
 
-        // Label rects — left of divider
-        let group_col = Rect::new(inner.x, group_row.y, label_width, group_row.height);
-        let shell_col = Rect::new(inner.x, shell_row.y, label_width, shell_row.height);
-        let mode_col = Rect::new(inner.x, mode_row.y, label_width, mode_row.height);
-
+        // Group
         let group_name = self
             .groups
             .iter()
@@ -177,9 +159,10 @@ impl DetailScreenState {
         };
         frame.render_widget(
             Paragraph::new(Line::from(Span::styled(group_label, group_style))),
-            group_col,
+            group_row,
         );
 
+        // Shell
         let shell_style = if self.focus == DetailFocus::Shell {
             Style::default().fg(theme.accent_primary)
         } else {
@@ -192,7 +175,7 @@ impl DetailScreenState {
         };
         frame.render_widget(
             Paragraph::new(Line::from(Span::styled(shell_label, shell_style))),
-            shell_col,
+            shell_row,
         );
 
         // Exec mode
@@ -208,14 +191,8 @@ impl DetailScreenState {
         };
         frame.render_widget(
             Paragraph::new(Line::from(Span::styled(mode_label, mode_style))),
-            mode_col,
+            mode_row,
         );
-
-        // Picker — right column, only when an Option is focused
-        if matches!(self.focus, DetailFocus::Group | DetailFocus::Shell | DetailFocus::ExecMode) {
-            let picker_col = Rect::new(right_x, group_row.y, right_width, vdiv_h);
-            self.render_picker(frame, picker_col, theme);
-        }
     }
 
     fn render_picker(&self, frame: &mut Frame, area: Rect, theme: &Theme) {
