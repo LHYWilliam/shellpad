@@ -1,3 +1,4 @@
+use crate::models::{ExecMode, ShellType};
 use crate::ui::render::bordered_block_zone;
 use crate::ui::render::{
     empty_hint, fill_row, list_item_style, list_scrollbar_areas, render_inline_cursor,
@@ -9,7 +10,7 @@ use ratatui::Frame;
 use ratatui::layout::{Constraint, Layout, Rect};
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
-use ratatui::widgets::{List, ListItem, Paragraph};
+use ratatui::widgets::{Clear, List, ListItem, Paragraph};
 use super::{DetailFocus, DetailScreenState};
 
 /// Editor context bundle for `render_items_list`.
@@ -129,14 +130,31 @@ impl DetailScreenState {
             );
         }
 
-        // Separator
+        // Options section: left labels + right picker
+        let opts_area = Rect::new(
+            sep_row.x, sep_row.y,
+            sep_row.width,
+            mode_row.y + mode_row.height - sep_row.y,
+        );
+        let opts_layout = Layout::horizontal([
+            Constraint::Ratio(2, 3),
+            Constraint::Ratio(1, 3),
+        ]);
+        let [labels_area, picker_area] = opts_layout.areas(opts_area);
+
+        // Separator (labels column only)
+        let sep_left = Rect::new(labels_area.x, sep_row.y, labels_area.width, sep_row.height);
         frame.render_widget(
             Paragraph::new(Line::from(Span::styled(
-                format!(" ── Options {} ", "─".repeat(sep_row.width.saturating_sub(12) as usize)),
+                format!(" ── Options {} ", "─".repeat(sep_left.width.saturating_sub(12) as usize)),
                 Style::default().fg(theme.text_disabled).add_modifier(Modifier::DIM),
             ))),
-            sep_row,
+            sep_left,
         );
+
+        // Adjust gs_row and mode_row to labels column
+        let gs_left = Rect::new(labels_area.x, gs_row.y, labels_area.width, gs_row.height);
+        let mode_left = Rect::new(labels_area.x, mode_row.y, labels_area.width, mode_row.height);
 
         // Group and Shell on the same row (side by side)
         let group_name = self
@@ -158,7 +176,7 @@ impl DetailScreenState {
         };
 
         let half_layout = Layout::horizontal([Constraint::Ratio(1, 2), Constraint::Ratio(1, 2)]);
-        let [group_col, shell_col] = half_layout.areas(gs_row);
+        let [group_col, shell_col] = half_layout.areas(gs_left);
         let group_label = if self.focus == DetailFocus::Group {
             format!(" ◄ Group: {} ►", group_name)
         } else {
@@ -191,9 +209,83 @@ impl DetailScreenState {
         };
         frame.render_widget(
             Paragraph::new(Line::from(Span::styled(mode_label, mode_style))),
-            mode_row,
+            mode_left,
         );
 
+        // Picker column (only when an Option is focused)
+        if matches!(self.focus, DetailFocus::Group | DetailFocus::Shell | DetailFocus::ExecMode) {
+            self.render_picker(frame, picker_area, theme);
+        }
+    }
+
+    fn render_picker(&self, frame: &mut Frame, area: Rect, theme: &Theme) {
+        let items: Vec<ListItem<'_>> = match self.focus {
+            DetailFocus::Group => self.groups.iter().map(|g| {
+                let selected = g.id == self.set.group_id;
+                let style = if selected {
+                    Style::default().fg(theme.accent_primary)
+                } else {
+                    theme.normal_style()
+                };
+                styled_list_item(format!(" {}", g.name), style, area.width)
+            }).collect(),
+            DetailFocus::Shell => {
+                let variants = ShellType::builtin_variants();
+                let saved_custom = match &self.set.shell {
+                    ShellType::Custom(p) => Some(p.clone()),
+                    _ => None,
+                };
+                let mut result = Vec::new();
+                for v in &variants {
+                    let selected = std::mem::discriminant(&self.set.shell) == std::mem::discriminant(v);
+                    let label = match v {
+                        ShellType::SystemDefault => "System Default".to_string(),
+                        ShellType::Custom(_) => unreachable!(),
+                        _ => v.label(),
+                    };
+                    let style = if selected {
+                        Style::default().fg(theme.accent_primary)
+                    } else {
+                        theme.normal_style()
+                    };
+                    result.push(styled_list_item(format!(" {}", label), style, area.width));
+                }
+                if let Some(ref path) = saved_custom {
+                    let selected = matches!(&self.set.shell, ShellType::Custom(_));
+                    let style = if selected {
+                        Style::default().fg(theme.accent_primary)
+                    } else {
+                        theme.normal_style()
+                    };
+                    result.push(styled_list_item(
+                        format!(" Custom: {}", path), style, area.width,
+                    ));
+                } else {
+                    result.push(styled_list_item(
+                        " Custom".to_string(), theme.normal_style(), area.width,
+                    ));
+                }
+                result
+            }
+            DetailFocus::ExecMode => {
+                let modes = [ExecMode::StopOnError, ExecMode::ContinueOnError];
+                modes.iter().map(|m| {
+                    let selected = *m == self.set.exec_mode;
+                    let style = if selected {
+                        Style::default().fg(theme.accent_primary)
+                    } else {
+                        theme.normal_style()
+                    };
+                    styled_list_item(format!(" {}", m.label()), style, area.width)
+                }).collect()
+            }
+            _ => return,
+        };
+
+        frame.render_widget(Clear, area);
+        let inner = crate::ui::render::bordered_block_zone(frame, area, theme, " Options ", false);
+        let mut state = ratatui::widgets::ListState::default();
+        frame.render_stateful_widget(List::new(items), inner, &mut state);
     }
 
     /// Shared list renderer for Variables and Commands.
