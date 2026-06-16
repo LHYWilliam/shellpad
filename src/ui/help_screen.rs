@@ -7,14 +7,6 @@ use ratatui::text::Line;
 use ratatui::widgets::{Clear, Paragraph};
 
 pub fn draw_help(frame: &mut Frame, area: Rect, theme: &Theme) {
-    let help_area = centered_rect(area, area.width.saturating_sub(8).min(60), 28);
-
-    frame.render_widget(Clear, help_area);
-
-    let block = bordered_block_info(theme, " Help ").style(Style::default().bg(theme.surface));
-    let inner = block.inner(help_area);
-    frame.render_widget(&block, help_area);
-
     let section_color = theme.accent_info;
     let lines = vec![
         Line::from(""),
@@ -55,6 +47,16 @@ pub fn draw_help(frame: &mut Frame, area: Rect, theme: &Theme) {
         Line::from(""),
         Line::from("  Press any key to close."),
     ];
+
+    // Dialog height = content lines + 2 borders, capped at terminal height - 2
+    let dialog_height = (lines.len() as u16 + 2).min(area.height.saturating_sub(2));
+    let help_area = centered_rect(area, area.width.saturating_sub(8).min(60), dialog_height);
+
+    frame.render_widget(Clear, help_area);
+
+    let block = bordered_block_info(theme, " Help ").style(Style::default().bg(theme.surface));
+    let inner = block.inner(help_area);
+    frame.render_widget(&block, help_area);
 
     let paragraph = Paragraph::new(lines).alignment(Alignment::Left);
     frame.render_widget(paragraph, inner);
