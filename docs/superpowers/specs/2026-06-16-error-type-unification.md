@@ -139,7 +139,7 @@ storage::load_app_data().unwrap_or_else(|e| { eprintln!("{e}"); AppData::empty()
 | `resolve_set()` | `Result<..., String>` | `Result<..., CliError>` |
 | `resolve_variables()` | `Result<..., String>` | `Result<..., CliError>` |
 
-`resolve_set` 实现变更：
+`resolve_set` 完整实现：
 
 ```rust
 fn resolve_set<'a>(
@@ -155,13 +155,47 @@ fn resolve_set<'a>(
             .ok_or(CliError::SetNotFound(uuid.to_string()))?;
         Ok((&data.groups[gi].sets[si], gi, si))
     } else if let (Some(gname), Some(sname)) = (group, set) {
-        // ... 同现有逻辑，但 Err 改为 CliError::SetByGroupNotFound / CliError::Ambiguous
-        // ...
+        let gl = gname.to_lowercase();
+        let sl = sname.to_lowercase();
+        let mut matches = Vec::new();
+        for (gi, g) in data.groups.iter().enumerate() {
+            if g.name.to_lowercase() == gl {
+                for (si, s) in g.sets.iter().enumerate() {
+                    if s.name.to_lowercase() == sl {
+                        matches.push((gi, si));
+                    }
+                }
+            }
+        }
+        match matches.len() {
+            0 => Err(CliError::SetByGroupNotFound {
+                group: gname,
+                set: sname,
+            }),
+            1 => {
+                let (gi, si) = matches[0];
+                Ok((&data.groups[gi].sets[si], gi, si))
+            }
+            n => {
+                let detail = matches
+                    .iter()
+                    .map(|&(gi, si)| {
+                        let g = &data.groups[gi];
+                        let s = &g.sets[si];
+                        format!("  {} | {} | {}", s.id, g.name, s.name)
+                    })
+                    .collect::<Vec<_>>()
+                    .join("\n");
+                Err(CliError::Ambiguous { count: n, detail })
+            }
+        }
     } else {
         Err(CliError::MissingArgs)
     }
 }
 ```
+
+`resolve_variables` 实现变更：仅 `Err(...)` 改为 `Err(CliError::InvalidVar(...))`，其余逻辑不变。
 
 测试调整：当前测试用 `unwrap_err().contains("text")` 验证错误消息。改为：
 
@@ -198,9 +232,38 @@ let _ = tx.send(ExecutionEvent::Starting { index, command });
 
 `ExecuteError` 已有 `#[derive(Debug)]` + `Display` + `impl std::error::Error`。已良好实现，不改为 `thiserror` 以保持改动最小。
 
-### 4.5 `app.rs` — `auto_save()` 不变
+### 4.5 `main.rs` — 新增模块声明
 
-`auto_save()` 调用 `storage::save_app_data()` 返回 `io::Result<()>`，toast 错误处理不受影响。
+在 `main.rs` 中添加 `mod error;`：
+
+```rust
+mod action;
+mod app;
+mod cli;
+mod config;
+mod error;    // ← 新增
+mod executor;
+mod mode;
+mod models;
+mod storage;
+mod tui;
+mod ui;
+```
+
+### 4.6 调用处微调
+
+`app.rs:40-42`：
+
+```rust
+// 当前：
+storage::load_app_data().unwrap_or_else(|e| { eprintln!("{}", e); AppData::empty() })
+// 改为：
+storage::load_app_data().unwrap_or_else(|e| { eprintln!("{e}"); AppData::empty() })
+```
+
+`cli.rs:55-61`（`run_cli` 中 `load_app_data()` 的调用）：
+
+`run_cli()` 返回 `Option<i32>` 而非 `Result`，无法使用 `?`。match 结构不变，仅错误类型从 `String` 变为 `StorageError`；`eprintln!("{}", e)` 表现一致（调用 `Display`）。
 
 ## 5. 变更清单总结
 
@@ -208,6 +271,7 @@ let _ = tx.send(ExecutionEvent::Starting { index, command });
 |------|------|------|
 | `Cargo.toml` | +1 dep | `thiserror = "2"` |
 | `src/error.rs` | 新建 | `StorageError` + `CliError` 枚举 |
+| `src/main.rs` | 修改 | +`mod error;` |
 | `src/storage.rs` | 修改 | 2 个函数签名 + 实现 |
 | `src/cli.rs` | 修改 | 2 个函数签名 + 5 个测试断言 |
 | `src/app.rs` | 微调 | `eprintln!("{}")` → `eprintln!("{e}")` |
