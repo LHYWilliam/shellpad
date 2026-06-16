@@ -1,4 +1,4 @@
-use crate::action::{AppAction, DeleteKind};
+use crate::action::{AppAction, DeleteKind, ReorderKind};
 use crate::ui::widget::text_input::handle_text_input;
 use crate::ui::widget::{InlineEdit, ScrollableList, TextInput};
 use crossterm::event::KeyEvent;
@@ -53,6 +53,25 @@ impl DetailScreenState {
                     DetailFocus::Commands => DetailFocus::Variables,
                 };
             }
+            KeyCode::Up if key.modifiers.contains(crossterm::event::KeyModifiers::CONTROL) => {
+                match self.focus {
+                    DetailFocus::Variables if !self.set.variables.is_empty() => {
+                        let idx = self
+                            .variable_list
+                            .selected
+                            .min(self.set.variables.len().saturating_sub(1));
+                        return AppAction::Reorder(ReorderKind::Variable(idx), -1);
+                    }
+                    DetailFocus::Commands if !self.set.commands.is_empty() => {
+                        let idx = self
+                            .command_list
+                            .selected
+                            .min(self.set.commands.len().saturating_sub(1));
+                        return AppAction::Reorder(ReorderKind::Command(idx), -1);
+                    }
+                    _ => {}
+                }
+            }
             KeyCode::Up => match self.focus {
                 DetailFocus::Variables => {
                     self.variable_list.select_previous();
@@ -62,6 +81,25 @@ impl DetailScreenState {
                 }
                 _ => {}
             },
+            KeyCode::Down if key.modifiers.contains(crossterm::event::KeyModifiers::CONTROL) => {
+                match self.focus {
+                    DetailFocus::Variables if !self.set.variables.is_empty() => {
+                        let idx = self
+                            .variable_list
+                            .selected
+                            .min(self.set.variables.len().saturating_sub(1));
+                        return AppAction::Reorder(ReorderKind::Variable(idx), 1);
+                    }
+                    DetailFocus::Commands if !self.set.commands.is_empty() => {
+                        let idx = self
+                            .command_list
+                            .selected
+                            .min(self.set.commands.len().saturating_sub(1));
+                        return AppAction::Reorder(ReorderKind::Command(idx), 1);
+                    }
+                    _ => {}
+                }
+            }
             KeyCode::Down => match self.focus {
                 DetailFocus::Variables => {
                     self.variable_list.select_next(self.set.variables.len());
@@ -236,7 +274,7 @@ impl DetailScreenState {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::action::{AppAction, DeleteKind};
+    use crate::action::{AppAction, DeleteKind, ReorderKind};
     use crate::models::{CommandSet, Group};
     use crate::test_utils::make_key;
     use crate::ui::detail_screen::DetailFocus;
@@ -356,5 +394,50 @@ mod tests {
         let mut state = make_state();
         let action = state.handle_key(make_key(KeyCode::Esc));
         assert!(matches!(action, AppAction::CancelEdit));
+    }
+
+    #[test]
+    fn test_ctrl_up_returns_reorder_variable() {
+        let mut state = make_state();
+        state.set.variables.push(crate::models::Variable {
+            name: "x".to_string(),
+            default_value: "y".to_string(),
+        });
+        state.set.variables.push(crate::models::Variable {
+            name: "z".to_string(),
+            default_value: "w".to_string(),
+        });
+        state.focus = DetailFocus::Variables;
+        state.variable_list.selected = 1;
+        let ctrl_up = KeyEvent::new(KeyCode::Up, KeyModifiers::CONTROL);
+        let action = state.handle_key(ctrl_up);
+        assert!(matches!(action, AppAction::Reorder(ReorderKind::Variable(1), -1)));
+    }
+
+    #[test]
+    fn test_ctrl_down_returns_reorder_command() {
+        let mut state = make_state();
+        state.set.commands.push(crate::models::Command {
+            position: 0,
+            command: "c1".to_string(),
+        });
+        state.set.commands.push(crate::models::Command {
+            position: 1,
+            command: "c2".to_string(),
+        });
+        state.focus = DetailFocus::Commands;
+        state.command_list.selected = 0;
+        let ctrl_down = KeyEvent::new(KeyCode::Down, KeyModifiers::CONTROL);
+        let action = state.handle_key(ctrl_down);
+        assert!(matches!(action, AppAction::Reorder(ReorderKind::Command(0), 1)));
+    }
+
+    #[test]
+    fn test_ctrl_up_ignored_when_not_vars_or_cmds_focus() {
+        let mut state = make_state();
+        state.focus = DetailFocus::Name;
+        let ctrl_up = KeyEvent::new(KeyCode::Up, KeyModifiers::CONTROL);
+        let action = state.handle_key(ctrl_up);
+        assert!(matches!(action, AppAction::None));
     }
 }

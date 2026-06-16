@@ -299,10 +299,10 @@ impl DetailScreenState {
             (false, DetailFocus::Shell) => "[←/→] Change shell  [Tab] Next  |  [Ctrl+S] Save",
             (false, DetailFocus::ExecMode) => "[←/→] Change mode  [Tab] Next  |  [Ctrl+S] Save",
             (false, DetailFocus::Variables) => {
-                "[a] Add  [e/Enter] Edit  [d] Delete  [↑/↓] Nav  [Tab] Next  |  [Ctrl+S] Save"
+                "[a] Add  [e/Enter] Edit  [d] Delete  [↑/↓] Nav  [Ctrl+↑/↓] Move  [Tab] Next  |  [Ctrl+S] Save"
             }
             (false, DetailFocus::Commands) => {
-                "[a] Add  [e/Enter] Edit  [d] Delete  [↑/↓] Nav  [Tab] Next  |  [Ctrl+S] Save"
+                "[a] Add  [e/Enter] Edit  [d] Delete  [↑/↓] Nav  [Ctrl+↑/↓] Move  [Tab] Next  |  [Ctrl+S] Save"
             }
         };
         render_status_bar(frame, area, theme, text);
