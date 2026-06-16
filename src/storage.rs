@@ -18,7 +18,7 @@ pub fn load_app_data() -> Result<AppData, StorageError> {
 }
 
 /// Save application data atomically to the default config file.
-pub fn save_app_data(data: &AppData) -> io::Result<()> {
+pub fn save_app_data(data: &AppData) -> Result<(), StorageError> {
     let path = data_file_path();
     let tmp = temp_file_path();
     save_app_data_to(data, &path, &tmp)
@@ -60,12 +60,13 @@ pub(crate) fn load_app_data_from(path: &Path) -> Result<AppData, StorageError> {
     }
 }
 
-pub(crate) fn save_app_data_to(data: &AppData, path: &Path, tmp: &Path) -> io::Result<()> {
+pub(crate) fn save_app_data_to(data: &AppData, path: &Path, tmp: &Path) -> Result<(), StorageError> {
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent)?;
     }
 
-    let json = serde_json::to_string_pretty(data).map_err(io::Error::other)?;
+    let json = serde_json::to_string_pretty(data)
+        .map_err(|e| StorageError::Serde(e.to_string()))?;
 
     // Write to temp file and fsync (ensure data reaches disk before rename)
     let mut file = fs::File::create(tmp)?;
@@ -85,7 +86,7 @@ pub(crate) fn save_app_data_to(data: &AppData, path: &Path, tmp: &Path) -> io::R
                 let _ = dir.sync_all();
             }
         } else {
-            return Err(e);
+            return Err(StorageError::Io(e));
         }
     } else {
         // Sync parent directory metadata so the rename is durable

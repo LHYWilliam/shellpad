@@ -22,6 +22,8 @@ pub enum StorageError {
     },
     #[error("Failed to read data file: {0}")]
     ReadFailed(String),
+    #[error("Serialization error: {0}")]
+    Serde(String),
 }
 
 /// CLI parsing/resolution errors.
