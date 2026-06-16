@@ -218,7 +218,10 @@ impl DetailScreenState {
                         .fg(theme.text_on_selected)
                         .bg(theme.accent_primary)
                         .add_modifier(Modifier::BOLD)
-                } else if !is_insert && i == self.variable_list.selected && self.focus == DetailFocus::Variables {
+                } else if !is_insert
+                    && i == self.variable_list.selected
+                    && self.focus == DetailFocus::Variables
+                {
                     theme.selected_style(theme.selection_bg_secondary)
                 } else {
                     theme.normal_style()
@@ -279,7 +282,10 @@ impl DetailScreenState {
                         .fg(theme.text_on_selected)
                         .bg(theme.accent_primary)
                         .add_modifier(Modifier::BOLD)
-                } else if !is_insert && i == self.command_list.selected && self.focus == DetailFocus::Commands {
+                } else if !is_insert
+                    && i == self.command_list.selected
+                    && self.focus == DetailFocus::Commands
+                {
                     theme.selected_style(theme.selection_bg_secondary)
                 } else {
                     theme.normal_style()

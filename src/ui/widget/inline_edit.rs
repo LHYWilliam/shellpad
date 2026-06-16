@@ -85,3 +85,81 @@ impl InlineEdit {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::ui::widget::scrollable_list::ScrollableList;
+
+    #[test]
+    fn test_new() {
+        let edit = InlineEdit::new();
+        assert!(edit.editing.is_none());
+        assert!(edit.insert_at.is_none());
+        assert!(edit.edit_input.content.is_empty());
+    }
+
+    #[test]
+    fn test_is_editing() {
+        let mut edit = InlineEdit::new();
+        assert!(!edit.is_editing());
+        edit.editing = Some(0);
+        assert!(edit.is_editing());
+    }
+
+    #[test]
+    fn test_commit_replace() {
+        let mut edit = InlineEdit::new();
+        edit.editing = Some(1);
+        let mut items = vec!["a".to_string(), "b".to_string(), "c".to_string()];
+        let mut list = ScrollableList::new();
+        edit.commit(1, &mut items, "x".to_string(), &mut list);
+        assert_eq!(items, vec!["a", "x", "c"]);
+        assert_eq!(list.selected, 1);
+        // commit() does NOT clear editing — caller does that
+        assert!(edit.editing.is_some());
+        assert!(edit.insert_at.is_none());
+    }
+
+    #[test]
+    fn test_commit_insert() {
+        let mut edit = InlineEdit::new();
+        edit.editing = Some(3);
+        edit.insert_at = Some(1);
+        let mut items = vec!["a".to_string(), "b".to_string(), "c".to_string()];
+        let mut list = ScrollableList::new();
+        edit.commit(3, &mut items, "x".to_string(), &mut list);
+        assert_eq!(items, vec!["a", "x", "b", "c"]);
+        assert_eq!(list.selected, 1);
+        // commit() does NOT clear editing — caller does that
+        assert!(edit.editing.is_some());
+        assert!(edit.insert_at.is_none()); // insert_at IS cleared by commit
+    }
+
+    #[test]
+    fn test_cancel() {
+        let mut edit = InlineEdit::new();
+        edit.editing = Some(0);
+        edit.insert_at = Some(1);
+        edit.cancel();
+        assert!(edit.editing.is_none());
+        assert!(edit.insert_at.is_none());
+    }
+
+    #[test]
+    fn test_handle_key_protected_blocks_backspace() {
+        let mut edit = InlineEdit::new();
+        edit.edit_input = TextInput::new("ab=cd".to_string());
+        edit.edit_input.cursor = 4; // after 'c', before 'd'
+        // protect pos 3 (the '='), cursor at 4 > 3, delete_before works
+        // First move cursor to pos 3
+        edit.edit_input.cursor = 3; // at '='
+        let key = crossterm::event::KeyEvent::new(
+            crossterm::event::KeyCode::Backspace,
+            crossterm::event::KeyModifiers::empty(),
+        );
+        edit.handle_key_protected(key, Some(3));
+        // cursor at protect boundary -> no deletion
+        assert_eq!(edit.edit_input.content, "ab=cd");
+    }
+}

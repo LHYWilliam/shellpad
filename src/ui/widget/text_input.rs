@@ -116,3 +116,140 @@ pub fn handle_text_input(input: &mut TextInput, key: crossterm::event::KeyEvent)
         _ => {}
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::TextInput;
+
+    #[test]
+    fn test_new_empty() {
+        let input = TextInput::new(String::new());
+        assert!(input.content.is_empty());
+        assert_eq!(input.cursor, 0);
+    }
+
+    #[test]
+    fn test_new_with_content() {
+        let input = TextInput::new("hello".to_string());
+        assert_eq!(input.content, "hello");
+        assert_eq!(input.cursor, 5);
+    }
+
+    #[test]
+    fn test_insert_char_middle() {
+        let mut input = TextInput::new("ab".to_string());
+        input.cursor = 1; // between 'a' and 'b'
+        input.insert_char('x');
+        assert_eq!(input.content, "axb");
+        assert_eq!(input.cursor, 2);
+    }
+
+    #[test]
+    fn test_insert_char_at_end() {
+        let mut input = TextInput::new("abc".to_string());
+        input.insert_char('d');
+        assert_eq!(input.content, "abcd");
+        assert_eq!(input.cursor, 4);
+    }
+
+    #[test]
+    fn test_insert_char_empty() {
+        let mut input = TextInput::new(String::new());
+        input.insert_char('a');
+        assert_eq!(input.content, "a");
+        assert_eq!(input.cursor, 1);
+    }
+
+    #[test]
+    fn test_delete_before_middle() {
+        let mut input = TextInput::new("abcd".to_string());
+        input.cursor = 3; // after 'c', before 'd'
+        input.delete_before();
+        assert_eq!(input.content, "abd");
+        assert_eq!(input.cursor, 2);
+    }
+
+    #[test]
+    fn test_delete_before_at_start() {
+        let mut input = TextInput::new("abc".to_string());
+        input.cursor = 0;
+        input.delete_before();
+        assert_eq!(input.content, "abc"); // unchanged
+        assert_eq!(input.cursor, 0);
+    }
+
+    #[test]
+    fn test_delete_at_middle() {
+        let mut input = TextInput::new("abcd".to_string());
+        input.cursor = 2; // at 'c'
+        input.delete_at();
+        assert_eq!(input.content, "abd");
+        assert_eq!(input.cursor, 2);
+    }
+
+    #[test]
+    fn test_delete_at_end() {
+        let mut input = TextInput::new("abc".to_string());
+        input.cursor = 3; // past end
+        input.delete_at();
+        assert_eq!(input.content, "abc"); // unchanged
+        assert_eq!(input.cursor, 3);
+    }
+
+    #[test]
+    fn test_move_cursor_left() {
+        let mut input = TextInput::new("abc".to_string());
+        input.cursor = 2;
+        input.move_cursor_left();
+        assert_eq!(input.cursor, 1);
+    }
+
+    #[test]
+    fn test_move_cursor_left_at_start() {
+        let mut input = TextInput::new("abc".to_string());
+        input.cursor = 0;
+        input.move_cursor_left();
+        assert_eq!(input.cursor, 0); // clamped
+    }
+
+    #[test]
+    fn test_move_cursor_right() {
+        let mut input = TextInput::new("abc".to_string());
+        input.cursor = 1;
+        input.move_cursor_right();
+        assert_eq!(input.cursor, 2);
+    }
+
+    #[test]
+    fn test_move_cursor_right_at_end() {
+        let mut input = TextInput::new("abc".to_string());
+        input.cursor = 3;
+        input.move_cursor_right();
+        assert_eq!(input.cursor, 3); // clamped
+    }
+
+    #[test]
+    fn test_move_cursor_to_start() {
+        let mut input = TextInput::new("abc".to_string());
+        input.cursor = 2;
+        input.move_cursor_to_start();
+        assert_eq!(input.cursor, 0);
+    }
+
+    #[test]
+    fn test_move_cursor_to_end() {
+        let mut input = TextInput::new("abc".to_string());
+        input.cursor = 0;
+        input.move_cursor_to_end();
+        assert_eq!(input.cursor, 3);
+    }
+
+    #[test]
+    fn test_clear() {
+        let mut input = TextInput::new("hello".to_string());
+        input.cursor = 3;
+        input.clear();
+        assert!(input.content.is_empty());
+        assert_eq!(input.cursor, 0);
+    }
+}
