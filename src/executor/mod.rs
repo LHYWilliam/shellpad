@@ -1,3 +1,10 @@
+//! Command execution engine with two entry points.
+//!
+//! - [`execute_set`] runs commands asynchronously on a background thread,
+//!   streaming output via `mpsc` channel (used by the TUI).
+//! - [`execute_set_blocking`] runs commands synchronously with inherited
+//!   stdio (used by CLI mode).
+
 mod async_executor;
 mod blocking;
 pub mod events;

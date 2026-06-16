@@ -1,3 +1,10 @@
+//! Application state machine and event loop.
+//!
+//! [`App`] holds all mutable state (`data`, `mode`, screen states) and runs the
+//! main event loop. Sub-modules handle rendering (`app::render`), action
+//! dispatch (`app::handler`), toast notifications (`app::toast`), and execution
+//! lifecycle (`app::execution`).
+
 use crate::app::execution::ExecutionManager;
 use crate::app::toast::ToastManager;
 use crate::mode::AppMode;

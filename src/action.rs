@@ -1,3 +1,8 @@
+//! Unified action enum for screen-to-app communication.
+//!
+//! All screens return [`AppAction`] variants from their `handle_key()` methods.
+//! The `app::handler` module processes these centrally in `App::handle_action()`.
+
 use crate::models::CommandSet;
 
 /// Unified action enum returned by all screens.

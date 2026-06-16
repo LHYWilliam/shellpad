@@ -1,3 +1,8 @@
+//! XDG configuration paths and terminal size constraints.
+//!
+//! Data is stored at `~/.config/launcher/sets.json` (Linux).
+//! Minimum terminal dimensions are 80x24.
+
 use directories::ProjectDirs;
 use std::path::PathBuf;
 

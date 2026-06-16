@@ -1,3 +1,9 @@
+//! Atomic JSON persistence for command set data.
+//!
+//! Writes to a `.tmp` file first, then `fsync`s and `rename`s to the target
+//! path for crash safety. Falls back to `copy` + `remove` on cross-filesystem
+//! moves (EXDEV). Corrupted files are backed up to `sets.json.bak`.
+
 use crate::config::{data_file_path, temp_file_path};
 use crate::error::StorageError;
 use crate::models::AppData;

@@ -1,3 +1,9 @@
+//! Structured error types for the application.
+//!
+//! [`StorageError`] covers data-load/corruption/save failures.
+//! [`CliError`] covers argument parsing and resolution errors,
+//! and can convert from [`StorageError`] via `#[from]`.
+
 use std::io;
 use thiserror::Error;
 
