@@ -154,23 +154,19 @@ impl DetailScreenState {
                 }
                 _ => {}
             },
-            KeyCode::Char('d' | 'D') => match self.focus {
-                DetailFocus::Variables if !self.set.variables.is_empty() => {
-                    let idx = self
-                        .variable_list
-                        .selected
-                        .min(self.set.variables.len().saturating_sub(1));
-                    return AppAction::DeleteVariable(idx);
-                }
-                DetailFocus::Commands if !self.set.commands.is_empty() => {
-                    let idx = self
-                        .command_list
-                        .selected
-                        .min(self.set.commands.len().saturating_sub(1));
-                    return AppAction::DeleteCommand(idx);
-                }
-                _ => {}
-            },
+            KeyCode::Char('d') | KeyCode::Char('D') if self.focus == DetailFocus::Variables
+                && !self.set.variables.is_empty() =>
+            {
+                let idx = self.variable_list.selected.min(self.set.variables.len().saturating_sub(1));
+                AppAction::DeleteVariable(idx)
+            }
+            KeyCode::Char('d') | KeyCode::Char('D') if self.focus == DetailFocus::Commands
+                && !self.set.commands.is_empty() =>
+            {
+                let idx = self.command_list.selected.min(self.set.commands.len().saturating_sub(1));
+                AppAction::DeleteCommand(idx)
+            }
+            KeyCode::Char('d') | KeyCode::Char('D') => AppAction::None,
             KeyCode::Char('s')
                 if key
                     .modifiers
