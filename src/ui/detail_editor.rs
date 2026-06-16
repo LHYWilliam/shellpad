@@ -36,7 +36,6 @@ pub fn handle_variable_edit(
                     list,
                 );
             }
-            edit.editing = None;
             AppAction::None
         }
         KeyCode::Esc => {
@@ -76,7 +75,6 @@ pub fn handle_command_edit(
             for (i, c) in commands.iter_mut().enumerate() {
                 c.position = i;
             }
-            edit.editing = None;
             AppAction::None
         }
         KeyCode::Esc => {

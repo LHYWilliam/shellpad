@@ -43,6 +43,7 @@ impl InlineEdit {
             items[idx] = new_item;
             list.selected = idx;
         }
+        self.editing = None;
     }
 
     /// Cancel the current edit.
@@ -122,8 +123,8 @@ mod tests {
         edit.commit(1, &mut items, "x".to_string(), &mut list);
         assert_eq!(items, vec!["a", "x", "c"]);
         assert_eq!(list.selected, 1);
-        // commit() does NOT clear editing — caller does that
-        assert!(edit.editing.is_some());
+        // commit() now clears editing automatically
+        assert!(edit.editing.is_none());
         assert!(edit.insert_at.is_none());
     }
 
@@ -137,8 +138,8 @@ mod tests {
         edit.commit(3, &mut items, "x".to_string(), &mut list);
         assert_eq!(items, vec!["a", "x", "b", "c"]);
         assert_eq!(list.selected, 1);
-        // commit() does NOT clear editing — caller does that
-        assert!(edit.editing.is_some());
+        // commit() now clears editing automatically
+        assert!(edit.editing.is_none());
         assert!(edit.insert_at.is_none()); // insert_at IS cleared by commit
     }
 
