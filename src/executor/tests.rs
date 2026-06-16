@@ -355,3 +355,41 @@ fn test_execute_set_blocking_stop_on_error() {
     let result = execute_set_blocking(&set, &test_shell_cmd(), &vars);
     assert!(result.is_err());
 }
+
+// ---- substitute_variables_core tests ----
+
+#[test]
+fn test_core_single() {
+    let result = super::substitute_variables_core("ssh {{server}}", [("server", "192.168.1.1")]);
+    assert_eq!(result, "ssh 192.168.1.1");
+}
+
+#[test]
+fn test_core_multiple() {
+    let result = super::substitute_variables_core("{{a}} and {{b}}", [("a", "x"), ("b", "y")]);
+    assert_eq!(result, "x and y");
+}
+
+#[test]
+fn test_core_no_vars() {
+    let result = super::substitute_variables_core("echo hello", [("x", "y")]);
+    assert_eq!(result, "echo hello");
+}
+
+#[test]
+fn test_core_missing_var_leaves_placeholder() {
+    let result = super::substitute_variables_core("{{missing}}", [("other", "val")]);
+    assert_eq!(result, "{{missing}}");
+}
+
+#[test]
+fn test_core_empty_value() {
+    let result = super::substitute_variables_core("a{{x}}b", [("x", "")]);
+    assert_eq!(result, "ab");
+}
+
+#[test]
+fn test_core_multiple_occurrences() {
+    let result = super::substitute_variables_core("{{t}} and {{t}}", [("t", "v1")]);
+    assert_eq!(result, "v1 and v1");
+}

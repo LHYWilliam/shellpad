@@ -5,12 +5,7 @@ use std::process::{Command, Stdio};
 
 /// Substitute variables from a pre-resolved HashMap.
 pub fn substitute_variables_from_map(template: &str, vars: &HashMap<String, String>) -> String {
-    let mut result = template.to_string();
-    for (name, value) in vars {
-        let pattern = format!("{{{{{}}}}}", name);
-        result = result.replace(&pattern, value);
-    }
-    result
+    crate::executor::substitute_variables_core(template, vars.iter().map(|(k, v)| (k.as_str(), v.as_str())))
 }
 
 /// Result of a blocking command set execution.

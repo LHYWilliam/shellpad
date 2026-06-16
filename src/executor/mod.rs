@@ -16,5 +16,21 @@ pub use blocking::{
 pub use crate::error::ExecuteError;
 pub use events::ExecutionEvent;
 
+/// Core variable substitution: replace `{{name}}` placeholders with values.
+///
+/// `vars` accepts any iterator of `(key, value)` pairs where both are `AsRef<str>`.
+/// Placeholders that don't have a corresponding variable are left as-is.
+pub(crate) fn substitute_variables_core(
+    template: &str,
+    vars: impl IntoIterator<Item = (impl AsRef<str>, impl AsRef<str>)>,
+) -> String {
+    let mut result = template.to_string();
+    for (name, value) in vars {
+        let pattern = format!("{{{{{}}}}}", name.as_ref());
+        result = result.replace(&pattern, value.as_ref());
+    }
+    result
+}
+
 #[cfg(test)]
 mod tests;

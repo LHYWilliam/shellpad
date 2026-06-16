@@ -8,12 +8,8 @@ use std::thread;
 
 /// Substitute `{{var}}` placeholders in `template` with values from the command set.
 pub fn substitute_variables(template: &str, set: &CommandSet) -> String {
-    let mut result = template.to_string();
-    for var in &set.variables {
-        let pattern = format!("{{{{{}}}}}", var.name);
-        result = result.replace(&pattern, &var.default_value);
-    }
-    result
+    let vars = set.variables.iter().map(|v| (v.name.as_str(), v.default_value.as_str()));
+    crate::executor::substitute_variables_core(template, vars)
 }
 
 /// Spawn a shell command and return the child process.
@@ -45,16 +41,6 @@ fn pipe_reader<R: Read + Send + 'static>(
     }
 }
 
-/// Inline variable substitution using a slice of Variables (for use inside thread closures).
-fn substitute_variables_inner(template: &str, variables: &[crate::models::Variable]) -> String {
-    let mut result = template.to_string();
-    for var in variables {
-        let pattern = format!("{{{{{}}}}}", var.name);
-        result = result.replace(&pattern, &var.default_value);
-    }
-    result
-}
-
 /// Execute commands on a background thread.
 ///
 /// Events are sent through the `mpsc::Receiver` for the TUI to poll.
@@ -81,7 +67,10 @@ pub fn execute_set(
                 return;
             }
 
-            let resolved = substitute_variables_inner(&cmd.command, &variables);
+            let resolved = {
+                let vars = variables.iter().map(|v| (v.name.as_str(), v.default_value.as_str()));
+                crate::executor::substitute_variables_core(&cmd.command, vars)
+            };
 
             if tx
                 .send(ExecutionEvent::Starting {
