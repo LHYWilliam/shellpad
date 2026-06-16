@@ -1,4 +1,4 @@
-use crate::action::AppAction;
+use crate::action::{AppAction, DeleteKind};
 use crate::ui::widget::text_input::handle_text_input;
 use crate::ui::widget::{InlineEdit, ScrollableList, TextInput};
 use crossterm::event::KeyEvent;
@@ -160,14 +160,22 @@ impl DetailScreenState {
                         .variable_list
                         .selected
                         .min(self.set.variables.len().saturating_sub(1));
-                    return AppAction::DeleteVariable(idx);
+                    let var_name = self.set.variables[idx].name.clone();
+                    return AppAction::RequestDelete(DeleteKind::Variable {
+                        var_index: idx,
+                        var_name,
+                    });
                 }
                 DetailFocus::Commands if !self.set.commands.is_empty() => {
                     let idx = self
                         .command_list
                         .selected
                         .min(self.set.commands.len().saturating_sub(1));
-                    return AppAction::DeleteCommand(idx);
+                    let cmd_preview = self.set.commands[idx].command.clone();
+                    return AppAction::RequestDelete(DeleteKind::Command {
+                        cmd_index: idx,
+                        cmd_preview,
+                    });
                 }
                 _ => {}
             },
@@ -228,7 +236,7 @@ impl DetailScreenState {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::action::AppAction;
+    use crate::action::{AppAction, DeleteKind};
     use crate::models::{CommandSet, Group};
     use crate::test_utils::make_key;
     use crate::ui::detail_screen::DetailFocus;
@@ -302,7 +310,7 @@ mod tests {
     }
 
     #[test]
-    fn test_d_on_variables_returns_delete_variable() {
+    fn test_d_on_variables_returns_request_delete_variable() {
         let mut state = make_state();
         state.set.variables.push(crate::models::Variable {
             name: "x".to_string(),
@@ -310,7 +318,29 @@ mod tests {
         });
         state.focus = DetailFocus::Variables;
         let action = state.handle_key(make_key(KeyCode::Char('d')));
-        assert!(matches!(action, AppAction::DeleteVariable(0)));
+        assert!(
+            matches!(action, AppAction::RequestDelete(DeleteKind::Variable {
+                var_index: 0,
+                ..
+            }))
+        );
+    }
+
+    #[test]
+    fn test_d_on_commands_returns_request_delete_command() {
+        let mut state = make_state();
+        state.set.commands.push(crate::models::Command {
+            position: 0,
+            command: "echo hi".to_string(),
+        });
+        state.focus = DetailFocus::Commands;
+        let action = state.handle_key(make_key(KeyCode::Char('d')));
+        assert!(
+            matches!(action, AppAction::RequestDelete(DeleteKind::Command {
+                cmd_index: 0,
+                ..
+            }))
+        );
     }
 
     #[test]
