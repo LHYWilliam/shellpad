@@ -212,12 +212,13 @@ impl DetailScreenState {
                     let v = &self.set.variables[i];
                     format!("  {} = {}", v.name, v.default_value)
                 };
+                let is_insert = self.var_edit.insert_at.is_some();
                 let style = if is_editing {
                     Style::default()
                         .fg(theme.text_on_selected)
                         .bg(theme.accent_primary)
                         .add_modifier(Modifier::BOLD)
-                } else if i == self.variable_list.selected && self.focus == DetailFocus::Variables {
+                } else if !is_insert && i == self.variable_list.selected && self.focus == DetailFocus::Variables {
                     theme.selected_style(theme.selection_bg_secondary)
                 } else {
                     theme.normal_style()
@@ -278,7 +279,7 @@ impl DetailScreenState {
                         .fg(theme.text_on_selected)
                         .bg(theme.accent_primary)
                         .add_modifier(Modifier::BOLD)
-                } else if i == self.command_list.selected && self.focus == DetailFocus::Commands {
+                } else if !is_insert && i == self.command_list.selected && self.focus == DetailFocus::Commands {
                     theme.selected_style(theme.selection_bg_secondary)
                 } else {
                     theme.normal_style()
