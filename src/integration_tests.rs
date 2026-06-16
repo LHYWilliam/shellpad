@@ -229,4 +229,33 @@ mod tests {
         assert_eq!(ds2.set.commands[0].command, "first");
         assert_eq!(ds2.set.commands[1].command, "second");
     }
+
+    // ------------------------------------------------------------------
+    // 5.8 Working directory lifecycle
+    // ------------------------------------------------------------------
+    #[test]
+    fn test_working_directory_lifecycle() {
+        let mut app = make_app();
+        let mut g = Group::new("G".to_string());
+        let mut set = CommandSet::new("S".to_string(), g.id);
+        set.working_dir = Some("/tmp/project".to_string());
+        g.sets.push(set);
+        app.data = AppData { groups: vec![g] };
+        let set_clone = app.data.groups[0].sets[0].clone();
+        app.detail_screen = Some(DetailScreenState::new(set_clone, app.data.groups.clone()));
+        app.mode = AppMode::Detail;
+
+        // Verify working_dir persisted through detail screen construction
+        let ds = app.detail_screen.as_ref().unwrap();
+        assert_eq!(ds.set.working_dir, Some("/tmp/project".to_string()));
+
+        // Verify save round-trip: modify, save, check
+        let mut ds = app.detail_screen.take().unwrap();
+        ds.set.working_dir = None; // reset to default
+        let saved_set = ds.set.clone();
+        app.detail_screen = Some(ds);
+
+        app.handle_action(AppAction::SaveSet(saved_set));
+        assert_eq!(app.data.groups[0].sets[0].working_dir, None);
+    }
 }
