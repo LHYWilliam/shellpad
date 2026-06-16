@@ -1,7 +1,8 @@
 use super::{DetailFocus, DetailScreenState};
+use crate::bordered_block_zone;
 use crate::ui::render::{
-    bordered_block, empty_hint, fill_row, list_scrollbar_areas, render_inline_cursor,
-    render_scrollbar, render_status_bar, set_cursor_after_prefix,
+    empty_hint, fill_row, list_item_style, list_scrollbar_areas, render_inline_cursor,
+    render_scrollbar, render_status_bar, set_cursor_after_prefix, styled_list_item,
 };
 use crate::ui::theme::Theme;
 use crate::ui::widget::ScrollableList;
@@ -17,10 +18,7 @@ impl DetailScreenState {
             self.focus,
             DetailFocus::Name | DetailFocus::Group | DetailFocus::Shell | DetailFocus::ExecMode
         );
-        let block = bordered_block(theme, " Properties ", props_focused);
-
-        let inner = block.inner(area);
-        frame.render_widget(&block, area);
+        let inner = bordered_block_zone!(frame, area, theme, " Properties ", props_focused);
 
         // Name, Group+Shell, ExecMode in rows inside the block
         let rows = Layout::vertical([
@@ -140,9 +138,7 @@ impl DetailScreenState {
     where
         F: Fn(usize, bool) -> (String, Style),
     {
-        let block = bordered_block(theme, title, focused);
-        let inner = block.inner(area);
-        frame.render_widget(&block, area);
+        let inner = bordered_block_zone!(frame, area, theme, title, focused);
 
         let (list_area, scrollbar_area) = list_scrollbar_areas(inner);
 
@@ -150,11 +146,7 @@ impl DetailScreenState {
             .map(|i| {
                 let is_editing = Some(i) == editing_item;
                 let (label, style) = item_fn(i, is_editing);
-                ListItem::new(fill_row(
-                    Line::from(Span::styled(label, style)),
-                    style,
-                    list_area.width,
-                ))
+                styled_list_item(label, style, list_area.width)
             })
             .collect();
 
@@ -167,11 +159,7 @@ impl DetailScreenState {
                 .fg(theme.text_on_selected)
                 .bg(theme.accent_primary)
                 .add_modifier(Modifier::BOLD);
-            let preview = ListItem::new(fill_row(
-                Line::from(Span::styled(label.clone(), style)),
-                style,
-                list_area.width,
-            ));
+            let preview = styled_list_item(label.clone(), style, list_area.width);
             let pos = insert_at.unwrap_or(idx.min(items.len()));
             items.insert(pos, preview);
         }
@@ -213,19 +201,10 @@ impl DetailScreenState {
                     format!("  {} = {}", v.name, v.default_value)
                 };
                 let is_insert = self.var_edit.insert_at.is_some();
-                let style = if is_editing {
-                    Style::default()
-                        .fg(theme.text_on_selected)
-                        .bg(theme.accent_primary)
-                        .add_modifier(Modifier::BOLD)
-                } else if !is_insert
+                let is_selected = !is_insert
                     && i == self.variable_list.selected
-                    && self.focus == DetailFocus::Variables
-                {
-                    theme.selected_style(theme.selection_bg_secondary)
-                } else {
-                    theme.normal_style()
-                };
+                    && self.focus == DetailFocus::Variables;
+                let style = list_item_style(is_editing, is_selected, theme);
                 (label, style)
             },
             preview,
@@ -277,19 +256,10 @@ impl DetailScreenState {
                     self.set.commands[i].command.as_str()
                 };
                 let label = format!("  #{}  {}", display_pos, content);
-                let style = if is_editing {
-                    Style::default()
-                        .fg(theme.text_on_selected)
-                        .bg(theme.accent_primary)
-                        .add_modifier(Modifier::BOLD)
-                } else if !is_insert
+                let is_selected = !is_insert
                     && i == self.command_list.selected
-                    && self.focus == DetailFocus::Commands
-                {
-                    theme.selected_style(theme.selection_bg_secondary)
-                } else {
-                    theme.normal_style()
-                };
+                    && self.focus == DetailFocus::Commands;
+                let style = list_item_style(is_editing, is_selected, theme);
                 (label, style)
             },
             preview,

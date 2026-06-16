@@ -1,7 +1,6 @@
 use super::{CmdStatus, ExecutionScreenState};
-use crate::ui::render::{
-    bordered_block, list_scrollbar_areas, render_scrollbar, render_status_bar,
-};
+use crate::bordered_block_zone;
+use crate::ui::render::{list_scrollbar_areas, render_scrollbar, render_status_bar};
 use crate::ui::theme::Theme;
 use ratatui::Frame;
 use ratatui::layout::{Constraint, Layout, Rect};
@@ -154,9 +153,7 @@ impl ExecutionScreenState {
         let body_layout = Layout::vertical([Constraint::Min(1), Constraint::Length(2)]);
         let [list_area, footer_area] = body_layout.areas(body_area);
 
-        let list_block = bordered_block(theme, " Output ", false);
-        let list_inner = list_block.inner(list_area);
-        frame.render_widget(&list_block, list_area);
+        let list_inner = bordered_block_zone!(frame, list_area, theme, " Output ", false);
 
         // Split list inner into content + scrollbar
         let (content_area, scrollbar_area) = list_scrollbar_areas(list_inner);

@@ -12,7 +12,6 @@ pub fn draw_help(frame: &mut Frame, area: Rect, theme: &Theme) {
     frame.render_widget(Clear, help_area);
 
     let block = bordered_block_info(theme, " Help ").style(Style::default().bg(theme.surface));
-
     let inner = block.inner(help_area);
     frame.render_widget(&block, help_area);
 

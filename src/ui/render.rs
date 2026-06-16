@@ -151,3 +151,48 @@ pub fn fill_row(line: Line<'_>, fill_style: Style, target_width: u16) -> Line<'_
         line
     }
 }
+
+/// Determine the style for a list item based on its editing/selection state.
+pub fn list_item_style(is_editing: bool, is_selected: bool, theme: &Theme) -> Style {
+    if is_editing {
+        Style::default()
+            .fg(theme.text_on_selected)
+            .bg(theme.accent_primary)
+            .add_modifier(Modifier::BOLD)
+    } else if is_selected {
+        theme.selected_style(theme.selection_bg_secondary)
+    } else {
+        theme.normal_style()
+    }
+}
+
+/// Render a bordered block and return its inner area.
+#[macro_export]
+macro_rules! bordered_block_zone {
+    ($frame:expr, $area:expr, $theme:expr, $title:expr, $focused:expr) => {{
+        let block = $crate::ui::render::bordered_block($theme, $title, $focused);
+        let inner = block.inner($area);
+        $frame.render_widget(&block, $area);
+        inner
+    }};
+}
+
+/// Render a bordered info block and return its inner area.
+#[macro_export]
+macro_rules! bordered_block_info_zone {
+    ($frame:expr, $area:expr, $theme:expr, $title:expr) => {{
+        let block = $crate::ui::render::bordered_block_info($theme, $title);
+        let inner = block.inner($area);
+        $frame.render_widget(&block, $area);
+        inner
+    }};
+}
+
+/// Create a styled ListItem with full-row background fill.
+pub fn styled_list_item(label: String, style: Style, width: u16) -> ListItem<'static> {
+    ListItem::new(fill_row(
+        Line::from(Span::styled(label, style)),
+        style,
+        width,
+    ))
+}

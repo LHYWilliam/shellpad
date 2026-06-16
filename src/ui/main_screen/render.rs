@@ -1,9 +1,10 @@
+use crate::bordered_block_zone;
 use crate::models::AppData;
 use crate::ui::main_screen::search::find_matches_case_insensitive;
 use crate::ui::main_screen::{MainScreenState, Panel};
 use crate::ui::render::{
-    bordered_block, empty_hint, fill_row, list_scrollbar_areas, render_inline_cursor,
-    render_scrollbar, render_status_bar, set_cursor_after_prefix,
+    empty_hint, fill_row, list_scrollbar_areas, render_inline_cursor, render_scrollbar,
+    render_status_bar, set_cursor_after_prefix,
 };
 use crate::ui::theme::Theme;
 use ratatui::Frame;
@@ -20,10 +21,13 @@ impl MainScreenState {
         data: &AppData,
         theme: &Theme,
     ) {
-        let block = bordered_block(theme, " Groups ", self.active_panel == Panel::Groups);
-
-        let inner = block.inner(area);
-        frame.render_widget(&block, area);
+        let inner = bordered_block_zone!(
+            frame,
+            area,
+            theme,
+            " Groups ",
+            self.active_panel == Panel::Groups
+        );
 
         // Split inner area into list + scrollbar
         let (list_area, scrollbar_area) = list_scrollbar_areas(inner);
@@ -113,10 +117,8 @@ impl MainScreenState {
             format!(" {} ", group_name)
         };
 
-        let block = bordered_block(theme, &title, self.active_panel == Panel::Sets);
-
-        let inner = block.inner(area);
-        frame.render_widget(&block, area);
+        let inner =
+            bordered_block_zone!(frame, area, theme, &title, self.active_panel == Panel::Sets);
 
         // When in search mode, split inner into search line + list area
         let (list_area, scrollbar_area) = if self.search_mode {

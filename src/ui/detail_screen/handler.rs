@@ -1,8 +1,8 @@
 use super::{DetailFocus, DetailScreenState};
 use crate::action::AppAction;
 use crate::ui::detail_editor::{handle_command_edit, handle_variable_edit};
-use crate::ui::widget::TextInput;
 use crate::ui::widget::text_input::handle_text_input;
+use crate::ui::widget::{InlineEdit, ScrollableList, TextInput};
 use crossterm::event::KeyEvent;
 
 impl DetailScreenState {
@@ -112,38 +112,45 @@ impl DetailScreenState {
                         let idx = self
                             .variable_list
                             .selected
-                            .min(self.set.variables.len().saturating_sub(1));
-                        let v = &self.set.variables[idx];
-                        self.var_edit.edit_input =
-                            TextInput::new(format!("{}={}", v.name, v.default_value));
-                        self.var_edit.editing = Some(idx);
+                            .min(self.set.variables.len() - 1);
+                        let text = format!(
+                            "{}={}",
+                            self.set.variables[idx].name, self.set.variables[idx].default_value
+                        );
+                        Self::list_edit_begin(
+                            &mut self.var_edit,
+                            &self.variable_list,
+                            text,
+                            self.set.variables.len(),
+                        );
                     }
                     DetailFocus::Commands if !self.set.commands.is_empty() => {
-                        let idx = self
-                            .command_list
-                            .selected
-                            .min(self.set.commands.len().saturating_sub(1));
-                        self.cmd_edit.edit_input =
-                            TextInput::new(self.set.commands[idx].command.clone());
-                        self.cmd_edit.editing = Some(idx);
+                        let idx = self.command_list.selected.min(self.set.commands.len() - 1);
+                        let text = self.set.commands[idx].command.clone();
+                        Self::list_edit_begin(
+                            &mut self.cmd_edit,
+                            &self.command_list,
+                            text,
+                            self.set.commands.len(),
+                        );
                     }
                     _ => {}
                 }
             }
             KeyCode::Char('a' | 'A') => match self.focus {
                 DetailFocus::Variables => {
-                    self.var_edit.edit_input = TextInput::new(String::new());
-                    let pos = (self.variable_list.selected + 1).min(self.set.variables.len());
-                    self.var_edit.insert_at = Some(pos);
-                    self.var_edit.editing = Some(self.set.variables.len());
-                    self.variable_list.selected = pos;
+                    Self::list_insert_begin(
+                        &mut self.var_edit,
+                        &mut self.variable_list,
+                        self.set.variables.len(),
+                    );
                 }
                 DetailFocus::Commands => {
-                    self.cmd_edit.edit_input = TextInput::new(String::new());
-                    let pos = (self.command_list.selected + 1).min(self.set.commands.len());
-                    self.cmd_edit.insert_at = Some(pos);
-                    self.cmd_edit.editing = Some(self.set.commands.len());
-                    self.command_list.selected = pos;
+                    Self::list_insert_begin(
+                        &mut self.cmd_edit,
+                        &mut self.command_list,
+                        self.set.commands.len(),
+                    );
                 }
                 _ => {}
             },
@@ -194,6 +201,27 @@ impl DetailScreenState {
             self.set.name = self.name_input.content.clone();
             self.editing_name = false;
         }
+    }
+
+    /// Begin editing a list item at the current selection.
+    fn list_edit_begin(
+        edit: &mut InlineEdit,
+        list: &ScrollableList,
+        initial_text: String,
+        total_items: usize,
+    ) {
+        let idx = list.selected.min(total_items.saturating_sub(1));
+        edit.edit_input = TextInput::new(initial_text);
+        edit.editing = Some(idx);
+    }
+
+    /// Begin inserting a new item after the current selection.
+    fn list_insert_begin(edit: &mut InlineEdit, list: &mut ScrollableList, total_items: usize) {
+        edit.edit_input = TextInput::new(String::new());
+        let pos = (list.selected + 1).min(total_items);
+        edit.insert_at = Some(pos);
+        edit.editing = Some(total_items);
+        list.selected = pos;
     }
 }
 
