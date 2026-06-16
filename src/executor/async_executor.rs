@@ -91,15 +91,15 @@ pub fn execute_set(
             let mut child = match spawn_shell_command(&shell_cmd, &resolved) {
                 Ok(c) => c,
                 Err(e) => {
-                    let _ = tx.send(ExecutionEvent::StderrLine {
+                    if tx.send(ExecutionEvent::StderrLine {
                         index: actual_index,
                         line: format!("Failed to spawn command: {}", e),
-                    });
-                    let _ = tx.send(ExecutionEvent::Finished {
+                    }).is_err() { return; }
+                    if tx.send(ExecutionEvent::Finished {
                         index: actual_index,
                         success: false,
                         duration_ms: cmd_start.elapsed().as_millis(),
-                    });
+                    }).is_err() { return; }
                     failed += 1;
                     if matches!(exec_mode, ExecMode::StopOnError) {
                         break;
@@ -153,11 +153,11 @@ pub fn execute_set(
             }
         }
 
-        let _ = tx.send(ExecutionEvent::CompletedAll {
+        if tx.send(ExecutionEvent::CompletedAll {
             total,
             succeeded,
             failed,
             total_duration_ms: start.elapsed().as_millis(),
-        });
+        }).is_err() { return; }
     })
 }
