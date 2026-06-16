@@ -54,14 +54,7 @@ impl App {
                 if self.mode == AppMode::Help {
                     self.mode = self.prev_mode.take().unwrap_or(AppMode::Main);
                 } else {
-                    if self.mode == AppMode::Execution {
-                        self.teardown_execution(false, false);
-                    }
-                    self.prev_mode = Some(if self.mode == AppMode::Execution {
-                        AppMode::Main
-                    } else {
-                        self.mode
-                    });
+                    self.prev_mode = Some(self.mode);
                     self.mode = AppMode::Help;
                 }
             }
@@ -675,8 +668,8 @@ mod tests {
         );
         app.handle_key(key);
         assert_eq!(app.mode, AppMode::Help);
-        // execution_state should have been cleaned up by teardown_execution
-        assert!(matches!(app.execution_state, ExecutionState::Idle { .. }));
-        assert_eq!(app.prev_mode, Some(AppMode::Main));
+        // execution_state should NOT be cleaned up — Help is an overlay
+        assert!(matches!(app.execution_state, ExecutionState::Running { .. }));
+        assert_eq!(app.prev_mode, Some(AppMode::Execution));
     }
 }
