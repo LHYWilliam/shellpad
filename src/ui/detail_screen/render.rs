@@ -196,8 +196,6 @@ impl DetailScreenState {
     }
 
     pub(crate) fn render_picker(&self, frame: &mut Frame, area: Rect, theme: &Theme) {
-        use ratatui::layout::Alignment;
-
         let (names, selected_idx, title): (Vec<String>, Option<usize>, &str) = match self.focus {
             DetailFocus::Group => {
                 let idx = self.groups.iter().position(|g| g.id == self.set.group_id);
@@ -255,6 +253,14 @@ impl DetailScreenState {
         let sel_isize = sel as isize;
         let total_isize = total as isize;
 
+        let center_label = |name: &str, style: Style, width: u16| -> ListItem<'static> {
+            let raw = format!(" {}", name);
+            let raw_w = unicode_width::UnicodeWidthStr::width(raw.as_str()) as u16;
+            let left_pad = (width.saturating_sub(raw_w)) / 2;
+            let label = format!("{}{}", " ".repeat(left_pad as usize), raw);
+            styled_list_item(label, style, width)
+        };
+
         let mut items: Vec<ListItem<'_>> = Vec::new();
         let mut sel_visual = None;
         for visual_row in 0..VISIBLE {
@@ -277,7 +283,7 @@ impl DetailScreenState {
                 if is_selected {
                     sel_visual = Some(items.len());
                 }
-                items.push(styled_list_item(format!(" {}", names[i]), style, inner.width));
+                items.push(center_label(&names[i], style, inner.width));
             } else {
                 items.push(styled_list_item(
                     String::new(), theme.normal_style(), inner.width,
@@ -288,12 +294,6 @@ impl DetailScreenState {
             }
         }
 
-        let lines_layout = Layout::vertical([
-            Constraint::Length(VISIBLE as u16),
-            Constraint::Length(1), // footer
-        ]);
-        let [list_area, footer_area] = lines_layout.areas(inner);
-
         let mut list_state = ratatui::widgets::ListState::default();
         if total > 0 {
             list_state.select(sel_visual);
@@ -302,24 +302,8 @@ impl DetailScreenState {
             List::new(items).highlight_style(
                 Style::default().bg(theme.surface_border),
             ),
-            list_area,
+            inner,
             &mut list_state,
-        );
-
-        // Footer — right-aligned
-        let max_items: usize = 5;
-        let total_pages = (total.saturating_sub(1) / max_items) + 1;
-        let current_page = sel / max_items + 1;
-        let page_text = format!(" ◀ {}/{} ▶ ", current_page, total_pages);
-        frame.render_widget(
-            Paragraph::new(Line::from(Span::styled(
-                page_text,
-                Style::default()
-                    .fg(theme.text_disabled)
-                    .add_modifier(Modifier::DIM),
-            )))
-            .alignment(Alignment::Right),
-            footer_area,
         );
     }
 
