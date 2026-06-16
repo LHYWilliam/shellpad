@@ -40,7 +40,9 @@ impl App {
                     self.handle_action(action);
                 }
             }
-            AppMode::Help => self.mode = AppMode::Main,
+            AppMode::Help => {
+                self.mode = self.prev_mode.take().unwrap_or(AppMode::Main);
+            }
         }
     }
 
@@ -48,7 +50,21 @@ impl App {
         match action {
             AppAction::None => {}
             AppAction::Quit => self.running = false,
-            AppAction::Help => self.mode = AppMode::Help,
+            AppAction::Help => {
+                if self.mode == AppMode::Help {
+                    self.mode = self.prev_mode.take().unwrap_or(AppMode::Main);
+                } else {
+                    if self.mode == AppMode::Execution {
+                        self.teardown_execution(false, false);
+                    }
+                    self.prev_mode = Some(if self.mode == AppMode::Execution {
+                        AppMode::Main
+                    } else {
+                        self.mode
+                    });
+                    self.mode = AppMode::Help;
+                }
+            }
 
             // ---- Main screen ----
             AppAction::ExecuteSet(gi, si) => {
@@ -280,6 +296,7 @@ mod tests {
             main_screen: MainScreenState::new(),
             detail_screen: None,
             execution_state: ExecutionState::Idle { pending_set: None },
+            prev_mode: None,
             variable_screen: VariableScreenState::new(),
             theme: Theme::default_dark(),
             toasts: ToastManager::new(),
@@ -448,6 +465,11 @@ mod tests {
         let mut app = make_app();
         app.handle_action(AppAction::Help);
         assert_eq!(app.mode, AppMode::Help);
+        assert_eq!(app.prev_mode, Some(AppMode::Main));
+        // Dismiss Help
+        app.handle_action(AppAction::Help);
+        assert_eq!(app.mode, AppMode::Main);
+        assert!(app.prev_mode.is_none());
     }
 
     // ---- Data helper with variables and commands ----
@@ -631,6 +653,7 @@ mod tests {
         );
         app.handle_key(key);
         assert_eq!(app.mode, AppMode::Help);
+        assert_eq!(app.prev_mode, Some(AppMode::Detail));
     }
 
     #[test]
@@ -652,5 +675,8 @@ mod tests {
         );
         app.handle_key(key);
         assert_eq!(app.mode, AppMode::Help);
+        // execution_state should have been cleaned up by teardown_execution
+        assert!(matches!(app.execution_state, ExecutionState::Idle { .. }));
+        assert_eq!(app.prev_mode, Some(AppMode::Main));
     }
 }

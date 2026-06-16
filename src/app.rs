@@ -55,6 +55,7 @@ pub struct App {
     pub detail_screen: Option<DetailScreenState>,
 
     pub(crate) execution_state: ExecutionState,
+    pub prev_mode: Option<AppMode>,
     pub variable_screen: VariableScreenState,
 
     pub theme: Theme,
@@ -80,6 +81,7 @@ impl App {
             mode: AppMode::Main,
             running: true,
             execution_state: ExecutionState::Idle { pending_set: None },
+            prev_mode: None,
             variable_screen: VariableScreenState::new(),
             theme: Theme::default_dark(),
             toasts: ToastManager::new(),

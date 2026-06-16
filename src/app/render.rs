@@ -67,8 +67,22 @@ impl App {
                 }
             }
             AppMode::Help => {
-                self.main_screen
-                    .render(frame, content_area, &self.data, &self.theme);
+                match self.prev_mode {
+                    Some(AppMode::Detail) => {
+                        if let Some(ref mut ds) = self.detail_screen {
+                            ds.render(frame, content_area, &self.theme);
+                        }
+                    }
+                    Some(AppMode::Execution) => {
+                        if let ExecutionState::Running { ref screen, .. } = self.execution_state {
+                            screen.render(frame, content_area, &self.theme);
+                        }
+                    }
+                    _ => {
+                        self.main_screen
+                            .render(frame, content_area, &self.data, &self.theme);
+                    }
+                }
                 draw_help(frame, content_area, &self.theme);
             }
         }

@@ -23,6 +23,7 @@ mod tests {
             main_screen: MainScreenState::new(),
             detail_screen: None,
             execution_state: ExecutionState::Idle { pending_set: None },
+            prev_mode: None,
             variable_screen: crate::ui::variable_screen::VariableScreenState::new(),
             theme: Theme::default_dark(),
             toasts: ToastManager::new(),
