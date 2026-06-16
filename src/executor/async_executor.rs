@@ -17,11 +17,18 @@ pub fn substitute_variables(template: &str, set: &CommandSet) -> String {
 }
 
 /// Spawn a shell command and return the child process.
-fn spawn_shell_command(shell_cmd: &ShellCommand, command: &str) -> std::io::Result<Child> {
+fn spawn_shell_command(
+    shell_cmd: &ShellCommand,
+    command: &str,
+    working_dir: Option<&str>,
+) -> std::io::Result<Child> {
     let mut cmd = StdCommand::new(&shell_cmd.program);
     cmd.arg(&shell_cmd.flag).arg(command);
     cmd.stdout(Stdio::piped());
     cmd.stderr(Stdio::piped());
+    if let Some(dir) = working_dir {
+        cmd.current_dir(dir);
+    }
     cmd.spawn()
 }
 
@@ -57,6 +64,7 @@ pub fn execute_set(
     tx: mpsc::Sender<ExecutionEvent>,
     kill_signal: Arc<AtomicBool>,
     index_offset: usize,
+    working_dir: Option<String>,
 ) -> thread::JoinHandle<()> {
     thread::spawn(move || {
         let start = std::time::Instant::now();
@@ -88,7 +96,7 @@ pub fn execute_set(
 
             let cmd_start = std::time::Instant::now();
 
-            let mut child = match spawn_shell_command(&shell_cmd, &resolved) {
+            let mut child = match spawn_shell_command(&shell_cmd, &resolved, working_dir.as_deref()) {
                 Ok(c) => c,
                 Err(e) => {
                     if tx.send(ExecutionEvent::StderrLine {

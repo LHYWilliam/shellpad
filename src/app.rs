@@ -136,6 +136,7 @@ impl App {
         if start_from == 0 {
             let cmds = set.commands.clone();
             let screen = ExecutionScreenState::new(set.name.clone(), &cmds);
+            let working_dir = set.working_dir.clone();
             let mut manager = ExecutionManager::new();
             manager.start(
                 cmds,
@@ -143,6 +144,7 @@ impl App {
                 set.variables.clone(),
                 shell_cmd,
                 0usize,
+                working_dir,
             );
             self.execution_state = ExecutionState::Running {
                 screen: Box::new(screen),
@@ -162,12 +164,14 @@ impl App {
         } = self.execution_state
         {
             screen.reset_from(start_from);
+            let working_dir = set.working_dir.clone();
             manager.start(
                 cmds,
                 set.exec_mode,
                 set.variables.clone(),
                 shell_cmd,
                 start_from,
+                working_dir,
             );
         }
         self.mode = AppMode::Execution;

@@ -21,6 +21,7 @@ pub fn execute_set_blocking(
     set: &CommandSet,
     shell_cmd: &ShellCommand,
     vars: &HashMap<String, String>,
+    working_dir: Option<&str>,
 ) -> Result<ExecuteResult, ExecuteError> {
     let mut succeeded = 0usize;
     let mut failed = 0usize;
@@ -31,11 +32,16 @@ pub fn execute_set_blocking(
 
         eprintln!("[{}/{}] $ {}", idx + 1, total, resolved);
 
-        let mut child = Command::new(&shell_cmd.program)
+        let mut cmd_builder = Command::new(&shell_cmd.program);
+        cmd_builder
             .arg(&shell_cmd.flag)
             .arg(&resolved)
             .stdout(Stdio::inherit())
-            .stderr(Stdio::inherit())
+            .stderr(Stdio::inherit());
+        if let Some(dir) = working_dir {
+            cmd_builder.current_dir(dir);
+        }
+        let mut child = cmd_builder
             .spawn()
             .map_err(|e| ExecuteError::SpawnFailed {
                 idx: idx + 1,

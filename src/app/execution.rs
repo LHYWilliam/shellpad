@@ -28,6 +28,7 @@ impl ExecutionManager {
         variables: Vec<crate::models::Variable>,
         shell_cmd: crate::models::ShellCommand,
         index_offset: usize,
+        working_dir: Option<String>,
     ) {
         self.kill_signal.store(false, Ordering::Relaxed);
         let (tx, rx) = mpsc::channel();
@@ -39,6 +40,7 @@ impl ExecutionManager {
             tx,
             Arc::clone(&self.kill_signal),
             index_offset,
+            working_dir,
         );
         self.rx = Some(rx);
         self.handle = Some(handle);

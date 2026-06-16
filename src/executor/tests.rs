@@ -121,6 +121,7 @@ fn test_execute_echo() {
         tx.clone(),
         Arc::new(AtomicBool::new(false)),
         0,
+        None,
     );
     handle.join().unwrap();
     drop(tx);
@@ -172,6 +173,7 @@ fn test_execute_failure_continue_on_error() {
         tx.clone(),
         Arc::new(AtomicBool::new(false)),
         0,
+        None,
     );
     handle.join().unwrap();
     drop(tx);
@@ -218,6 +220,7 @@ fn test_execute_failure_stop_on_error() {
         tx.clone(),
         Arc::new(AtomicBool::new(false)),
         0,
+        None,
     );
     handle.join().unwrap();
     drop(tx);
@@ -300,7 +303,7 @@ fn test_execute_set_blocking_echo() {
     });
     set.exec_mode = ExecMode::StopOnError;
     let vars = HashMap::new();
-    let result = execute_set_blocking(&set, &test_shell_cmd(), &vars);
+    let result = execute_set_blocking(&set, &test_shell_cmd(), &vars, None);
     assert!(result.is_ok());
     let r = result.unwrap();
     assert_eq!(r.succeeded, 1);
@@ -315,7 +318,7 @@ fn test_execute_set_blocking_false_fails() {
     });
     set.exec_mode = ExecMode::StopOnError;
     let vars = HashMap::new();
-    let result = execute_set_blocking(&set, &test_shell_cmd(), &vars);
+    let result = execute_set_blocking(&set, &test_shell_cmd(), &vars, None);
     assert!(result.is_err());
 }
 
@@ -332,7 +335,7 @@ fn test_execute_set_blocking_continue_on_error() {
     });
     set.exec_mode = ExecMode::ContinueOnError;
     let vars = HashMap::new();
-    let result = execute_set_blocking(&set, &test_shell_cmd(), &vars);
+    let result = execute_set_blocking(&set, &test_shell_cmd(), &vars, None);
     assert!(result.is_ok());
     let r = result.unwrap();
     assert_eq!(r.succeeded, 1);
@@ -352,7 +355,7 @@ fn test_execute_set_blocking_stop_on_error() {
     });
     set.exec_mode = ExecMode::StopOnError;
     let vars = HashMap::new();
-    let result = execute_set_blocking(&set, &test_shell_cmd(), &vars);
+    let result = execute_set_blocking(&set, &test_shell_cmd(), &vars, None);
     assert!(result.is_err());
 }
 

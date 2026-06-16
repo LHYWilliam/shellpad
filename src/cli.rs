@@ -116,7 +116,8 @@ fn handle_run(
     };
 
     // Execute
-    match crate::executor::execute_set_blocking(set_ref, &shell_cmd, &resolved_vars) {
+    let working_dir = set_ref.working_dir.as_deref();
+    match crate::executor::execute_set_blocking(set_ref, &shell_cmd, &resolved_vars, working_dir) {
         Ok(r) => {
             if r.failed > 0 {
                 eprintln!(
