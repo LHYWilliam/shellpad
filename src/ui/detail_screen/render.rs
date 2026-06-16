@@ -12,6 +12,14 @@ use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{List, ListItem, Paragraph};
 
+/// Editor context bundle for `render_items_list`.
+pub(crate) struct ItemListEditCtx<'a> {
+    editing_item: Option<usize>,
+    insert_at: Option<usize>,
+    preview_label: Option<String>,
+    empty_text: &'a str,
+}
+
 impl DetailScreenState {
     pub(crate) fn render_metadata(&self, frame: &mut Frame, area: Rect, theme: &Theme) {
         let props_focused = matches!(
@@ -118,7 +126,6 @@ impl DetailScreenState {
 
     /// Shared list renderer for Variables and Commands.
     /// `item_fn(index, is_editing) -> (label, style)` provides per-item content.
-    /// `preview_label` is shown when `insert_at` is Some.
     /// Returns `list_area` for cursor positioning.
     pub(crate) fn render_items_list<F>(
         &self,
@@ -129,15 +136,19 @@ impl DetailScreenState {
         focused: bool,
         count: usize,
         list: &ScrollableList,
-        editing_item: Option<usize>,
-        insert_at: Option<usize>,
+        edit_ctx: ItemListEditCtx,
         item_fn: F,
-        preview_label: Option<String>,
-        empty_text: &str,
     ) -> Rect
     where
         F: Fn(usize, bool) -> (String, Style),
     {
+        let ItemListEditCtx {
+            editing_item,
+            insert_at,
+            preview_label,
+            empty_text,
+        } = edit_ctx;
+
         let inner = bordered_block_zone(frame, area, theme, title, focused);
 
         let (list_area, scrollbar_area) = list_scrollbar_areas(inner);
@@ -178,11 +189,6 @@ impl DetailScreenState {
 
     pub(crate) fn render_variables(&self, frame: &mut Frame, area: Rect, theme: &Theme) {
         let count = self.set.variables.len();
-        let preview = self
-            .var_edit
-            .insert_at
-            .is_some()
-            .then(|| format!("  ▶ {}", self.var_edit.edit_input.content));
         let list_area = self.render_items_list(
             frame,
             area,
@@ -191,8 +197,13 @@ impl DetailScreenState {
             self.focus == DetailFocus::Variables,
             count,
             &self.variable_list,
-            self.var_edit.editing,
-            self.var_edit.insert_at,
+            ItemListEditCtx {
+                editing_item: self.var_edit.editing,
+                insert_at: self.var_edit.insert_at,
+                preview_label: self.var_edit.insert_at.is_some()
+                    .then(|| format!("  ▶ {}", self.var_edit.edit_input.content)),
+                empty_text: " (empty — press a to add a variable) ",
+            },
             |i, is_editing| {
                 let label = if is_editing {
                     format!("  ▶ {}", self.var_edit.edit_input.content)
@@ -207,8 +218,6 @@ impl DetailScreenState {
                 let style = list_item_style(is_editing, is_selected, theme);
                 (label, style)
             },
-            preview,
-            " (empty — press a to add a variable) ",
         );
 
         if let Some(idx) = self.var_edit.editing {
@@ -226,10 +235,6 @@ impl DetailScreenState {
 
     pub(crate) fn render_commands(&self, frame: &mut Frame, area: Rect, theme: &Theme) {
         let count = self.set.commands.len();
-        let preview = self.cmd_edit.insert_at.is_some().then(|| {
-            let pos = self.cmd_edit.insert_at.unwrap_or(0);
-            format!("  #{}▶ {}", pos, self.cmd_edit.edit_input.content)
-        });
         let list_area = self.render_items_list(
             frame,
             area,
@@ -238,8 +243,15 @@ impl DetailScreenState {
             self.focus == DetailFocus::Commands,
             count,
             &self.command_list,
-            self.cmd_edit.editing,
-            self.cmd_edit.insert_at,
+            ItemListEditCtx {
+                editing_item: self.cmd_edit.editing,
+                insert_at: self.cmd_edit.insert_at,
+                preview_label: self.cmd_edit.insert_at.is_some().then(|| {
+                    let pos = self.cmd_edit.insert_at.unwrap_or(0);
+                    format!("  #{}▶ {}", pos, self.cmd_edit.edit_input.content)
+                }),
+                empty_text: " (empty — press a to add a command) ",
+            },
             |i, is_editing| {
                 let pos = self.set.commands[i].position;
                 let is_insert = self.cmd_edit.insert_at.is_some();
@@ -262,8 +274,6 @@ impl DetailScreenState {
                 let style = list_item_style(is_editing, is_selected, theme);
                 (label, style)
             },
-            preview,
-            " (empty — press a to add a command) ",
         );
 
         if let Some(idx) = self.cmd_edit.editing {
