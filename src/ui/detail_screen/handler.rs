@@ -35,11 +35,11 @@ impl DetailScreenState {
                 self.commit_name_edit();
                 self.commit_workdir_edit();
                 self.focus = match self.focus {
-                    DetailFocus::Name => DetailFocus::Group,
+                    DetailFocus::Name => DetailFocus::WorkDir,
+                    DetailFocus::WorkDir => DetailFocus::Group,
                     DetailFocus::Group => DetailFocus::Shell,
                     DetailFocus::Shell => DetailFocus::ExecMode,
-                    DetailFocus::ExecMode => DetailFocus::WorkDir,
-                    DetailFocus::WorkDir => DetailFocus::Variables,
+                    DetailFocus::ExecMode => DetailFocus::Variables,
                     DetailFocus::Variables => DetailFocus::Commands,
                     DetailFocus::Commands => DetailFocus::Name,
                 };
@@ -49,11 +49,11 @@ impl DetailScreenState {
                 self.commit_workdir_edit();
                 self.focus = match self.focus {
                     DetailFocus::Name => DetailFocus::Commands,
-                    DetailFocus::Group => DetailFocus::Name,
+                    DetailFocus::WorkDir => DetailFocus::Name,
+                    DetailFocus::Group => DetailFocus::WorkDir,
                     DetailFocus::Shell => DetailFocus::Group,
                     DetailFocus::ExecMode => DetailFocus::Shell,
-                    DetailFocus::WorkDir => DetailFocus::ExecMode,
-                    DetailFocus::Variables => DetailFocus::WorkDir,
+                    DetailFocus::Variables => DetailFocus::ExecMode,
                     DetailFocus::Commands => DetailFocus::Variables,
                 };
             }
@@ -327,13 +327,13 @@ mod tests {
         let mut state = make_state();
         assert_eq!(state.focus, DetailFocus::Name);
         state.handle_key(make_key(KeyCode::Tab));
+        assert_eq!(state.focus, DetailFocus::WorkDir);
+        state.handle_key(make_key(KeyCode::Tab));
         assert_eq!(state.focus, DetailFocus::Group);
         state.handle_key(make_key(KeyCode::Tab));
         assert_eq!(state.focus, DetailFocus::Shell);
         state.handle_key(make_key(KeyCode::Tab));
         assert_eq!(state.focus, DetailFocus::ExecMode);
-        state.handle_key(make_key(KeyCode::Tab));
-        assert_eq!(state.focus, DetailFocus::WorkDir);
         state.handle_key(make_key(KeyCode::Tab));
         assert_eq!(state.focus, DetailFocus::Variables);
         state.handle_key(make_key(KeyCode::Tab));
@@ -535,6 +535,6 @@ mod tests {
         state.handle_key(make_key(KeyCode::Tab)); // Tab commits + moves
         assert!(!state.workdir_editing);
         assert_eq!(state.set.working_dir, Some("/committed".to_string()));
-        assert_eq!(state.focus, DetailFocus::Variables);
+        assert_eq!(state.focus, DetailFocus::Group);
     }
 }
