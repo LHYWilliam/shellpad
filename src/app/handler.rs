@@ -272,9 +272,10 @@ impl App {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use super::ExecutionState;
     use crate::action::AppAction;
     use crate::app::execution::ExecutionManager;
+    use crate::mode::AppMode;
     use crate::models::{AppData, CommandSet, Group};
     use crate::test_utils::make_app;
     use crate::ui::detail_screen::DetailScreenState;

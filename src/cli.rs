@@ -56,7 +56,7 @@ pub fn run_cli() -> Option<i32> {
     let data = match crate::storage::load_app_data() {
         Ok(d) => d,
         Err(e) => {
-            eprintln!("Error: {}", e);
+            eprintln!("{e}");
             return Some(1);
         }
     };
@@ -88,7 +88,7 @@ fn handle_run(
     let (set_ref, _gi, _si) = match resolve_set(data, id, group, set) {
         Ok(r) => r,
         Err(e) => {
-            eprintln!("Error: {}", e);
+            eprintln!("{e}");
             return 1;
         }
     };
@@ -129,7 +129,7 @@ fn handle_run(
             }
         }
         Err(e) => {
-            eprintln!("Error: {}", e);
+            eprintln!("{e}");
             1
         }
     }
