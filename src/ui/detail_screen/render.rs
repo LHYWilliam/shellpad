@@ -33,15 +33,16 @@ impl DetailScreenState {
         );
         let inner = bordered_block_zone(frame, area, theme, " Properties ", props_focused);
 
-        // Text Fields (inline edit, full width) + Options (cycle, 2 per row)
+        // Text Fields (inline edit) + Options (one per row)
         let rows = Layout::vertical([
             Constraint::Length(1),
             Constraint::Length(1),
             Constraint::Length(1),
             Constraint::Length(1),
             Constraint::Length(1),
+            Constraint::Length(1),
         ]);
-        let [name_row, workdir_row, sep_row, gs_row, mode_row] = rows.areas(inner);
+        let [name_row, workdir_row, sep_row, group_row, shell_row, mode_row] = rows.areas(inner);
 
         // Name
         let is_name_focused = self.focus == DetailFocus::Name;
@@ -152,11 +153,11 @@ impl DetailScreenState {
             sep_left,
         );
 
-        // Adjust gs_row and mode_row to labels column
-        let gs_left = Rect::new(labels_area.x, gs_row.y, labels_area.width, gs_row.height);
+        // Each Option gets its own row (labels column)
+        let group_left = Rect::new(labels_area.x, group_row.y, labels_area.width, group_row.height);
+        let shell_left = Rect::new(labels_area.x, shell_row.y, labels_area.width, shell_row.height);
         let mode_left = Rect::new(labels_area.x, mode_row.y, labels_area.width, mode_row.height);
 
-        // Group and Shell on the same row (side by side)
         let group_name = self
             .groups
             .iter()
@@ -168,15 +169,6 @@ impl DetailScreenState {
         } else {
             theme.normal_style()
         };
-
-        let shell_style = if self.focus == DetailFocus::Shell {
-            Style::default().fg(theme.accent_primary)
-        } else {
-            theme.normal_style()
-        };
-
-        let half_layout = Layout::horizontal([Constraint::Ratio(1, 2), Constraint::Ratio(1, 2)]);
-        let [group_col, shell_col] = half_layout.areas(gs_left);
         let group_label = if self.focus == DetailFocus::Group {
             format!(" ◄ Group: {} ►", group_name)
         } else {
@@ -184,8 +176,14 @@ impl DetailScreenState {
         };
         frame.render_widget(
             Paragraph::new(Line::from(Span::styled(group_label, group_style))),
-            group_col,
+            group_left,
         );
+
+        let shell_style = if self.focus == DetailFocus::Shell {
+            Style::default().fg(theme.accent_primary)
+        } else {
+            theme.normal_style()
+        };
         let shell_label = if self.focus == DetailFocus::Shell {
             format!(" ◄ Shell: {} ►", self.set.shell.label())
         } else {
@@ -193,10 +191,10 @@ impl DetailScreenState {
         };
         frame.render_widget(
             Paragraph::new(Line::from(Span::styled(shell_label, shell_style))),
-            shell_col,
+            shell_left,
         );
 
-        // Exec mode (full width)
+        // Exec mode
         let mode_style = if self.focus == DetailFocus::ExecMode {
             Style::default().fg(theme.accent_primary)
         } else {
@@ -219,24 +217,29 @@ impl DetailScreenState {
     }
 
     fn render_picker(&self, frame: &mut Frame, area: Rect, theme: &Theme) {
-        let items: Vec<ListItem<'_>> = match self.focus {
-            DetailFocus::Group => self.groups.iter().map(|g| {
-                let selected = g.id == self.set.group_id;
-                let style = if selected {
-                    Style::default().fg(theme.accent_primary)
-                } else {
-                    theme.normal_style()
-                };
-                styled_list_item(format!(" {}", g.name), style, area.width)
-            }).collect(),
+        let (items, selected_idx): (Vec<ListItem<'_>>, Option<usize>) = match self.focus {
+            DetailFocus::Group => {
+                let idx = self.groups.iter().position(|g| g.id == self.set.group_id);
+                let items = self.groups.iter().map(|g| {
+                    let selected = g.id == self.set.group_id;
+                    let style = if selected {
+                        Style::default().fg(theme.accent_primary)
+                    } else {
+                        theme.normal_style()
+                    };
+                    styled_list_item(format!(" {}", g.name), style, area.width)
+                }).collect();
+                (items, idx)
+            }
             DetailFocus::Shell => {
                 let variants = ShellType::builtin_variants();
                 let saved_custom = match &self.set.shell {
                     ShellType::Custom(p) => Some(p.clone()),
                     _ => None,
                 };
-                let mut result = Vec::new();
-                for v in &variants {
+                let mut items = Vec::new();
+                let mut selected_idx = None;
+                for (i, v) in variants.iter().enumerate() {
                     let selected = std::mem::discriminant(&self.set.shell) == std::mem::discriminant(v);
                     let label = match v {
                         ShellType::SystemDefault => "System Default".to_string(),
@@ -244,32 +247,36 @@ impl DetailScreenState {
                         _ => v.label(),
                     };
                     let style = if selected {
+                        selected_idx = Some(i);
                         Style::default().fg(theme.accent_primary)
                     } else {
                         theme.normal_style()
                     };
-                    result.push(styled_list_item(format!(" {}", label), style, area.width));
+                    items.push(styled_list_item(format!(" {}", label), style, area.width));
                 }
+                let custom_idx = variants.len();
                 if let Some(ref path) = saved_custom {
                     let selected = matches!(&self.set.shell, ShellType::Custom(_));
                     let style = if selected {
+                        selected_idx = Some(custom_idx);
                         Style::default().fg(theme.accent_primary)
                     } else {
                         theme.normal_style()
                     };
-                    result.push(styled_list_item(
+                    items.push(styled_list_item(
                         format!(" Custom: {}", path), style, area.width,
                     ));
                 } else {
-                    result.push(styled_list_item(
+                    items.push(styled_list_item(
                         " Custom".to_string(), theme.normal_style(), area.width,
                     ));
                 }
-                result
+                (items, selected_idx)
             }
             DetailFocus::ExecMode => {
                 let modes = [ExecMode::StopOnError, ExecMode::ContinueOnError];
-                modes.iter().map(|m| {
+                let idx = modes.iter().position(|m| *m == self.set.exec_mode);
+                let items = modes.iter().map(|m| {
                     let selected = *m == self.set.exec_mode;
                     let style = if selected {
                         Style::default().fg(theme.accent_primary)
@@ -277,15 +284,18 @@ impl DetailScreenState {
                         theme.normal_style()
                     };
                     styled_list_item(format!(" {}", m.label()), style, area.width)
-                }).collect()
+                }).collect();
+                (items, idx)
             }
             _ => return,
         };
 
         frame.render_widget(Clear, area);
-        let inner = crate::ui::render::bordered_block_zone(frame, area, theme, " Options ", false);
         let mut state = ratatui::widgets::ListState::default();
-        frame.render_stateful_widget(List::new(items), inner, &mut state);
+        state.select(selected_idx);
+        frame.render_stateful_widget(List::new(items).highlight_style(
+            Style::default().bg(theme.surface_border),
+        ), area, &mut state);
     }
 
     /// Shared list renderer for Variables and Commands.
