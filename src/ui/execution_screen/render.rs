@@ -114,7 +114,7 @@ impl ExecutionScreenState {
             // Separator between commands
             if i + 1 < self.cmd_states.len() {
                 let sep_width = area.width.saturating_sub(6) as usize;
-                let separator = "╌".repeat(sep_width);
+                let separator = "─".repeat(sep_width);
                 items.push(ListItem::new(Line::from(Span::styled(
                     separator,
                     Style::default()
