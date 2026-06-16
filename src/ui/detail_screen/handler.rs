@@ -589,4 +589,54 @@ mod tests {
         assert_eq!(state.set.working_dir, Some("/committed".to_string()));
         assert_eq!(state.focus, DetailFocus::Variables);
     }
+
+    #[test]
+    fn test_properties_down_cycles_through_fields() {
+        let mut state = make_state();
+        assert_eq!(state.focus, DetailFocus::Name);
+        state.handle_key(make_key(KeyCode::Down));
+        assert_eq!(state.focus, DetailFocus::WorkDir);
+        state.handle_key(make_key(KeyCode::Down));
+        assert_eq!(state.focus, DetailFocus::Group);
+        state.handle_key(make_key(KeyCode::Down));
+        assert_eq!(state.focus, DetailFocus::Shell);
+        state.handle_key(make_key(KeyCode::Down));
+        assert_eq!(state.focus, DetailFocus::ExecMode);
+        state.handle_key(make_key(KeyCode::Down));
+        assert_eq!(state.focus, DetailFocus::Name); // wraps
+    }
+
+    #[test]
+    fn test_properties_up_cycles_reverse() {
+        let mut state = make_state();
+        state.handle_key(make_key(KeyCode::Up));
+        assert_eq!(state.focus, DetailFocus::ExecMode);
+        state.handle_key(make_key(KeyCode::Up));
+        assert_eq!(state.focus, DetailFocus::Shell);
+        state.handle_key(make_key(KeyCode::Up));
+        assert_eq!(state.focus, DetailFocus::Group);
+        state.handle_key(make_key(KeyCode::Up));
+        assert_eq!(state.focus, DetailFocus::WorkDir);
+        state.handle_key(make_key(KeyCode::Up));
+        assert_eq!(state.focus, DetailFocus::Name); // wraps
+    }
+
+    #[test]
+    fn test_tab_into_properties_resets_to_name() {
+        let mut state = make_state();
+        state.focus = DetailFocus::Shell; // somewhere in Properties middle
+        state.handle_key(make_key(KeyCode::Tab)); // Properties → Variables
+        assert_eq!(state.focus, DetailFocus::Variables);
+        state.handle_key(make_key(KeyCode::BackTab)); // Variables → Properties
+        assert_eq!(state.focus, DetailFocus::Name); // resets to first
+    }
+
+    #[test]
+    fn test_tab_into_properties_resets_after_full_cycle() {
+        let mut state = make_state();
+        state.handle_key(make_key(KeyCode::Tab)); // Properties → Variables
+        state.handle_key(make_key(KeyCode::Tab)); // Variables → Commands
+        state.handle_key(make_key(KeyCode::Tab)); // Commands → Properties
+        assert_eq!(state.focus, DetailFocus::Name); // resets to first
+    }
 }
