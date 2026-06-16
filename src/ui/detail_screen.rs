@@ -1,16 +1,17 @@
 use crate::models::{CommandSet, ExecMode, Group, ShellType};
-use crate::ui::components::{
-    bordered_block, empty_hint, fill_row, handle_text_input, InlineEdit, list_scrollbar_areas,
-    render_inline_cursor, render_scrollbar, render_status_bar, set_cursor_after_prefix,
-    ScrollableList, TextInput,
-};
 use crate::ui::detail_editor::{handle_command_edit, handle_variable_edit};
+use crate::ui::render::{
+    bordered_block, empty_hint, fill_row, list_scrollbar_areas, render_inline_cursor,
+    render_scrollbar, render_status_bar, set_cursor_after_prefix,
+};
 use crate::ui::theme::Theme;
+use crate::ui::widget::text_input::handle_text_input;
+use crate::ui::widget::{InlineEdit, ScrollableList, TextInput};
+use ratatui::Frame;
 use ratatui::layout::{Constraint, Layout, Rect};
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, List, ListItem, Paragraph};
-use ratatui::Frame;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DetailFocus {
@@ -62,8 +63,13 @@ impl DetailScreenState {
         let block = Block::default()
             .borders(Borders::ALL)
             .border_style(Style::default().fg(theme.accent_info))
-            .title(format!(" Edit: {} ",
-                if self.editing_name { &self.name_input.content } else { &self.set.name }
+            .title(format!(
+                " Edit: {} ",
+                if self.editing_name {
+                    &self.name_input.content
+                } else {
+                    &self.set.name
+                }
             ));
 
         let inner = block.inner(area);
@@ -79,8 +85,10 @@ impl DetailScreenState {
         let [meta_area, var_area, cmd_area, status_area] = layout.areas(inner);
 
         // Update scroll offsets (approx inner height = area - 2 for borders)
-        self.variable_list.update_offset(var_area.height.saturating_sub(2) as usize);
-        self.command_list.update_offset(cmd_area.height.saturating_sub(2) as usize);
+        self.variable_list
+            .update_offset(var_area.height.saturating_sub(2) as usize);
+        self.command_list
+            .update_offset(cmd_area.height.saturating_sub(2) as usize);
 
         self.render_metadata(frame, meta_area, theme);
         self.render_variables(frame, var_area, theme);
@@ -89,14 +97,21 @@ impl DetailScreenState {
     }
 
     fn render_metadata(&self, frame: &mut Frame, area: Rect, theme: &Theme) {
-        let props_focused = matches!(self.focus, DetailFocus::Name | DetailFocus::Group | DetailFocus::Shell | DetailFocus::ExecMode);
+        let props_focused = matches!(
+            self.focus,
+            DetailFocus::Name | DetailFocus::Group | DetailFocus::Shell | DetailFocus::ExecMode
+        );
         let block = bordered_block(theme, " Properties ", props_focused);
 
         let inner = block.inner(area);
         frame.render_widget(&block, area);
 
         // Name, Group+Shell, ExecMode in rows inside the block
-        let rows = Layout::vertical([Constraint::Length(1), Constraint::Length(1), Constraint::Length(1)]);
+        let rows = Layout::vertical([
+            Constraint::Length(1),
+            Constraint::Length(1),
+            Constraint::Length(1),
+        ]);
         let [name_row, gs_row, mode_row] = rows.areas(inner);
 
         // Name
@@ -119,11 +134,12 @@ impl DetailScreenState {
             self.set.name.as_str()
         };
         let name_text = format!(" Name: {}", display_name);
-        let name_line = fill_row(Line::from(Span::styled(name_text, name_style)), name_style, name_row.width);
-        frame.render_widget(
-            Paragraph::new(name_line),
-            name_row,
+        let name_line = fill_row(
+            Line::from(Span::styled(name_text, name_style)),
+            name_style,
+            name_row.width,
         );
+        frame.render_widget(Paragraph::new(name_line), name_row);
 
         // Cursor for name editing
         if self.editing_name {
@@ -218,7 +234,11 @@ impl DetailScreenState {
             .map(|i| {
                 let is_editing = Some(i) == editing_item;
                 let (label, style) = item_fn(i, is_editing);
-                ListItem::new(fill_row(Line::from(Span::styled(label, style)), style, list_area.width))
+                ListItem::new(fill_row(
+                    Line::from(Span::styled(label, style)),
+                    style,
+                    list_area.width,
+                ))
             })
             .collect();
 
@@ -231,7 +251,11 @@ impl DetailScreenState {
                 .fg(theme.text_on_selected)
                 .bg(theme.accent_primary)
                 .add_modifier(Modifier::BOLD);
-            let preview = ListItem::new(fill_row(Line::from(Span::styled(label.clone(), style)), style, list_area.width));
+            let preview = ListItem::new(fill_row(
+                Line::from(Span::styled(label.clone(), style)),
+                style,
+                list_area.width,
+            ));
             let pos = insert_at.unwrap_or(idx.min(items.len()));
             items.insert(pos, preview);
         }
@@ -240,8 +264,8 @@ impl DetailScreenState {
             items.push(empty_hint(theme, empty_text));
         }
 
-        let mut list_state = ratatui::widgets::ListState::default()
-            .with_selected(list.selected_or_none(count));
+        let mut list_state =
+            ratatui::widgets::ListState::default().with_selected(list.selected_or_none(count));
         frame.render_stateful_widget(List::new(items), list_area, &mut list_state);
 
         render_scrollbar(frame, scrollbar_area, theme, count, list.selected);
@@ -250,14 +274,19 @@ impl DetailScreenState {
 
     fn render_variables(&self, frame: &mut Frame, area: Rect, theme: &Theme) {
         let count = self.set.variables.len();
-        let preview = self.var_edit.insert_at.is_some().then(|| {
-            format!("  ▶ {}", self.var_edit.edit_input.content)
-        });
+        let preview = self
+            .var_edit
+            .insert_at
+            .is_some()
+            .then(|| format!("  ▶ {}", self.var_edit.edit_input.content));
         let list_area = self.render_items_list(
-            frame, area, theme,
+            frame,
+            area,
+            theme,
             &format!(" Variables ({}) ", count),
             self.focus == DetailFocus::Variables,
-            count, &self.variable_list,
+            count,
+            &self.variable_list,
             self.var_edit.editing,
             self.var_edit.insert_at,
             |i, is_editing| {
@@ -272,9 +301,7 @@ impl DetailScreenState {
                         .fg(theme.text_on_selected)
                         .bg(theme.accent_primary)
                         .add_modifier(Modifier::BOLD)
-                } else if i == self.variable_list.selected
-                    && self.focus == DetailFocus::Variables
-                {
+                } else if i == self.variable_list.selected && self.focus == DetailFocus::Variables {
                     theme.selected_style(theme.selection_bg_secondary)
                 } else {
                     theme.normal_style()
@@ -288,8 +315,11 @@ impl DetailScreenState {
         if let Some(idx) = self.var_edit.editing {
             let pos = self.var_edit.insert_at.unwrap_or(idx);
             render_inline_cursor(
-                frame, list_area, self.variable_list.offset,
-                pos, &self.var_edit.edit_input,
+                frame,
+                list_area,
+                self.variable_list.offset,
+                pos,
+                &self.var_edit.edit_input,
                 unicode_width::UnicodeWidthStr::width("  ▶ ") as u16,
             );
         }
@@ -302,10 +332,13 @@ impl DetailScreenState {
             format!("  #{}▶ {}", pos, self.cmd_edit.edit_input.content)
         });
         let list_area = self.render_items_list(
-            frame, area, theme,
+            frame,
+            area,
+            theme,
             &format!(" Commands ({}) ", count),
             self.focus == DetailFocus::Commands,
-            count, &self.command_list,
+            count,
+            &self.command_list,
             self.cmd_edit.editing,
             self.cmd_edit.insert_at,
             |i, is_editing| {
@@ -329,9 +362,7 @@ impl DetailScreenState {
                         .fg(theme.text_on_selected)
                         .bg(theme.accent_primary)
                         .add_modifier(Modifier::BOLD)
-                } else if i == self.command_list.selected
-                    && self.focus == DetailFocus::Commands
-                {
+                } else if i == self.command_list.selected && self.focus == DetailFocus::Commands {
                     theme.selected_style(theme.selection_bg_secondary)
                 } else {
                     theme.normal_style()
@@ -346,8 +377,11 @@ impl DetailScreenState {
             let pos = self.cmd_edit.insert_at.unwrap_or(idx);
             let display_prefix = format!("  #{}▶ ", pos);
             render_inline_cursor(
-                frame, list_area, self.command_list.offset,
-                pos, &self.cmd_edit.edit_input,
+                frame,
+                list_area,
+                self.command_list.offset,
+                pos,
+                &self.cmd_edit.edit_input,
                 unicode_width::UnicodeWidthStr::width(display_prefix.as_str()) as u16,
             );
         }
@@ -378,12 +412,20 @@ impl DetailScreenState {
         // Handle inline editing
         if let Some(idx) = self.var_edit.editing {
             return handle_variable_edit(
-                &mut self.var_edit, key, idx, &mut self.set.variables, &mut self.variable_list,
+                &mut self.var_edit,
+                key,
+                idx,
+                &mut self.set.variables,
+                &mut self.variable_list,
             );
         }
         if let Some(idx) = self.cmd_edit.editing {
             return handle_command_edit(
-                &mut self.cmd_edit, key, idx, &mut self.set.commands, &mut self.command_list,
+                &mut self.cmd_edit,
+                key,
+                idx,
+                &mut self.set.commands,
+                &mut self.command_list,
             );
         }
 
@@ -410,36 +452,48 @@ impl DetailScreenState {
                     DetailFocus::Commands => DetailFocus::Variables,
                 };
             }
-            KeyCode::Up => {
-                match self.focus {
-                    DetailFocus::Variables => { self.variable_list.select_previous(); }
-                    DetailFocus::Commands => { self.command_list.select_previous(); }
-                    _ => {}
+            KeyCode::Up => match self.focus {
+                DetailFocus::Variables => {
+                    self.variable_list.select_previous();
                 }
-            }
-            KeyCode::Down => {
-                match self.focus {
-                    DetailFocus::Variables => { self.variable_list.select_next(self.set.variables.len()); }
-                    DetailFocus::Commands => { self.command_list.select_next(self.set.commands.len()); }
-                    _ => {}
+                DetailFocus::Commands => {
+                    self.command_list.select_previous();
                 }
-            }
-            KeyCode::Left => {
-                match self.focus {
-                    DetailFocus::Group => { self.cycle_group(-1); }
-                    DetailFocus::Shell => { self.cycle_shell(-1); }
-                    DetailFocus::ExecMode => { self.cycle_exec_mode(-1); }
-                    _ => {}
+                _ => {}
+            },
+            KeyCode::Down => match self.focus {
+                DetailFocus::Variables => {
+                    self.variable_list.select_next(self.set.variables.len());
                 }
-            }
-            KeyCode::Right => {
-                match self.focus {
-                    DetailFocus::Group => { self.cycle_group(1); }
-                    DetailFocus::Shell => { self.cycle_shell(1); }
-                    DetailFocus::ExecMode => { self.cycle_exec_mode(1); }
-                    _ => {}
+                DetailFocus::Commands => {
+                    self.command_list.select_next(self.set.commands.len());
                 }
-            }
+                _ => {}
+            },
+            KeyCode::Left => match self.focus {
+                DetailFocus::Group => {
+                    self.cycle_group(-1);
+                }
+                DetailFocus::Shell => {
+                    self.cycle_shell(-1);
+                }
+                DetailFocus::ExecMode => {
+                    self.cycle_exec_mode(-1);
+                }
+                _ => {}
+            },
+            KeyCode::Right => match self.focus {
+                DetailFocus::Group => {
+                    self.cycle_group(1);
+                }
+                DetailFocus::Shell => {
+                    self.cycle_shell(1);
+                }
+                DetailFocus::ExecMode => {
+                    self.cycle_exec_mode(1);
+                }
+                _ => {}
+            },
             KeyCode::Enter => {
                 match self.focus {
                     DetailFocus::Name => {
@@ -454,54 +508,66 @@ impl DetailScreenState {
                         }
                     }
                     DetailFocus::Variables if !self.set.variables.is_empty() => {
-                        let idx = self.variable_list.selected.min(self.set.variables.len().saturating_sub(1));
+                        let idx = self
+                            .variable_list
+                            .selected
+                            .min(self.set.variables.len().saturating_sub(1));
                         let v = &self.set.variables[idx];
-                        self.var_edit.edit_input = TextInput::new(format!("{}={}", v.name, v.default_value));
+                        self.var_edit.edit_input =
+                            TextInput::new(format!("{}={}", v.name, v.default_value));
                         self.var_edit.editing = Some(idx);
                     }
                     DetailFocus::Commands if !self.set.commands.is_empty() => {
-                        let idx = self.command_list.selected.min(self.set.commands.len().saturating_sub(1));
-                        self.cmd_edit.edit_input = TextInput::new(self.set.commands[idx].command.clone());
+                        let idx = self
+                            .command_list
+                            .selected
+                            .min(self.set.commands.len().saturating_sub(1));
+                        self.cmd_edit.edit_input =
+                            TextInput::new(self.set.commands[idx].command.clone());
                         self.cmd_edit.editing = Some(idx);
                     }
                     _ => {}
                 }
             }
-            KeyCode::Char('a' | 'A') => {
-                match self.focus {
-                    DetailFocus::Variables => {
-                        self.var_edit.edit_input = TextInput::new(String::new());
-                        let pos = (self.variable_list.selected + 1)
-                            .min(self.set.variables.len());
-                        self.var_edit.insert_at = Some(pos);
-                        self.var_edit.editing = Some(self.set.variables.len());
-                        self.variable_list.selected = pos;
-                    }
-                    DetailFocus::Commands => {
-                        self.cmd_edit.edit_input = TextInput::new(String::new());
-                        let pos = (self.command_list.selected + 1)
-                            .min(self.set.commands.len());
-                        self.cmd_edit.insert_at = Some(pos);
-                        self.cmd_edit.editing = Some(self.set.commands.len());
-                        self.command_list.selected = pos;
-                    }
-                    _ => {}
+            KeyCode::Char('a' | 'A') => match self.focus {
+                DetailFocus::Variables => {
+                    self.var_edit.edit_input = TextInput::new(String::new());
+                    let pos = (self.variable_list.selected + 1).min(self.set.variables.len());
+                    self.var_edit.insert_at = Some(pos);
+                    self.var_edit.editing = Some(self.set.variables.len());
+                    self.variable_list.selected = pos;
                 }
-            }
-            KeyCode::Char('d' | 'D') => {
-                match self.focus {
-                    DetailFocus::Variables if !self.set.variables.is_empty() => {
-                        let idx = self.variable_list.selected.min(self.set.variables.len().saturating_sub(1));
-                        return DetailScreenAction::DeleteVariable(idx);
-                    }
-                    DetailFocus::Commands if !self.set.commands.is_empty() => {
-                        let idx = self.command_list.selected.min(self.set.commands.len().saturating_sub(1));
-                        return DetailScreenAction::DeleteCommand(idx);
-                    }
-                    _ => {}
+                DetailFocus::Commands => {
+                    self.cmd_edit.edit_input = TextInput::new(String::new());
+                    let pos = (self.command_list.selected + 1).min(self.set.commands.len());
+                    self.cmd_edit.insert_at = Some(pos);
+                    self.cmd_edit.editing = Some(self.set.commands.len());
+                    self.command_list.selected = pos;
                 }
-            }
-            KeyCode::Char('s') if key.modifiers.contains(crossterm::event::KeyModifiers::CONTROL) => {
+                _ => {}
+            },
+            KeyCode::Char('d' | 'D') => match self.focus {
+                DetailFocus::Variables if !self.set.variables.is_empty() => {
+                    let idx = self
+                        .variable_list
+                        .selected
+                        .min(self.set.variables.len().saturating_sub(1));
+                    return DetailScreenAction::DeleteVariable(idx);
+                }
+                DetailFocus::Commands if !self.set.commands.is_empty() => {
+                    let idx = self
+                        .command_list
+                        .selected
+                        .min(self.set.commands.len().saturating_sub(1));
+                    return DetailScreenAction::DeleteCommand(idx);
+                }
+                _ => {}
+            },
+            KeyCode::Char('s')
+                if key
+                    .modifiers
+                    .contains(crossterm::event::KeyModifiers::CONTROL) =>
+            {
                 return DetailScreenAction::Save(self.set.clone());
             }
             KeyCode::Esc => {
@@ -529,7 +595,6 @@ impl DetailScreenState {
         }
     }
 
-
     fn cycle_group(&mut self, delta: isize) {
         let current = self
             .groups
@@ -554,7 +619,9 @@ impl DetailScreenState {
         let variants = ShellType::builtin_variants();
         let current = match &self.set.shell {
             ShellType::Custom(_) => 5usize,
-            other => variants.iter().position(|s| std::mem::discriminant(s) == std::mem::discriminant(other))
+            other => variants
+                .iter()
+                .position(|s| std::mem::discriminant(s) == std::mem::discriminant(other))
                 .unwrap_or(0),
         };
         let next = ((current as isize + delta).rem_euclid(6)) as usize;

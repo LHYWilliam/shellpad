@@ -1,6 +1,6 @@
 use crate::models::{Command, Variable};
-use crate::ui::components::{handle_text_input, InlineEdit, ScrollableList};
 use crate::ui::detail_screen::DetailScreenAction;
+use crate::ui::widget::{InlineEdit, ScrollableList};
 use crossterm::event::{KeyCode, KeyEvent};
 
 pub fn handle_variable_edit(
@@ -16,7 +16,15 @@ pub fn handle_variable_edit(
             if let Some(eq_pos) = input.find('=') {
                 let name = input[..eq_pos].trim().to_string();
                 let value = input[eq_pos + 1..].trim().to_string();
-                edit.commit(idx, variables, Variable { name, default_value: value }, list);
+                edit.commit(
+                    idx,
+                    variables,
+                    Variable {
+                        name,
+                        default_value: value,
+                    },
+                    list,
+                );
             } else if !input.is_empty() {
                 edit.commit(
                     idx,
@@ -56,7 +64,15 @@ pub fn handle_command_edit(
     match key.code {
         KeyCode::Enter => {
             let cmd = edit.edit_input.content.clone();
-            edit.commit(idx, commands, Command { position: idx, command: cmd }, list);
+            edit.commit(
+                idx,
+                commands,
+                Command {
+                    position: idx,
+                    command: cmd,
+                },
+                list,
+            );
             for (i, c) in commands.iter_mut().enumerate() {
                 c.position = i;
             }

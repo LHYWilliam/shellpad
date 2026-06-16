@@ -66,19 +66,19 @@ impl Theme {
     /// Truecolor dark theme (Catppuccin Mocha-inspired palette).
     pub const fn default_dark() -> Self {
         Self {
-            background: Color::Rgb(30, 30, 46),      // mantle
-            surface: Color::Rgb(24, 24, 37),          // base
-            surface_border: Color::Rgb(69, 71, 90),   // surface0
-            text_primary: Color::Rgb(205, 214, 244),  // text
-            text_secondary: Color::Rgb(147, 153, 178),// subtext1
-            text_disabled: Color::Rgb(108, 112, 134), // overlay1
-            text_on_selected: Color::Rgb(17, 17, 27), // crust
-            accent_primary: Color::Rgb(137, 180, 250),// blue
-            accent_success: Color::Rgb(166, 227, 161),// green
-            accent_error: Color::Rgb(243, 139, 168),  // red
-            accent_warning: Color::Rgb(249, 226, 175),// yellow
-            accent_info: Color::Rgb(137, 220, 235),   // sky
-            selection_bg_primary: Color::Rgb(137, 180, 250), // blue
+            background: Color::Rgb(30, 30, 46),                // mantle
+            surface: Color::Rgb(24, 24, 37),                   // base
+            surface_border: Color::Rgb(69, 71, 90),            // surface0
+            text_primary: Color::Rgb(205, 214, 244),           // text
+            text_secondary: Color::Rgb(147, 153, 178),         // subtext1
+            text_disabled: Color::Rgb(108, 112, 134),          // overlay1
+            text_on_selected: Color::Rgb(17, 17, 27),          // crust
+            accent_primary: Color::Rgb(137, 180, 250),         // blue
+            accent_success: Color::Rgb(166, 227, 161),         // green
+            accent_error: Color::Rgb(243, 139, 168),           // red
+            accent_warning: Color::Rgb(249, 226, 175),         // yellow
+            accent_info: Color::Rgb(137, 220, 235),            // sky
+            selection_bg_primary: Color::Rgb(137, 180, 250),   // blue
             selection_bg_secondary: Color::Rgb(166, 227, 161), // green
         }
     }
@@ -103,16 +103,24 @@ impl Theme {
 
     /// Style for disabled/empty-state text.
     pub fn disabled_style(&self) -> Style {
-        Style::default().fg(self.text_disabled).add_modifier(Modifier::ITALIC)
+        Style::default()
+            .fg(self.text_disabled)
+            .add_modifier(Modifier::ITALIC)
     }
 
     /// Style for status bar / dim hints.
     pub fn dim_style(&self) -> Style {
-        Style::default().fg(self.text_secondary).add_modifier(Modifier::DIM)
+        Style::default()
+            .fg(self.text_secondary)
+            .add_modifier(Modifier::DIM)
     }
 
     /// Style for a block border that optionally highlights on focus.
     pub fn border_style(&self, focused: bool) -> Style {
-        Style::default().fg(if focused { self.accent_primary } else { self.surface_border })
+        Style::default().fg(if focused {
+            self.accent_primary
+        } else {
+            self.surface_border
+        })
     }
 }

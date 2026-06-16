@@ -1,12 +1,14 @@
 use crate::models::CommandSet;
-use crate::ui::components::{bordered_block_info, centered_rect, fill_row, handle_text_input, set_cursor_after_prefix, TextInput};
+use crate::ui::render::{bordered_block_info, centered_rect, fill_row, set_cursor_after_prefix};
 use crate::ui::theme::Theme;
+use crate::ui::widget::TextInput;
+use crate::ui::widget::text_input::handle_text_input;
 use crossterm::event::{KeyCode, KeyEvent};
+use ratatui::Frame;
 use ratatui::layout::Rect;
 use ratatui::style::Style;
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Clear, Paragraph};
-use ratatui::Frame;
 
 pub enum VariableScreenAction {
     Execute { gi: usize, si: usize },
@@ -92,8 +94,8 @@ impl VariableScreenState {
 
         frame.render_widget(Clear, dialog);
 
-        let block = bordered_block_info(theme, " Set Variables ")
-            .style(Style::default().bg(theme.surface));
+        let block =
+            bordered_block_info(theme, " Set Variables ").style(Style::default().bg(theme.surface));
         frame.render_widget(&block, dialog);
 
         let inner = block.inner(dialog);
@@ -107,11 +109,12 @@ impl VariableScreenState {
             };
             let row = Rect::new(inner.x, inner.y + i as u16, inner.width, 1);
             let display = format!(" {} = {}", self.names[i], self.inputs[i].content);
-            let var_line = fill_row(Line::from(Span::styled(display, row_style)), row_style, row.width);
-            frame.render_widget(
-                Paragraph::new(var_line),
-                row,
+            let var_line = fill_row(
+                Line::from(Span::styled(display, row_style)),
+                row_style,
+                row.width,
             );
+            frame.render_widget(Paragraph::new(var_line), row);
             if focused {
                 let prefix_w = unicode_width::UnicodeWidthStr::width(" ") // leading space
                     + unicode_width::UnicodeWidthStr::width(self.names[i].as_str())

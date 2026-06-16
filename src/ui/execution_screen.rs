@@ -1,11 +1,13 @@
 use crate::executor::ExecutionEvent;
-use crate::ui::components::{bordered_block, list_scrollbar_areas, render_scrollbar, render_status_bar};
+use crate::ui::render::{
+    bordered_block, list_scrollbar_areas, render_scrollbar, render_status_bar,
+};
 use crate::ui::theme::Theme;
+use ratatui::Frame;
 use ratatui::layout::{Constraint, Layout, Rect};
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Gauge, List, ListItem, Paragraph};
-use ratatui::Frame;
 use std::sync::mpsc;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -174,7 +176,11 @@ impl ExecutionScreenState {
     }
 
     pub fn render(&self, frame: &mut Frame, area: Rect, theme: &Theme) {
-        let vertical = Layout::vertical([Constraint::Length(1), Constraint::Length(1), Constraint::Min(1)]);
+        let vertical = Layout::vertical([
+            Constraint::Length(1),
+            Constraint::Length(1),
+            Constraint::Min(1),
+        ]);
         let [header_area, gauge_area, body_area] = vertical.areas(area);
 
         // Header
@@ -208,13 +214,14 @@ impl ExecutionScreenState {
         } else {
             0.0
         };
-        let gauge_label = format!("  {}/{}  {:.0}%  ", completed_count, self.total, progress * 100.0);
+        let gauge_label = format!(
+            "  {}/{}  {:.0}%  ",
+            completed_count,
+            self.total,
+            progress * 100.0
+        );
         let gauge = Gauge::default()
-            .gauge_style(
-                Style::default()
-                    .fg(theme.accent_success)
-                    .bg(theme.surface),
-            )
+            .gauge_style(Style::default().fg(theme.accent_success).bg(theme.surface))
             .percent((progress * 100.0) as u16)
             .label(gauge_label);
         frame.render_widget(gauge, gauge_area);
@@ -257,7 +264,11 @@ impl ExecutionScreenState {
                 let is_stderr = line.starts_with("[stderr]");
                 items.push(ListItem::new(Line::from(Span::styled(
                     format!("   {}", line),
-                    Style::default().fg(if is_stderr { theme.accent_error } else { theme.text_primary }),
+                    Style::default().fg(if is_stderr {
+                        theme.accent_error
+                    } else {
+                        theme.text_primary
+                    }),
                 ))));
             }
 
@@ -267,7 +278,9 @@ impl ExecutionScreenState {
                 let separator = "╌".repeat(sep_width);
                 items.push(ListItem::new(Line::from(Span::styled(
                     separator,
-                    Style::default().fg(theme.text_disabled).add_modifier(Modifier::DIM),
+                    Style::default()
+                        .fg(theme.text_disabled)
+                        .add_modifier(Modifier::DIM),
                 ))));
             }
         }
@@ -317,12 +330,17 @@ impl ExecutionScreenState {
         let (content_area, scrollbar_area) = list_scrollbar_areas(list_inner);
 
         // Use ListState with offset for auto-scroll
-        let mut list_state = ratatui::widgets::ListState::default()
-            .with_offset(self.scroll_offset);
+        let mut list_state = ratatui::widgets::ListState::default().with_offset(self.scroll_offset);
         frame.render_stateful_widget(List::new(items), content_area, &mut list_state);
 
         // Scrollbar tracks current command position
-        render_scrollbar(frame, scrollbar_area, theme, self.cmd_states.len(), self.current_index);
+        render_scrollbar(
+            frame,
+            scrollbar_area,
+            theme,
+            self.cmd_states.len(),
+            self.current_index,
+        );
 
         render_status_bar(frame, footer_area, theme, footer_text);
     }
@@ -341,7 +359,9 @@ impl ExecutionScreenState {
                 ExecutionScreenAction::Interrupt
             }
             KeyCode::Char('s') if !self.completed => ExecutionScreenAction::Skip,
-            KeyCode::Char('n') if self.completed && self.continue_from.is_some() => ExecutionScreenAction::Continue,
+            KeyCode::Char('n') if self.completed && self.continue_from.is_some() => {
+                ExecutionScreenAction::Continue
+            }
             KeyCode::Char('r') if self.completed => ExecutionScreenAction::Reexecute,
             KeyCode::Char('z') => {
                 self.auto_scroll = !self.auto_scroll;

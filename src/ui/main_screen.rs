@@ -1,15 +1,16 @@
-use crate::ui::theme::Theme;
 use crate::models::AppData;
-use crate::ui::components::{
-    bordered_block, empty_hint, fill_row, handle_text_input, list_scrollbar_areas,
-    render_inline_cursor, render_scrollbar, render_status_bar, set_cursor_after_prefix,
-    ScrollableList, TextInput,
+use crate::ui::render::{
+    bordered_block, empty_hint, fill_row, list_scrollbar_areas, render_inline_cursor,
+    render_scrollbar, render_status_bar, set_cursor_after_prefix,
 };
+use crate::ui::theme::Theme;
+use crate::ui::widget::text_input::handle_text_input;
+use crate::ui::widget::{ScrollableList, TextInput};
+use ratatui::Frame;
 use ratatui::layout::{Constraint, Layout, Rect};
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{List, ListItem, Paragraph};
-use ratatui::Frame;
 
 /// Find case-insensitive matches of `query` in `text`, returning byte-offset pairs
 /// into `text` that are guaranteed valid for slicing.
@@ -21,9 +22,10 @@ fn find_matches_case_insensitive<'a>(text: &'a str, query: &str) -> Vec<(usize, 
 
     let text_chars: Vec<(usize, char)> = text.char_indices().collect();
     let query_lower: Vec<char> = query.chars().flat_map(|c| c.to_lowercase()).collect();
-    let text_lower: Vec<char> = text.chars().map(|c| {
-        c.to_lowercase().next().unwrap_or(c)
-    }).collect();
+    let text_lower: Vec<char> = text
+        .chars()
+        .map(|c| c.to_lowercase().next().unwrap_or(c))
+        .collect();
 
     let text_len = text_chars.len();
     let q_len = query_lower.len();
@@ -48,10 +50,10 @@ fn find_matches_case_insensitive<'a>(text: &'a str, query: &str) -> Vec<(usize, 
 
 pub enum MainScreenAction {
     None,
-    ExecuteSet(usize, usize),     // (group_index, set_index)
-    EditSet(usize, usize),        // (group_index, set_index)
-    NewSet(usize),                // group_index
-    DeleteSet(usize, usize),      // (group_index, set_index)
+    ExecuteSet(usize, usize), // (group_index, set_index)
+    EditSet(usize, usize),    // (group_index, set_index)
+    NewSet(usize),            // group_index
+    DeleteSet(usize, usize),  // (group_index, set_index)
     NewGroup,
     RenameGroup(usize, String),
     DeleteGroup(usize),
@@ -108,7 +110,10 @@ impl MainScreenState {
     }
 
     /// Get all sets visible in current view (accounting for search).
-    pub fn visible_sets<'a>(&'a self, data: &'a AppData) -> Vec<(usize, usize, &'a crate::models::CommandSet)> {
+    pub fn visible_sets<'a>(
+        &'a self,
+        data: &'a AppData,
+    ) -> Vec<(usize, usize, &'a crate::models::CommandSet)> {
         if self.search_mode {
             data.filter_sets(&self.search_input.content)
         } else if let Some(gi) = self.selected_group_idx(data) {
@@ -162,7 +167,11 @@ impl MainScreenState {
             .iter()
             .enumerate()
             .map(|(i, g)| {
-                let marker = if i == self.group_list.selected { "▶ " } else { "  " };
+                let marker = if i == self.group_list.selected {
+                    "▶ "
+                } else {
+                    "  "
+                };
                 let display_name = if self.rename_mode && i == self.group_list.selected {
                     &self.rename_input.content
                 } else {
@@ -178,7 +187,11 @@ impl MainScreenState {
                 } else {
                     theme.normal_style()
                 };
-                let line = fill_row(Line::from(Span::styled(label, style)), style, list_area.width);
+                let line = fill_row(
+                    Line::from(Span::styled(label, style)),
+                    style,
+                    list_area.width,
+                );
                 ListItem::new(line)
             })
             .collect();
@@ -189,17 +202,27 @@ impl MainScreenState {
 
         let mut list_state = ratatui::widgets::ListState::default()
             .with_selected(self.group_list.selected_or_none(data.groups.len()));
-        let list = List::new(items).highlight_style(theme.selected_style(theme.selection_bg_primary));
+        let list =
+            List::new(items).highlight_style(theme.selected_style(theme.selection_bg_primary));
         frame.render_stateful_widget(list, list_area, &mut list_state);
 
         // Render scrollbar
-        render_scrollbar(frame, scrollbar_area, theme, data.groups.len(), self.group_list.selected);
+        render_scrollbar(
+            frame,
+            scrollbar_area,
+            theme,
+            data.groups.len(),
+            self.group_list.selected,
+        );
 
         // Cursor for rename mode at the selected group name position
         if self.rename_mode && !data.groups.is_empty() {
             render_inline_cursor(
-                frame, list_area, self.group_list.offset,
-                self.group_list.selected, &self.rename_input,
+                frame,
+                list_area,
+                self.group_list.offset,
+                self.group_list.selected,
+                &self.rename_input,
                 unicode_width::UnicodeWidthStr::width("▶ ") as u16,
             );
         }
@@ -271,8 +294,7 @@ impl MainScreenState {
                     crate::models::ExecMode::ContinueOnError => "⏩",
                 };
                 let cmd_count = set.commands.len();
-                let is_selected = i == self.set_list.selected
-                    && self.active_panel == Panel::Sets;
+                let is_selected = i == self.set_list.selected && self.active_panel == Panel::Sets;
                 let text_style = if is_selected {
                     theme.selected_style(theme.selection_bg_secondary)
                 } else {
@@ -283,34 +305,38 @@ impl MainScreenState {
                 let suffix = format!("  [{}] ({} cmd)", shell_label, cmd_count);
 
                 // Build name part with optional search highlighting
-                let name_part: Vec<Span> = if self.search_mode && !self.search_input.content.is_empty() && !is_selected {
-                    let matches = find_matches_case_insensitive(&set.name, &self.search_input.content);
-                    if matches.is_empty() {
-                        vec![Span::styled(set.name.clone(), text_style)]
-                    } else {
-                        let mut spans: Vec<Span> = Vec::new();
-                        let mut last_end = 0usize;
-                        for (match_start, match_end) in &matches {
-                            if *match_start > last_end {
+                let name_part: Vec<Span> =
+                    if self.search_mode && !self.search_input.content.is_empty() && !is_selected {
+                        let matches =
+                            find_matches_case_insensitive(&set.name, &self.search_input.content);
+                        if matches.is_empty() {
+                            vec![Span::styled(set.name.clone(), text_style)]
+                        } else {
+                            let mut spans: Vec<Span> = Vec::new();
+                            let mut last_end = 0usize;
+                            for (match_start, match_end) in &matches {
+                                if *match_start > last_end {
+                                    spans.push(Span::styled(
+                                        &set.name[last_end..*match_start],
+                                        text_style,
+                                    ));
+                                }
                                 spans.push(Span::styled(
-                                    &set.name[last_end..*match_start],
-                                    text_style,
+                                    &set.name[*match_start..*match_end],
+                                    Style::default()
+                                        .fg(theme.accent_primary)
+                                        .add_modifier(Modifier::BOLD),
                                 ));
+                                last_end = *match_end;
                             }
-                            spans.push(Span::styled(
-                                &set.name[*match_start..*match_end],
-                                Style::default().fg(theme.accent_primary).add_modifier(Modifier::BOLD),
-                            ));
-                            last_end = *match_end;
+                            if last_end < set.name.len() {
+                                spans.push(Span::styled(&set.name[last_end..], text_style));
+                            }
+                            spans
                         }
-                        if last_end < set.name.len() {
-                            spans.push(Span::styled(&set.name[last_end..], text_style));
-                        }
-                        spans
-                    }
-                } else {
-                    vec![Span::styled(set.name.clone(), text_style)]
-                };
+                    } else {
+                        vec![Span::styled(set.name.clone(), text_style)]
+                    };
 
                 let mut parts = vec![Span::styled(prefix, text_style)];
                 parts.extend(name_part);
@@ -319,9 +345,10 @@ impl MainScreenState {
                 // Right-aligned group name in search mode
                 if self.search_mode {
                     let gname = data.groups.get(gi).map(|g| g.name.as_str()).unwrap_or("?");
-                    let text_width: usize = parts.iter().map(|s| {
-                        unicode_width::UnicodeWidthStr::width(s.content.as_ref())
-                    }).sum();
+                    let text_width: usize = parts
+                        .iter()
+                        .map(|s| unicode_width::UnicodeWidthStr::width(s.content.as_ref()))
+                        .sum();
                     let pad = list_area.width as usize;
                     let padding = pad.saturating_sub(text_width + gname.len() + 1);
                     if padding > 0 {
@@ -345,18 +372,26 @@ impl MainScreenState {
         } else {
             None
         };
-        let mut list_state = ratatui::widgets::ListState::default()
-            .with_selected(selected);
-        let list = List::new(items).highlight_style(theme.selected_style(theme.selection_bg_secondary));
+        let mut list_state = ratatui::widgets::ListState::default().with_selected(selected);
+        let list =
+            List::new(items).highlight_style(theme.selected_style(theme.selection_bg_secondary));
         frame.render_stateful_widget(list, list_area, &mut list_state);
 
         // Render scrollbar
-        render_scrollbar(frame, scrollbar_area, theme, sets.len(), selected.unwrap_or(0));
+        render_scrollbar(
+            frame,
+            scrollbar_area,
+            theme,
+            sets.len(),
+            selected.unwrap_or(0),
+        );
     }
 
     fn render_status_bar(&self, frame: &mut Frame, area: Rect, theme: &Theme) {
         render_status_bar(
-            frame, area, theme,
+            frame,
+            area,
+            theme,
             " [↑/↓] Nav  [←/→] Panel  [Enter] Run  [e] Edit  [n] New  [d] Del set  [Shift+D] Del group  [g] Group  [/] Search  [?] Help  [q] Quit",
         );
     }
@@ -466,7 +501,8 @@ impl MainScreenState {
             KeyCode::Right => {
                 match self.active_panel {
                     Panel::Groups => {
-                        let has_sets = self.selected_group_idx(data)
+                        let has_sets = self
+                            .selected_group_idx(data)
                             .map(|gi| !data.groups[gi].sets.is_empty())
                             .unwrap_or(false);
                         if has_sets {
@@ -479,16 +515,18 @@ impl MainScreenState {
             }
             KeyCode::Enter => {
                 if self.active_panel == Panel::Sets
-                    && let Some((gi, si)) = self.selected_set_idx(data) {
-                        return MainScreenAction::ExecuteSet(gi, si);
-                    }
+                    && let Some((gi, si)) = self.selected_set_idx(data)
+                {
+                    return MainScreenAction::ExecuteSet(gi, si);
+                }
                 MainScreenAction::None
             }
             KeyCode::Char('e') | KeyCode::Char('E') => {
                 if self.active_panel == Panel::Sets
-                    && let Some((gi, si)) = self.selected_set_idx(data) {
-                        return MainScreenAction::EditSet(gi, si);
-                    }
+                    && let Some((gi, si)) = self.selected_set_idx(data)
+                {
+                    return MainScreenAction::EditSet(gi, si);
+                }
                 MainScreenAction::None
             }
             KeyCode::Char('n') | KeyCode::Char('N') => {
@@ -500,24 +538,25 @@ impl MainScreenState {
             }
             KeyCode::Char('d') => {
                 if self.active_panel == Panel::Sets
-                    && let Some((gi, si)) = self.selected_set_idx(data) {
-                        return MainScreenAction::DeleteSet(gi, si);
-                    }
+                    && let Some((gi, si)) = self.selected_set_idx(data)
+                {
+                    return MainScreenAction::DeleteSet(gi, si);
+                }
                 MainScreenAction::None
             }
             KeyCode::Char('D') => {
                 if self.active_panel == Panel::Groups
-                    && let Some(gi) = self.selected_group_idx(data) {
-                        return MainScreenAction::DeleteGroup(gi);
-                    }
+                    && let Some(gi) = self.selected_group_idx(data)
+                {
+                    return MainScreenAction::DeleteGroup(gi);
+                }
                 MainScreenAction::None
             }
-            KeyCode::Char('g') => {
-                MainScreenAction::NewGroup
-            }
+            KeyCode::Char('g') => MainScreenAction::NewGroup,
             KeyCode::Char('R') => {
                 if self.active_panel == Panel::Groups
-                    && let Some(gi) = self.selected_group_idx(data) {
+                    && let Some(gi) = self.selected_group_idx(data)
+                {
                     let current = data.groups[gi].name.clone();
                     self.rename_mode = true;
                     self.rename_input = TextInput::new(current);
@@ -531,11 +570,12 @@ impl MainScreenState {
                 self.active_panel = Panel::Sets;
                 MainScreenAction::None
             }
-            KeyCode::Char('?') => {
-                MainScreenAction::Help
-            }
+            KeyCode::Char('?') => MainScreenAction::Help,
             KeyCode::Char('h') | KeyCode::Char('H') => {
-                if key.modifiers.contains(crossterm::event::KeyModifiers::CONTROL) {
+                if key
+                    .modifiers
+                    .contains(crossterm::event::KeyModifiers::CONTROL)
+                {
                     return MainScreenAction::Help;
                 }
                 MainScreenAction::None
