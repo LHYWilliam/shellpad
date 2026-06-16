@@ -159,18 +159,22 @@ impl DetailScreenState {
 
         let half_layout = Layout::horizontal([Constraint::Ratio(1, 2), Constraint::Ratio(1, 2)]);
         let [group_col, shell_col] = half_layout.areas(gs_row);
+        let group_label = if self.focus == DetailFocus::Group {
+            format!(" ◄ Group: {} ►", group_name)
+        } else {
+            format!(" Group: {}", group_name)
+        };
         frame.render_widget(
-            Paragraph::new(Line::from(Span::styled(
-                format!(" Group: {}", group_name),
-                group_style,
-            ))),
+            Paragraph::new(Line::from(Span::styled(group_label, group_style))),
             group_col,
         );
+        let shell_label = if self.focus == DetailFocus::Shell {
+            format!(" ◄ Shell: {} ►", self.set.shell.label())
+        } else {
+            format!(" Shell: {}", self.set.shell.label())
+        };
         frame.render_widget(
-            Paragraph::new(Line::from(Span::styled(
-                format!(" Shell: {}", self.set.shell.label()),
-                shell_style,
-            ))),
+            Paragraph::new(Line::from(Span::styled(shell_label, shell_style))),
             shell_col,
         );
 
@@ -180,9 +184,13 @@ impl DetailScreenState {
         } else {
             theme.normal_style()
         };
-        let mode_text = format!(" Mode: {}", self.set.exec_mode.label());
+        let mode_label = if self.focus == DetailFocus::ExecMode {
+            format!(" ◄ Mode: {} ►", self.set.exec_mode.label())
+        } else {
+            format!(" Mode: {}", self.set.exec_mode.label())
+        };
         frame.render_widget(
-            Paragraph::new(Line::from(Span::styled(mode_text, mode_style))),
+            Paragraph::new(Line::from(Span::styled(mode_label, mode_style))),
             mode_row,
         );
 
