@@ -1,3 +1,6 @@
+/// Scrollable list selection state — tracks the selected index and visible
+/// offset. Call [`update_offset`](ScrollableList::update_offset) each render
+/// frame to keep the selection in view.
 pub struct ScrollableList {
     pub selected: usize,
     pub offset: usize,
