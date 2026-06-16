@@ -1,12 +1,12 @@
 use crate::config::{data_file_path, temp_file_path};
+use crate::error::StorageError;
 use crate::models::AppData;
 use std::fs;
 use std::io::{self, Write};
 use std::path::Path;
 
 /// Load application data from the default config file.
-/// Returns Ok(data) on success, or an error explaining what went wrong.
-pub fn load_app_data() -> Result<AppData, String> {
+pub fn load_app_data() -> Result<AppData, StorageError> {
     let path = data_file_path();
     load_app_data_from(&path)
 }
@@ -20,44 +20,36 @@ pub fn save_app_data(data: &AppData) -> io::Result<()> {
 
 // ---- Internal path-accepting functions (used by tests too) ----
 
-fn load_app_data_from(path: &Path) -> Result<AppData, String> {
+fn load_app_data_from(path: &Path) -> Result<AppData, StorageError> {
     if !path.exists() {
-        if let Some(parent) = path.parent()
-            && let Err(e) = fs::create_dir_all(parent)
-        {
-            return Err(format!(
-                "Failed to create config directory `{}`: {}",
-                parent.display(),
-                e
-            ));
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent)
+                .map_err(|e| StorageError::CreateDir(format!("{}: {}", parent.display(), e)))?;
         }
         return Ok(AppData::empty());
     }
 
-    match fs::read_to_string(path) {
-        Ok(content) => match serde_json::from_str(&content) {
-            Ok(data) => Ok(data),
-            Err(e) => {
-                let bak = path.with_extension("json.bak");
-                let msg = format!(
-                    "Corrupted data file at `{}`, backing up to `.bak`: {}",
-                    path.display(),
-                    e
-                );
-                eprintln!("{}", msg);
-                let _ = fs::rename(path, &bak);
-                if let Some(parent) = path.parent()
-                    && let Ok(dir) = fs::File::open(parent)
-                {
-                    let _ = dir.sync_all();
-                }
-                Err(msg)
-            }
-        },
+    let content = fs::read_to_string(path)
+        .map_err(|e| StorageError::ReadFailed(format!("{}: {}", path.display(), e)))?;
+
+    match serde_json::from_str(&content) {
+        Ok(data) => Ok(data),
         Err(e) => {
-            let msg = format!("Failed to read `{}`: {}", path.display(), e);
-            eprintln!("{}", msg);
-            Err(msg)
+            let bak = path.with_extension("json.bak");
+            let path_str = path.display().to_string();
+            let bak_str = bak.display().to_string();
+            eprintln!("Corrupted data, backing up to .bak");
+            let _ = fs::rename(path, &bak);
+            if let Some(parent) = path.parent()
+                && let Ok(dir) = fs::File::open(parent)
+            {
+                let _ = dir.sync_all();
+            }
+            Err(StorageError::Corrupted {
+                path: path_str,
+                backup: bak_str,
+                detail: e.to_string(),
+            })
         }
     }
 }

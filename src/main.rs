@@ -2,6 +2,7 @@ mod action;
 mod app;
 mod cli;
 mod config;
+mod error;
 mod executor;
 mod mode;
 mod models;

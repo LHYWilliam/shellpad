@@ -122,11 +122,10 @@ mod tests {
     fn test_process_starting() {
         let mut state = make_state(&["echo hello"]);
         let (tx, rx) = mpsc::channel();
-        tx.send(ExecutionEvent::Starting {
+        let _ = tx.send(ExecutionEvent::Starting {
             index: 0,
             command: "echo hello".to_string(),
-        })
-        .unwrap();
+        });
         state.process_events(&rx);
         assert_eq!(state.cmd_states[0].status, CmdStatus::Running);
     }
@@ -135,11 +134,10 @@ mod tests {
     fn test_process_stdout_line() {
         let mut state = make_state(&["echo hi"]);
         let (tx, rx) = mpsc::channel();
-        tx.send(ExecutionEvent::StdoutLine {
+        let _ = tx.send(ExecutionEvent::StdoutLine {
             index: 0,
             line: "hi".to_string(),
-        })
-        .unwrap();
+        });
         state.process_events(&rx);
         assert_eq!(state.cmd_states[0].output_lines, vec!["hi"]);
     }
@@ -148,11 +146,10 @@ mod tests {
     fn test_process_stderr_line() {
         let mut state = make_state(&["error"]);
         let (tx, rx) = mpsc::channel();
-        tx.send(ExecutionEvent::StderrLine {
+        let _ = tx.send(ExecutionEvent::StderrLine {
             index: 0,
             line: "err".to_string(),
-        })
-        .unwrap();
+        });
         state.process_events(&rx);
         assert_eq!(state.cmd_states[0].output_lines, vec!["[stderr] err"]);
     }
@@ -161,17 +158,15 @@ mod tests {
     fn test_process_finished_success() {
         let mut state = make_state(&["ok"]);
         let (tx, rx) = mpsc::channel();
-        tx.send(ExecutionEvent::Starting {
+        let _ = tx.send(ExecutionEvent::Starting {
             index: 0,
             command: "ok".to_string(),
-        })
-        .unwrap();
-        tx.send(ExecutionEvent::Finished {
+        });
+        let _ = tx.send(ExecutionEvent::Finished {
             index: 0,
             success: true,
             duration_ms: 100,
-        })
-        .unwrap();
+        });
         state.process_events(&rx);
         assert_eq!(state.cmd_states[0].status, CmdStatus::Success);
         assert_eq!(state.succeeded, 1);
@@ -181,17 +176,15 @@ mod tests {
     fn test_process_finished_failure() {
         let mut state = make_state(&["fail"]);
         let (tx, rx) = mpsc::channel();
-        tx.send(ExecutionEvent::Starting {
+        let _ = tx.send(ExecutionEvent::Starting {
             index: 0,
             command: "fail".to_string(),
-        })
-        .unwrap();
-        tx.send(ExecutionEvent::Finished {
+        });
+        let _ = tx.send(ExecutionEvent::Finished {
             index: 0,
             success: false,
             duration_ms: 50,
-        })
-        .unwrap();
+        });
         state.process_events(&rx);
         assert_eq!(state.cmd_states[0].status, CmdStatus::Failure);
         assert_eq!(state.failed, 1);
@@ -201,13 +194,12 @@ mod tests {
     fn test_process_completed_all() {
         let mut state = make_state(&["a", "b"]);
         let (tx, rx) = mpsc::channel();
-        tx.send(ExecutionEvent::CompletedAll {
+        let _ = tx.send(ExecutionEvent::CompletedAll {
             total: 2,
             succeeded: 1,
             failed: 1,
             total_duration_ms: 500,
-        })
-        .unwrap();
+        });
         state.process_events(&rx);
         assert!(state.completed);
         assert_eq!(state.total_duration_ms, Some(500));
@@ -217,8 +209,7 @@ mod tests {
     fn test_process_interrupted() {
         let mut state = make_state(&["a"]);
         let (tx, rx) = mpsc::channel();
-        tx.send(ExecutionEvent::Interrupted { last_index: 0 })
-            .unwrap();
+        let _ = tx.send(ExecutionEvent::Interrupted { last_index: 0 });
         state.process_events(&rx);
         assert!(state.completed);
     }

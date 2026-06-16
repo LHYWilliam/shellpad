@@ -1,3 +1,4 @@
+use crate::error::CliError;
 use crate::models::AppData;
 use clap::{Parser, Subcommand};
 use std::collections::HashMap;
@@ -139,12 +140,13 @@ fn resolve_set<'a>(
     id: Option<String>,
     group: Option<String>,
     set: Option<String>,
-) -> Result<(&'a crate::models::CommandSet, usize, usize), String> {
+) -> Result<(&'a crate::models::CommandSet, usize, usize), CliError> {
     if let Some(id_str) = id {
-        let uuid = Uuid::parse_str(&id_str).map_err(|_| format!("Invalid UUID: {}", id_str))?;
+        let uuid = Uuid::parse_str(&id_str).map_err(|_| CliError::InvalidUuid(id_str.clone()))?;
+        let id_str_clone = uuid.to_string();
         let (gi, si) = data
             .find_set_by_id(uuid)
-            .ok_or_else(|| format!("No command set with UUID {}", uuid))?;
+            .ok_or(CliError::SetNotFound(id_str_clone))?;
         Ok((&data.groups[gi].sets[si], gi, si))
     } else if let (Some(gname), Some(sname)) = (group, set) {
         let gl = gname.to_lowercase();
@@ -160,33 +162,38 @@ fn resolve_set<'a>(
             }
         }
         match matches.len() {
-            0 => Err(format!(
-                "No command set found for group '{}' set '{}'",
-                gname, sname
-            )),
+            0 => Err(CliError::SetByGroupNotFound {
+                group: gname,
+                set: sname,
+            }),
             1 => {
                 let (gi, si) = matches[0];
                 Ok((&data.groups[gi].sets[si], gi, si))
             }
             n => {
-                let mut msg = format!("Ambiguous: found {} matches:\n", n);
-                for &(gi, si) in &matches {
-                    let g = &data.groups[gi];
-                    let s = &g.sets[si];
-                    msg.push_str(&format!("  {} | {} | {}\n", s.id, g.name, s.name));
-                }
-                Err(msg)
+                let detail: Vec<String> = matches
+                    .iter()
+                    .map(|&(gi, si)| {
+                        let g = &data.groups[gi];
+                        let s = &g.sets[si];
+                        format!("  {} | {} | {}", s.id, g.name, s.name)
+                    })
+                    .collect();
+                Err(CliError::Ambiguous {
+                    count: n,
+                    detail: detail.join("\n"),
+                })
             }
         }
     } else {
-        Err("Specify --id <uuid> or --group <name> --set <name>".to_string())
+        Err(CliError::MissingArgs)
     }
 }
 
 fn resolve_variables(
     set: &crate::models::CommandSet,
     overrides: &[String],
-) -> Result<HashMap<String, String>, String> {
+) -> Result<HashMap<String, String>, CliError> {
     // Parse overrides into a map
     let mut overrides_map: HashMap<String, String> = HashMap::new();
     for ov in overrides {
@@ -195,10 +202,7 @@ fn resolve_variables(
             let val = ov[eq_pos + 1..].trim().to_string();
             overrides_map.insert(key, val);
         } else {
-            return Err(format!(
-                "Invalid --var format '{}' (expected key=value)",
-                ov
-            ));
+            return Err(CliError::InvalidVar(ov.clone()));
         }
     }
 
@@ -292,6 +296,7 @@ fn truncate(s: &str, max: usize) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::error::CliError;
     use crate::models::{CommandSet, Group};
 
     #[test]
@@ -323,7 +328,10 @@ mod tests {
         let data = AppData::empty();
         let result = resolve_set(&data, None, Some("Missing".into()), Some("Missing".into()));
         assert!(result.is_err());
-        assert!(result.unwrap_err().contains("No command set found"));
+        assert!(matches!(
+            result.unwrap_err(),
+            CliError::SetByGroupNotFound { .. }
+        ));
     }
 
     #[test]
@@ -331,7 +339,7 @@ mod tests {
         let data = AppData::empty();
         let result = resolve_set(&data, None, None, None);
         assert!(result.is_err());
-        assert!(result.unwrap_err().contains("Specify"));
+        assert!(matches!(result.unwrap_err(), CliError::MissingArgs));
     }
 
     #[test]
@@ -339,7 +347,7 @@ mod tests {
         let data = AppData::empty();
         let result = resolve_set(&data, Some("not-a-uuid".into()), None, None);
         assert!(result.is_err());
-        assert!(result.unwrap_err().contains("Invalid UUID"));
+        assert!(matches!(result.unwrap_err(), CliError::InvalidUuid(_)));
     }
 
     #[test]
@@ -353,7 +361,7 @@ mod tests {
 
         let result = resolve_set(&data, None, Some("G".into()), Some("S".into()));
         assert!(result.is_err());
-        assert!(result.unwrap_err().contains("Ambiguous"));
+        assert!(matches!(result.unwrap_err(), CliError::Ambiguous { .. }));
     }
 
     #[test]

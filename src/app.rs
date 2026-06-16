@@ -38,7 +38,7 @@ pub struct App {
 impl App {
     pub fn new() -> Self {
         let data = storage::load_app_data().unwrap_or_else(|e| {
-            eprintln!("{}", e);
+            eprintln!("{e}");
             AppData::empty()
         });
         Self {
