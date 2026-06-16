@@ -131,32 +131,33 @@ impl DetailScreenState {
             );
         }
 
-        // Options section: left labels + right picker
-        let opts_area = Rect::new(
-            sep_row.x, sep_row.y,
-            sep_row.width,
-            mode_row.y + mode_row.height - sep_row.y,
-        );
-        let opts_layout = Layout::horizontal([
-            Constraint::Ratio(2, 3),
-            Constraint::Ratio(1, 3),
-        ]);
-        let [labels_area, picker_area] = opts_layout.areas(opts_area);
+        // Vertical divider — 2/3 width, from group_row to mode_row bottom
+        let bar_x = inner.x + inner.width * 2 / 3;
+        let label_width = (bar_x.saturating_sub(inner.x)).max(20);
+        let right_x = bar_x + 1;
+        let right_width = (inner.x + inner.width).saturating_sub(right_x);
+        let vdiv_h = mode_row.y + mode_row.height - group_row.y;
 
-        // Separator (labels column only)
-        let sep_left = Rect::new(labels_area.x, sep_row.y, labels_area.width, sep_row.height);
         frame.render_widget(
             Paragraph::new(Line::from(Span::styled(
-                format!(" ── Options {} ", "─".repeat(sep_left.width.saturating_sub(12) as usize)),
-                Style::default().fg(theme.text_disabled).add_modifier(Modifier::DIM),
+                "│", Style::default().fg(theme.surface_border),
             ))),
-            sep_left,
+            Rect::new(bar_x, group_row.y, 1, vdiv_h),
         );
 
-        // Each Option gets its own row (labels column)
-        let group_left = Rect::new(labels_area.x, group_row.y, labels_area.width, group_row.height);
-        let shell_left = Rect::new(labels_area.x, shell_row.y, labels_area.width, shell_row.height);
-        let mode_left = Rect::new(labels_area.x, mode_row.y, labels_area.width, mode_row.height);
+        // Separator — full width
+        frame.render_widget(
+            Paragraph::new(Line::from(Span::styled(
+                format!(" ── Options {} ", "─".repeat(sep_row.width.saturating_sub(12) as usize)),
+                Style::default().fg(theme.text_disabled).add_modifier(Modifier::DIM),
+            ))),
+            sep_row,
+        );
+
+        // Label rects — left of divider
+        let group_col = Rect::new(inner.x, group_row.y, label_width, group_row.height);
+        let shell_col = Rect::new(inner.x, shell_row.y, label_width, shell_row.height);
+        let mode_col = Rect::new(inner.x, mode_row.y, label_width, mode_row.height);
 
         let group_name = self
             .groups
@@ -176,7 +177,7 @@ impl DetailScreenState {
         };
         frame.render_widget(
             Paragraph::new(Line::from(Span::styled(group_label, group_style))),
-            group_left,
+            group_col,
         );
 
         let shell_style = if self.focus == DetailFocus::Shell {
@@ -191,7 +192,7 @@ impl DetailScreenState {
         };
         frame.render_widget(
             Paragraph::new(Line::from(Span::styled(shell_label, shell_style))),
-            shell_left,
+            shell_col,
         );
 
         // Exec mode
@@ -207,12 +208,13 @@ impl DetailScreenState {
         };
         frame.render_widget(
             Paragraph::new(Line::from(Span::styled(mode_label, mode_style))),
-            mode_left,
+            mode_col,
         );
 
-        // Picker column (only when an Option is focused)
+        // Picker — right column, only when an Option is focused
         if matches!(self.focus, DetailFocus::Group | DetailFocus::Shell | DetailFocus::ExecMode) {
-            self.render_picker(frame, picker_area, theme);
+            let picker_col = Rect::new(right_x, group_row.y, right_width, vdiv_h);
+            self.render_picker(frame, picker_col, theme);
         }
     }
 
