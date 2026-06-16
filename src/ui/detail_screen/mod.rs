@@ -16,6 +16,7 @@ pub enum DetailFocus {
     Group,
     Shell,
     ExecMode,
+    WorkDir,
     Variables,
     Commands,
 }
@@ -28,6 +29,8 @@ pub struct DetailScreenState {
     pub variable_list: ScrollableList,
     pub command_list: ScrollableList,
     pub editing_name: bool,
+    pub workdir_editing: bool,
+    pub workdir_input: TextInput,
     pub var_edit: InlineEdit,
     pub cmd_edit: InlineEdit,
 }
@@ -43,6 +46,8 @@ impl DetailScreenState {
             variable_list: ScrollableList::new(),
             command_list: ScrollableList::new(),
             editing_name: false,
+            workdir_editing: false,
+            workdir_input: TextInput::new(String::new()),
             var_edit: InlineEdit::new(),
             cmd_edit: InlineEdit::new(),
         }
