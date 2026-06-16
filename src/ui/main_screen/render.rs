@@ -257,11 +257,13 @@ impl MainScreenState {
     }
 
     pub(crate) fn render_status_bar(&self, frame: &mut Frame, area: Rect, theme: &Theme) {
-        render_status_bar(
-            frame,
-            area,
-            theme,
-            " [↑/↓] Nav  [←/→] Panel  [Enter] Run  [e] Edit  [n] New  [d] Del set  [Shift+D] Del group  [g] Group  [/] Search  [?] Help  [q] Quit",
-        );
+        let text = if self.rename_mode {
+            "[Enter] Confirm  [Esc] Cancel — renaming group"
+        } else if self.search_mode {
+            "[Enter] Confirm  [Esc] Cancel  [↑/↓] Nav — searching"
+        } else {
+            "[↑/↓] Nav  [←/→] Panel  [Enter] Run  [e] Edit  [n] New  [R] Rename  [d] Del set  [D] Del group  [g] New group  [/] Search  [q] Quit"
+        };
+        render_status_bar(frame, area, theme, text);
     }
 }
