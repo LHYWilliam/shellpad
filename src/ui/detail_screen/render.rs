@@ -292,19 +292,23 @@ impl DetailScreenState {
 
     pub(crate) fn render_status_bar(&self, frame: &mut Frame, area: Rect, theme: &Theme) {
         let is_editing = self.var_edit.is_editing() || self.cmd_edit.is_editing();
-        let status: String = if is_editing {
-            " [Enter] Confirm  [Esc] Cancel".into()
+        let text: String = if is_editing {
+            "[Enter] Confirm  [Esc] Cancel".into()
         } else {
-            match self.focus {
+            let status = match self.focus {
                 DetailFocus::Name => "[Enter] Edit name  [Tab] Next".into(),
                 DetailFocus::Group => "[←/→] Change group  [Tab] Next".into(),
                 DetailFocus::Shell => "[←/→] Change shell  [Tab] Next".into(),
                 DetailFocus::ExecMode => "[←/→] Change mode  [Tab] Next".into(),
-                DetailFocus::Variables => "[a] Add  [e] Edit  [d] Delete  [Tab] Next".into(),
-                DetailFocus::Commands => "[a] Add  [e] Edit  [d] Delete  [Tab] Next".into(),
-            }
+                DetailFocus::Variables => {
+                    "[a] Add  [e/Enter] Edit  [d] Delete  [↑/↓] Nav  [Tab] Next".into()
+                }
+                DetailFocus::Commands => {
+                    "[a] Add  [e/Enter] Edit  [d] Delete  [↑/↓] Nav  [Tab] Next".into()
+                }
+            };
+            format!(" {}  |  [Ctrl+S] Save  [Esc] Cancel", status)
         };
-        let text = format!(" {}  |  [Ctrl+S] Save  [Esc] Cancel", status);
         render_status_bar(frame, area, theme, &text);
     }
 }
