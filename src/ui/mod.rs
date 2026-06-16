@@ -6,7 +6,6 @@
 //! - [`theme`] — Color palettes and style helpers
 //! - [`toast`] — Toast notification types
 
-pub mod detail_editor;
 pub mod detail_screen;
 pub mod execution_screen;
 pub mod help_screen;

@@ -6,6 +6,7 @@ use ratatui::layout::{Constraint, Layout, Rect};
 use ratatui::style::Style;
 use ratatui::widgets::{Block, Borders};
 
+pub(crate) mod editor;
 pub(crate) mod handler;
 pub(crate) mod render;
 
