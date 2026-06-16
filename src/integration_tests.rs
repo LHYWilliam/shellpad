@@ -1,6 +1,7 @@
 #[cfg(test)]
 mod tests {
-    use crate::action::AppAction;
+    use crate::action::{AppAction, DeleteKind};
+    use crate::mode::AppMode;
     use crate::models::{AppData, CommandSet, Group, Variable};
     use crate::storage;
     use crate::ui::detail_screen::{DetailFocus, DetailScreenState};
@@ -9,7 +10,7 @@ mod tests {
 
     use crate::test_utils::make_app;
     use crate::test_utils::make_key;
-    use crossterm::event::KeyCode;
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
     // ------------------------------------------------------------------
     // 5.1 Storage full lifecycle
@@ -153,5 +154,48 @@ mod tests {
         for action in actions {
             app.handle_action(action);
         }
+    }
+
+    // ------------------------------------------------------------------
+    // 5.6 Delete confirmation flow
+    // ------------------------------------------------------------------
+    #[test]
+    fn test_delete_set_with_confirmation_flow() {
+        let mut app = make_app();
+        // Set up data with one group and one set
+        let mut group = Group::new("Test".to_string());
+        let set = CommandSet::new("target-set".to_string(), group.id);
+        group.sets.push(set);
+        app.data = AppData { groups: vec![group] };
+
+        // Step 1: Request delete via action
+        app.handle_action(AppAction::RequestDelete(DeleteKind::Set {
+            group_index: 0,
+            set_index: 0,
+            set_name: "target-set".to_string(),
+        }));
+        assert!(
+            matches!(app.mode, AppMode::ConfirmDelete { .. }),
+            "Should enter ConfirmDelete mode"
+        );
+
+        // Step 2: Press 'n' to cancel — set should remain
+        let n_key = KeyEvent::new(KeyCode::Char('n'), KeyModifiers::empty());
+        app.handle_key(n_key);
+        assert_eq!(app.mode, AppMode::Main);
+        assert_eq!(app.data.groups[0].sets.len(), 1);
+
+        // Step 3: Request delete again, this time confirm with 'y'
+        app.handle_action(AppAction::RequestDelete(DeleteKind::Set {
+            group_index: 0,
+            set_index: 0,
+            set_name: "target-set".to_string(),
+        }));
+        assert!(matches!(app.mode, AppMode::ConfirmDelete { .. }));
+
+        let y_key = KeyEvent::new(KeyCode::Char('y'), KeyModifiers::empty());
+        app.handle_key(y_key);
+        assert_eq!(app.mode, AppMode::Main);
+        assert!(app.data.groups[0].sets.is_empty());
     }
 }
