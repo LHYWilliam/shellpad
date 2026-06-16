@@ -1,22 +1,10 @@
-mod action;
-mod app;
-mod cli;
-mod config;
-mod error;
-mod executor;
-mod mode;
-mod models;
-mod storage;
-mod tui;
-mod ui;
-
-use app::App;
+use launcher::app::App;
+use launcher::tui::{init_terminal, restore_terminal};
 use std::io;
-use tui::{init_terminal, restore_terminal};
 
 fn main() -> io::Result<()> {
-    // CLI mode: if a subcommand is given, handle it and exit
-    if let Some(exit_code) = cli::run_cli() {
+    // CLI mode
+    if let Some(exit_code) = launcher::cli::run_cli() {
         std::process::exit(exit_code);
     }
 

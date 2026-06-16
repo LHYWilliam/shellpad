@@ -20,7 +20,7 @@ pub fn save_app_data(data: &AppData) -> io::Result<()> {
 
 // ---- Internal path-accepting functions (used by tests too) ----
 
-fn load_app_data_from(path: &Path) -> Result<AppData, StorageError> {
+pub(crate) fn load_app_data_from(path: &Path) -> Result<AppData, StorageError> {
     if !path.exists() {
         if let Some(parent) = path.parent() {
             fs::create_dir_all(parent)
@@ -54,7 +54,7 @@ fn load_app_data_from(path: &Path) -> Result<AppData, StorageError> {
     }
 }
 
-fn save_app_data_to(data: &AppData, path: &Path, tmp: &Path) -> io::Result<()> {
+pub(crate) fn save_app_data_to(data: &AppData, path: &Path, tmp: &Path) -> io::Result<()> {
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent)?;
     }

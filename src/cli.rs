@@ -135,7 +135,7 @@ fn handle_run(
     }
 }
 
-fn resolve_set<'a>(
+pub(crate) fn resolve_set<'a>(
     data: &'a AppData,
     id: Option<String>,
     group: Option<String>,
@@ -190,7 +190,7 @@ fn resolve_set<'a>(
     }
 }
 
-fn resolve_variables(
+pub(crate) fn resolve_variables(
     set: &crate::models::CommandSet,
     overrides: &[String],
 ) -> Result<HashMap<String, String>, CliError> {
