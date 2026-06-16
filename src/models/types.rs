@@ -101,9 +101,10 @@ impl ShellType {
             }
             ShellType::Custom(path) => {
                 let lower = path.to_lowercase();
-                let flag = if lower.contains("cmd.exe") || lower.contains("cmd ") {
+                // 用 ends_with 替代 contains，避免误配中间子串（如 /usr/bin/mycmd）
+                let flag = if lower.ends_with("cmd") || lower.ends_with("cmd.exe") {
                     "/C"
-                } else if lower.contains("powershell") {
+                } else if lower.ends_with("powershell") || lower.ends_with("pwsh") || lower.ends_with("powershell.exe") {
                     "-Command"
                 } else {
                     "-c"
