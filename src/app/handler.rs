@@ -1,4 +1,4 @@
-use crate::action::{AppAction, DeleteKind};
+use crate::action::{AppAction, DeleteKind, ReorderKind};
 use crate::mode::AppMode;
 use crate::models::CommandSet;
 use crate::storage;
@@ -279,8 +279,55 @@ impl App {
                 }
                 self.do_execute();
             }
-            // Temporary: placeholder until Task 2
-            AppAction::Reorder(_, _) => {}
+            AppAction::Reorder(kind, dir) => {
+                let new_idx = |i: usize, len: usize| -> Option<usize> {
+                    let c = i as isize + dir;
+                    if c >= 0 && (c as usize) < len { Some(c as usize) } else { None }
+                };
+                match kind {
+                    ReorderKind::Group(gi) => {
+                        if let Some(ni) = new_idx(gi, self.data.groups.len()) {
+                            self.data.groups.swap(gi, ni);
+                            self.main_screen.group_list.selected = ni;
+                            self.auto_save();
+                            self.toasts.add("Group moved", ToastSeverity::Info);
+                        }
+                    }
+                    ReorderKind::Set(gi, si) => {
+                        if gi < self.data.groups.len()
+                            && let Some(ni) = new_idx(si, self.data.groups[gi].sets.len())
+                        {
+                            self.data.groups[gi].sets.swap(si, ni);
+                            self.main_screen.set_list.selected = ni;
+                            self.auto_save();
+                            self.toasts.add("Set moved", ToastSeverity::Info);
+                        }
+                    }
+                    ReorderKind::Variable(idx) => {
+                        if let Some(ref mut ds) = self.detail_screen
+                            && let Some(ni) = new_idx(idx, ds.set.variables.len())
+                        {
+                            ds.set.variables.swap(idx, ni);
+                            ds.variable_list.selected = ni;
+                            self.auto_save();
+                            self.toasts.add("Variable moved", ToastSeverity::Info);
+                        }
+                    }
+                    ReorderKind::Command(idx) => {
+                        if let Some(ref mut ds) = self.detail_screen
+                            && let Some(ni) = new_idx(idx, ds.set.commands.len())
+                        {
+                            ds.set.commands.swap(idx, ni);
+                            for (i, c) in ds.set.commands.iter_mut().enumerate() {
+                                c.position = i;
+                            }
+                            ds.command_list.selected = ni;
+                            self.auto_save();
+                            self.toasts.add("Command moved", ToastSeverity::Info);
+                        }
+                    }
+                }
+            }
             AppAction::RequestDelete(kind) => {
                 self.mode = AppMode::ConfirmDelete {
                     kind,
@@ -308,7 +355,7 @@ impl App {
 #[cfg(test)]
 mod tests {
     use super::ExecutionState;
-    use crate::action::{AppAction, DeleteKind};
+    use crate::action::{AppAction, DeleteKind, ReorderKind};
     use crate::app::execution::ExecutionManager;
     use crate::mode::AppMode;
     use crate::models::{AppData, CommandSet, Group};
@@ -917,5 +964,162 @@ mod tests {
         // Dismiss Help — should restore to ConfirmDelete
         app.handle_key(make_key(KeyCode::Esc));
         assert!(matches!(app.mode, AppMode::ConfirmDelete { .. }));
+    }
+
+    // ---- Reorder ----
+    #[test]
+    fn test_reorder_group_up() {
+        let mut app = make_app();
+        app.data = make_data_with_one_group();
+        app.data.groups.push(Group::new("Second".to_string()));
+        app.handle_action(AppAction::Reorder(ReorderKind::Group(1), -1));
+        assert_eq!(app.data.groups[0].name, "Second");
+        assert_eq!(app.data.groups[1].name, "Deploy");
+        assert_eq!(app.main_screen.group_list.selected, 0);
+    }
+
+    #[test]
+    fn test_reorder_group_down() {
+        let mut app = make_app();
+        app.data = make_data_with_one_group();
+        app.data.groups.push(Group::new("Second".to_string()));
+        app.handle_action(AppAction::Reorder(ReorderKind::Group(0), 1));
+        assert_eq!(app.data.groups[0].name, "Second");
+        assert_eq!(app.data.groups[1].name, "Deploy");
+        assert_eq!(app.main_screen.group_list.selected, 1);
+    }
+
+    #[test]
+    fn test_reorder_group_up_boundary_noop() {
+        let mut app = make_app();
+        app.data = make_data_with_one_group();
+        app.handle_action(AppAction::Reorder(ReorderKind::Group(0), -1));
+        assert_eq!(app.data.groups[0].name, "Deploy");
+    }
+
+    #[test]
+    fn test_reorder_set_up() {
+        let mut app = make_app();
+        app.data = make_data_with_one_group();
+        let mut set2 = CommandSet::new("set2".to_string(), app.data.groups[0].id);
+        set2.commands.push(crate::models::Command { position: 0, command: "cmd".to_string() });
+        app.data.groups[0].sets.push(set2);
+        app.handle_action(AppAction::Reorder(ReorderKind::Set(0, 1), -1));
+        assert_eq!(app.data.groups[0].sets[0].name, "set2");
+        assert_eq!(app.data.groups[0].sets[1].name, "Prod");
+        assert_eq!(app.main_screen.set_list.selected, 0);
+    }
+
+    #[test]
+    fn test_reorder_set_down_boundary_noop() {
+        let mut app = make_app();
+        app.data = make_data_with_one_group();
+        app.handle_action(AppAction::Reorder(ReorderKind::Set(0, 0), 1));
+        assert_eq!(app.data.groups[0].sets[0].name, "Prod");
+    }
+
+    #[test]
+    fn test_reorder_variable_up() {
+        use crate::models::Variable;
+        let mut app = make_app();
+        let mut g = Group::new("G".to_string());
+        let mut set = CommandSet::new("S".to_string(), g.id);
+        set.variables.push(Variable { name: "a".to_string(), default_value: "".to_string() });
+        set.variables.push(Variable { name: "b".to_string(), default_value: "".to_string() });
+        g.sets.push(set);
+        app.data = AppData { groups: vec![g] };
+        let set_clone = app.data.groups[0].sets[0].clone();
+        app.detail_screen = Some(DetailScreenState::new(set_clone, app.data.groups.clone()));
+        app.mode = AppMode::Detail;
+
+        app.handle_action(AppAction::Reorder(ReorderKind::Variable(1), -1));
+        let ds = app.detail_screen.as_ref().unwrap();
+        assert_eq!(ds.set.variables[0].name, "b");
+        assert_eq!(ds.set.variables[1].name, "a");
+        assert_eq!(ds.variable_list.selected, 0);
+    }
+
+    #[test]
+    fn test_reorder_variable_up_boundary_noop() {
+        use crate::models::Variable;
+        let mut app = make_app();
+        let mut g = Group::new("G".to_string());
+        let mut set = CommandSet::new("S".to_string(), g.id);
+        set.variables.push(Variable { name: "a".to_string(), default_value: "".to_string() });
+        g.sets.push(set);
+        app.data = AppData { groups: vec![g] };
+        let set_clone = app.data.groups[0].sets[0].clone();
+        app.detail_screen = Some(DetailScreenState::new(set_clone, app.data.groups.clone()));
+        app.mode = AppMode::Detail;
+
+        app.handle_action(AppAction::Reorder(ReorderKind::Variable(0), -1));
+        let ds = app.detail_screen.as_ref().unwrap();
+        assert_eq!(ds.set.variables.len(), 1);
+        assert_eq!(ds.set.variables[0].name, "a");
+    }
+
+    #[test]
+    fn test_reorder_command_up_renumbers_positions() {
+        use crate::models::Command;
+        let mut app = make_app();
+        let mut g = Group::new("G".to_string());
+        let mut set = CommandSet::new("S".to_string(), g.id);
+        set.commands.push(Command { position: 0, command: "echo first".to_string() });
+        set.commands.push(Command { position: 1, command: "echo second".to_string() });
+        g.sets.push(set);
+        app.data = AppData { groups: vec![g] };
+        let set_clone = app.data.groups[0].sets[0].clone();
+        app.detail_screen = Some(DetailScreenState::new(set_clone, app.data.groups.clone()));
+        app.mode = AppMode::Detail;
+
+        app.handle_action(AppAction::Reorder(ReorderKind::Command(1), -1));
+        let ds = app.detail_screen.as_ref().unwrap();
+        assert_eq!(ds.set.commands[0].command, "echo second");
+        assert_eq!(ds.set.commands[0].position, 0);
+        assert_eq!(ds.set.commands[1].command, "echo first");
+        assert_eq!(ds.set.commands[1].position, 1);
+        assert_eq!(ds.command_list.selected, 0);
+    }
+
+    #[test]
+    fn test_reorder_command_down() {
+        use crate::models::Command;
+        let mut app = make_app();
+        let mut g = Group::new("G".to_string());
+        let mut set = CommandSet::new("S".to_string(), g.id);
+        set.commands.push(Command { position: 0, command: "a".to_string() });
+        set.commands.push(Command { position: 1, command: "b".to_string() });
+        g.sets.push(set);
+        app.data = AppData { groups: vec![g] };
+        let set_clone = app.data.groups[0].sets[0].clone();
+        app.detail_screen = Some(DetailScreenState::new(set_clone, app.data.groups.clone()));
+        app.mode = AppMode::Detail;
+
+        app.handle_action(AppAction::Reorder(ReorderKind::Command(0), 1));
+        let ds = app.detail_screen.as_ref().unwrap();
+        assert_eq!(ds.set.commands[0].command, "b");
+        assert_eq!(ds.set.commands[0].position, 0);
+        assert_eq!(ds.set.commands[1].command, "a");
+        assert_eq!(ds.set.commands[1].position, 1);
+        assert_eq!(ds.command_list.selected, 1);
+    }
+
+    #[test]
+    fn test_reorder_command_down_boundary_noop() {
+        use crate::models::Command;
+        let mut app = make_app();
+        let mut g = Group::new("G".to_string());
+        let mut set = CommandSet::new("S".to_string(), g.id);
+        set.commands.push(Command { position: 0, command: "only".to_string() });
+        g.sets.push(set);
+        app.data = AppData { groups: vec![g] };
+        let set_clone = app.data.groups[0].sets[0].clone();
+        app.detail_screen = Some(DetailScreenState::new(set_clone, app.data.groups.clone()));
+        app.mode = AppMode::Detail;
+
+        app.handle_action(AppAction::Reorder(ReorderKind::Command(0), 1));
+        let ds = app.detail_screen.as_ref().unwrap();
+        assert_eq!(ds.set.commands.len(), 1);
+        assert_eq!(ds.set.commands[0].command, "only");
     }
 }
