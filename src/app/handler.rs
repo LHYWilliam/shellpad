@@ -239,3 +239,198 @@ impl App {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::App;
+    use crate::action::AppAction;
+    use crate::app::execution::ExecutionManager;
+    use crate::app::toast::ToastManager;
+    use crate::mode::AppMode;
+    use crate::models::{AppData, CommandSet, Group};
+    use crate::ui::detail_screen::DetailScreenState;
+    use crate::ui::main_screen::{MainScreenState, Panel};
+    use crate::ui::theme::Theme;
+    use crate::ui::variable_screen::VariableScreenState;
+
+    fn make_app() -> App {
+        App {
+            data: AppData::empty(),
+            mode: AppMode::Main,
+            running: true,
+            main_screen: MainScreenState::new(),
+            detail_screen: None,
+            exec_screen: None,
+            execution: ExecutionManager::new(),
+            variable_screen: VariableScreenState::new(),
+            pending_set: None,
+            theme: Theme::default_dark(),
+            toasts: ToastManager::new(),
+        }
+    }
+
+    fn make_data_with_one_group() -> AppData {
+        let mut g = Group::new("Deploy".to_string());
+        let set = CommandSet::new("Prod".to_string(), g.id);
+        g.sets.push(set);
+        AppData { groups: vec![g] }
+    }
+
+    // ---- NewGroup ----
+    #[test]
+    fn test_handler_new_group() {
+        let mut app = make_app();
+        app.handle_action(AppAction::NewGroup);
+        assert_eq!(app.data.groups.len(), 1);
+        assert_eq!(app.data.groups[0].name, "Group 1");
+        assert!(app.toasts.toasts.len() > 0);
+        assert!(app.toasts.toasts[0].message.contains("Group created"));
+    }
+
+    // ---- RenameGroup ----
+    #[test]
+    fn test_handler_rename_group() {
+        let mut app = make_app();
+        app.handle_action(AppAction::NewGroup);
+        app.handle_action(AppAction::RenameGroup(0, "Infra".to_string()));
+        assert_eq!(app.data.groups[0].name, "Infra");
+    }
+
+    #[test]
+    fn test_handler_rename_group_out_of_bounds_noop() {
+        let mut app = make_app();
+        app.handle_action(AppAction::RenameGroup(0, "X".to_string()));
+        assert!(app.data.groups.is_empty());
+    }
+
+    // ---- NewSet ----
+    #[test]
+    fn test_handler_new_set() {
+        let mut app = make_app();
+        app.data = make_data_with_one_group();
+        app.handle_action(AppAction::NewSet(0));
+        assert_eq!(app.data.groups[0].sets.len(), 2);
+        assert_eq!(app.data.groups[0].sets[1].name, "New Command Set");
+        assert!(app.detail_screen.is_some());
+        assert_eq!(app.mode, AppMode::Detail);
+    }
+
+    #[test]
+    fn test_handler_new_set_out_of_bounds_noop() {
+        let mut app = make_app();
+        app.handle_action(AppAction::NewSet(5));
+        assert!(app.detail_screen.is_none());
+        assert_eq!(app.mode, AppMode::Main);
+    }
+
+    // ---- EditSet ----
+    #[test]
+    fn test_handler_edit_set() {
+        let mut app = make_app();
+        app.data = make_data_with_one_group();
+        app.handle_action(AppAction::EditSet(0, 0));
+        assert!(app.detail_screen.is_some());
+        assert_eq!(app.mode, AppMode::Detail);
+        let ds = app.detail_screen.as_ref().unwrap();
+        assert_eq!(ds.set.name, "Prod");
+    }
+
+    #[test]
+    fn test_handler_edit_set_out_of_bounds_noop() {
+        let mut app = make_app();
+        app.data = make_data_with_one_group();
+        app.handle_action(AppAction::EditSet(5, 5));
+        assert!(app.detail_screen.is_none());
+    }
+
+    // ---- SaveSet ----
+    #[test]
+    fn test_handler_save_set() {
+        let mut app = make_app();
+        app.data = make_data_with_one_group();
+        let set = app.data.groups[0].sets[0].clone();
+        let groups = app.data.groups.clone();
+        app.detail_screen = Some(DetailScreenState::new(set, groups));
+        app.mode = AppMode::Detail;
+
+        let mut saved = app.data.groups[0].sets[0].clone();
+        saved.name = "Updated".to_string();
+        app.handle_action(AppAction::SaveSet(saved));
+        assert!(app.detail_screen.is_none());
+        assert_eq!(app.mode, AppMode::Main);
+        assert_eq!(app.data.groups[0].sets[0].name, "Updated");
+    }
+
+    // ---- CancelEdit ----
+    #[test]
+    fn test_handler_cancel_edit() {
+        let mut app = make_app();
+        app.data = make_data_with_one_group();
+        let set = app.data.groups[0].sets[0].clone();
+        let groups = app.data.groups.clone();
+        app.detail_screen = Some(DetailScreenState::new(set, groups));
+        app.mode = AppMode::Detail;
+
+        app.handle_action(AppAction::CancelEdit);
+        assert!(app.detail_screen.is_none());
+        assert_eq!(app.mode, AppMode::Main);
+    }
+
+    // ---- DeleteSet ----
+    #[test]
+    fn test_handler_delete_set() {
+        let mut app = make_app();
+        app.data = make_data_with_one_group();
+        app.handle_action(AppAction::DeleteSet(0, 0));
+        assert!(app.data.groups[0].sets.is_empty());
+        assert_eq!(app.main_screen.active_panel, Panel::Groups);
+    }
+
+    #[test]
+    fn test_handler_delete_set_out_of_bounds_noop() {
+        let mut app = make_app();
+        app.data = make_data_with_one_group();
+        app.handle_action(AppAction::DeleteSet(5, 5));
+        assert_eq!(app.data.groups[0].sets.len(), 1);
+    }
+
+    // ---- DeleteGroup ----
+    #[test]
+    fn test_handler_delete_group() {
+        let mut app = make_app();
+        app.data = make_data_with_one_group();
+        app.handle_action(AppAction::DeleteGroup(0));
+        assert!(app.data.groups.is_empty());
+    }
+
+    #[test]
+    fn test_handler_delete_group_out_of_bounds_noop() {
+        let mut app = make_app();
+        app.data = make_data_with_one_group();
+        app.handle_action(AppAction::DeleteGroup(5));
+        assert_eq!(app.data.groups.len(), 1);
+    }
+
+    // ---- Quit ----
+    #[test]
+    fn test_handler_quit() {
+        let mut app = make_app();
+        app.handle_action(AppAction::Quit);
+        assert!(!app.running);
+    }
+
+    // ---- None + Help ----
+    #[test]
+    fn test_handler_none() {
+        let mut app = make_app();
+        app.handle_action(AppAction::None);
+        assert_eq!(app.mode, AppMode::Main);
+    }
+
+    #[test]
+    fn test_handler_help() {
+        let mut app = make_app();
+        app.handle_action(AppAction::Help);
+        assert_eq!(app.mode, AppMode::Help);
+    }
+}
