@@ -149,15 +149,19 @@ impl ExecutionScreenState {
 
         // Footer with key hints
         let footer_text = if self.focus_index.is_some() {
-            "[←/→] Browse commands  [z] Follow current  [q] Back"
+            if self.completed {
+                "[←/→] Browse  [z] Follow  [q] Back"
+            } else {
+                "[←/→] Browse  [z] Follow  [s] Skip  [Ctrl+C] Interrupt  [q] Back"
+            }
         } else if self.completed {
             if self.continue_from.is_some() {
-                " [q] Back to main  [n] Continue from next  [r] Re-execute all"
+                " [←/→] Browse  [n] Continue from next  [r] Re-execute  [q] Back"
             } else {
-                " [q] Back to main  [r] Re-execute"
+                " [←/→] Browse  [r] Re-execute  [q] Back"
             }
         } else {
-            " [q] Back to main  [s] Skip  [z] Auto-scroll  [Ctrl+C] Interrupt"
+            " [←/→] Browse  [s] Skip  [z] Auto-scroll  [Ctrl+C] Interrupt  [q] Back"
         };
 
         let body_layout = Layout::vertical([Constraint::Min(1), Constraint::Length(2)]);
