@@ -88,7 +88,7 @@ fn handle_run(
     let (set_ref, _gi, _si) = match resolve_set(data, id, group, set) {
         Ok(r) => r,
         Err(e) => {
-            eprintln!("{}", e);
+            eprintln!("Error: {}", e);
             return 1;
         }
     };
@@ -109,7 +109,7 @@ fn handle_run(
         match resolve_variables(set_ref, &var) {
             Ok(v) => v,
             Err(e) => {
-                eprintln!("{}", e);
+                eprintln!("Error: {}", e);
                 return 1;
             }
         }
