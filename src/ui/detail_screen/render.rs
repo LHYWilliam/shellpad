@@ -219,19 +219,15 @@ impl DetailScreenState {
     }
 
     fn render_picker(&self, frame: &mut Frame, area: Rect, theme: &Theme) {
-        let (items, selected_idx): (Vec<ListItem<'_>>, Option<usize>) = match self.focus {
+        let max_items: usize = 5;
+        use crate::ui::render::{bordered_block, centered_rect};
+        use ratatui::layout::Alignment;
+
+        let (names, selected_idx, title): (Vec<String>, Option<usize>, &str) = match self.focus {
             DetailFocus::Group => {
                 let idx = self.groups.iter().position(|g| g.id == self.set.group_id);
-                let items = self.groups.iter().map(|g| {
-                    let selected = g.id == self.set.group_id;
-                    let style = if selected {
-                        Style::default().fg(theme.accent_primary)
-                    } else {
-                        theme.normal_style()
-                    };
-                    styled_list_item(format!(" {}", g.name), style, area.width)
-                }).collect();
-                (items, idx)
+                let names = self.groups.iter().map(|g| g.name.clone()).collect();
+                (names, idx, " Groups ")
             }
             DetailFocus::Shell => {
                 let variants = ShellType::builtin_variants();
@@ -239,65 +235,101 @@ impl DetailScreenState {
                     ShellType::Custom(p) => Some(p.clone()),
                     _ => None,
                 };
-                let mut items = Vec::new();
+                let mut names = Vec::new();
                 let mut selected_idx = None;
                 for (i, v) in variants.iter().enumerate() {
-                    let selected = std::mem::discriminant(&self.set.shell) == std::mem::discriminant(v);
-                    let label = match v {
+                    let selected = std::mem::discriminant(&self.set.shell)
+                        == std::mem::discriminant(v);
+                    if selected { selected_idx = Some(i); }
+                    names.push(match v {
                         ShellType::SystemDefault => "System Default".to_string(),
                         ShellType::Custom(_) => unreachable!(),
                         _ => v.label(),
-                    };
-                    let style = if selected {
-                        selected_idx = Some(i);
-                        Style::default().fg(theme.accent_primary)
-                    } else {
-                        theme.normal_style()
-                    };
-                    items.push(styled_list_item(format!(" {}", label), style, area.width));
+                    });
                 }
-                let custom_idx = variants.len();
                 if let Some(ref path) = saved_custom {
-                    let selected = matches!(&self.set.shell, ShellType::Custom(_));
-                    let style = if selected {
-                        selected_idx = Some(custom_idx);
-                        Style::default().fg(theme.accent_primary)
-                    } else {
-                        theme.normal_style()
-                    };
-                    items.push(styled_list_item(
-                        format!(" Custom: {}", path), style, area.width,
-                    ));
+                    if matches!(&self.set.shell, ShellType::Custom(_)) {
+                        selected_idx = Some(names.len());
+                    }
+                    names.push(format!("Custom: {}", path));
                 } else {
-                    items.push(styled_list_item(
-                        " Custom".to_string(), theme.normal_style(), area.width,
-                    ));
+                    names.push("Custom".to_string());
                 }
-                (items, selected_idx)
+                (names, selected_idx, " Shells ")
             }
             DetailFocus::ExecMode => {
-                let modes = [ExecMode::StopOnError, ExecMode::ContinueOnError];
-                let idx = modes.iter().position(|m| *m == self.set.exec_mode);
-                let items = modes.iter().map(|m| {
-                    let selected = *m == self.set.exec_mode;
-                    let style = if selected {
-                        Style::default().fg(theme.accent_primary)
-                    } else {
-                        theme.normal_style()
-                    };
-                    styled_list_item(format!(" {}", m.label()), style, area.width)
-                }).collect();
-                (items, idx)
+                let modes = ["Stop on Error", "Continue on Error"];
+                let idx = if self.set.exec_mode == ExecMode::StopOnError {
+                    Some(0)
+                } else {
+                    Some(1)
+                };
+                let names = modes.iter().map(|s| s.to_string()).collect();
+                (names, idx, " Exec Mode ")
             }
             _ => return,
         };
 
-        frame.render_widget(Clear, area);
-        let mut state = ratatui::widgets::ListState::default();
-        state.select(selected_idx);
-        frame.render_stateful_widget(List::new(items).highlight_style(
-            Style::default().bg(theme.surface_border),
-        ), area, &mut state);
+        let total = names.len();
+        let sel = selected_idx.unwrap_or(0);
+        let total_pages = (total + max_items - 1) / max_items;
+        let current_page = sel / max_items;
+        let start = current_page * max_items;
+        let end = (start + max_items).min(total);
+
+        let has_footer = total > max_items;
+        let content_lines = (end - start).max(1);
+        let footer_lines = if has_footer { 1 } else { 0 };
+        let picker_inner_h = content_lines as u16 + footer_lines + 2; // +2 borders
+
+        let picker_w = area.width.min(22);
+        let picker_rect = centered_rect(area, picker_w, picker_inner_h);
+
+        frame.render_widget(Clear, picker_rect);
+
+        let block = bordered_block(theme, title, true);
+        let inner = block.inner(picker_rect);
+        frame.render_widget(&block, picker_rect);
+
+        let lines_layout = Layout::vertical([
+            Constraint::Length(content_lines as u16),
+            Constraint::Length(footer_lines),
+        ]);
+        let [list_area, footer_area] = lines_layout.areas(inner);
+
+        let list_items: Vec<ListItem<'_>> = names[start..end].iter().enumerate().map(|(i, name)| {
+            let is_current = start + i == sel;
+            let style = if is_current {
+                Style::default().fg(theme.accent_primary)
+            } else {
+                theme.normal_style()
+            };
+            styled_list_item(format!(" {}", name), style, list_area.width)
+        }).collect();
+
+        let mut list_state = ratatui::widgets::ListState::default();
+        list_state.select(Some(sel - start));
+        frame.render_stateful_widget(
+            List::new(list_items).highlight_style(
+                Style::default().bg(theme.surface_border),
+            ),
+            list_area,
+            &mut list_state,
+        );
+
+        if has_footer {
+            let page_text = format!(" ◀ {}/{} ▶ ", current_page + 1, total_pages);
+            frame.render_widget(
+                Paragraph::new(Line::from(Span::styled(
+                    page_text,
+                    Style::default()
+                        .fg(theme.text_disabled)
+                        .add_modifier(Modifier::DIM),
+                )))
+                .alignment(Alignment::Center),
+                footer_area,
+            );
+        }
     }
 
     /// Shared list renderer for Variables and Commands.
