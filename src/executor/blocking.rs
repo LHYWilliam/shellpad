@@ -1,3 +1,4 @@
+use crate::error::ExecuteError;
 use crate::models::{CommandSet, ExecMode, ShellCommand};
 use std::collections::HashMap;
 use std::process::{Command, Stdio};
@@ -20,28 +21,6 @@ pub struct ExecuteResult {
     pub failed: usize,
 }
 
-/// Error during blocking execution.
-#[derive(Debug)]
-pub enum ExecuteError {
-    SpawnFailed(usize, String),
-    CommandFailed(usize, Option<i32>),
-}
-
-impl std::fmt::Display for ExecuteError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            ExecuteError::SpawnFailed(idx, msg) => {
-                write!(f, "Command {} failed to spawn: {}", idx + 1, msg)
-            }
-            ExecuteError::CommandFailed(idx, code) => {
-                write!(f, "Command {} failed with exit code {:?}", idx + 1, code)
-            }
-        }
-    }
-}
-
-impl std::error::Error for ExecuteError {}
-
 /// Execute a command set synchronously, piping output directly to stdout/stderr.
 pub fn execute_set_blocking(
     set: &CommandSet,
@@ -63,11 +42,17 @@ pub fn execute_set_blocking(
             .stdout(Stdio::inherit())
             .stderr(Stdio::inherit())
             .spawn()
-            .map_err(|e| ExecuteError::SpawnFailed(idx, e.to_string()))?;
+            .map_err(|e| ExecuteError::SpawnFailed {
+                idx: idx + 1,
+                detail: e.to_string(),
+            })?;
 
         let status = child
             .wait()
-            .map_err(|e| ExecuteError::CommandFailed(idx, e.raw_os_error()))?;
+            .map_err(|e| ExecuteError::CommandFailed {
+                idx: idx + 1,
+                code: e.raw_os_error(),
+            })?;
 
         if status.success() {
             succeeded += 1;
@@ -75,7 +60,10 @@ pub fn execute_set_blocking(
             failed += 1;
             eprintln!("Command {} exited with code {:?}", idx + 1, status.code());
             if matches!(set.exec_mode, ExecMode::StopOnError) {
-                return Err(ExecuteError::CommandFailed(idx, status.code()));
+                return Err(ExecuteError::CommandFailed {
+                    idx: idx + 1,
+                    code: status.code(),
+                });
             }
         }
     }

@@ -1,7 +1,8 @@
 use super::async_executor::{execute_set, substitute_variables};
 use super::blocking::{
-    ExecuteError, ExecuteResult, execute_set_blocking, substitute_variables_from_map,
+    ExecuteResult, execute_set_blocking, substitute_variables_from_map,
 };
+use crate::error::ExecuteError;
 use super::events::ExecutionEvent;
 use crate::models::{Command, CommandSet, ExecMode, ShellCommand, Variable};
 use std::collections::HashMap;
@@ -270,7 +271,10 @@ fn test_execute_result_new() {
 
 #[test]
 fn test_execute_error_display_spawn_failed() {
-    let err = ExecuteError::SpawnFailed(0, "not found".into());
+    let err = ExecuteError::SpawnFailed {
+        idx: 1,
+        detail: "not found".into(),
+    };
     let msg = err.to_string();
     assert!(msg.contains("Command 1"));
     assert!(msg.contains("failed to spawn"));
@@ -278,7 +282,10 @@ fn test_execute_error_display_spawn_failed() {
 
 #[test]
 fn test_execute_error_display_command_failed() {
-    let err = ExecuteError::CommandFailed(1, Some(127));
+    let err = ExecuteError::CommandFailed {
+        idx: 2,
+        code: Some(127),
+    };
     let msg = err.to_string();
     assert!(msg.contains("Command 2"));
     assert!(msg.contains("127"));

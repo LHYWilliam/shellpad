@@ -41,4 +41,15 @@ pub enum CliError {
     MissingArgs,
     #[error(transparent)]
     Storage(#[from] StorageError),
+    #[error(transparent)]
+    Execution(#[from] ExecuteError),
+}
+
+/// Execution-layer errors (command spawn/fail).
+#[derive(Debug, Clone, PartialEq, Eq, Error)]
+pub enum ExecuteError {
+    #[error("Command {idx} failed to spawn: {detail}")]
+    SpawnFailed { idx: usize, detail: String },
+    #[error("Command {idx} failed with exit code {code:?}")]
+    CommandFailed { idx: usize, code: Option<i32> },
 }
