@@ -432,4 +432,144 @@ mod tests {
         app.handle_action(AppAction::Help);
         assert_eq!(app.mode, AppMode::Help);
     }
+
+    // ---- Data helper with variables and commands ----
+    fn make_data_with_vars_and_cmds() -> AppData {
+        use crate::models::Variable;
+        use crate::models::Command;
+        let mut g = Group::new("Deploy".to_string());
+        let mut set = CommandSet::new("Prod".to_string(), g.id);
+        set.variables.push(Variable { name: "host".to_string(), default_value: "localhost".to_string() });
+        set.commands.push(Command { position: 0, command: "echo hi".to_string() });
+        set.commands.push(Command { position: 1, command: "echo bye".to_string() });
+        g.sets.push(set);
+        AppData { groups: vec![g] }
+    }
+
+    // ---- DeleteVariable ----
+    #[test]
+    fn test_handler_delete_variable() {
+        use crate::ui::detail_screen::DetailFocus;
+        let mut app = make_app();
+        app.data = make_data_with_vars_and_cmds();
+        let set = app.data.groups[0].sets[0].clone();
+        app.detail_screen = Some(DetailScreenState::new(set, app.data.groups.clone()));
+        app.mode = AppMode::Detail;
+
+        app.handle_action(AppAction::DeleteVariable(0));
+        let ds = app.detail_screen.as_ref().unwrap();
+        assert!(ds.set.variables.is_empty());
+        assert_eq!(ds.focus, DetailFocus::Name);
+    }
+
+    // ---- DeleteCommand ----
+    #[test]
+    fn test_handler_delete_command() {
+        let mut app = make_app();
+        app.data = make_data_with_vars_and_cmds();
+        let set = app.data.groups[0].sets[0].clone();
+        app.detail_screen = Some(DetailScreenState::new(set, app.data.groups.clone()));
+        app.mode = AppMode::Detail;
+
+        app.handle_action(AppAction::DeleteCommand(0));
+        let ds = app.detail_screen.as_ref().unwrap();
+        assert_eq!(ds.set.commands.len(), 1);
+        assert_eq!(ds.set.commands[0].command, "echo bye");
+        assert_eq!(ds.set.commands[0].position, 0);
+    }
+
+    #[test]
+    fn test_handler_delete_command_focus_migration() {
+        use crate::ui::detail_screen::DetailFocus;
+        use crate::models::Command;
+        let mut app = make_app();
+        let mut g = Group::new("G".to_string());
+        let mut set = CommandSet::new("S".to_string(), g.id);
+        set.commands.push(Command { position: 0, command: "only".to_string() });
+        g.sets.push(set);
+        app.data = AppData { groups: vec![g] };
+        let set_clone = app.data.groups[0].sets[0].clone();
+        app.detail_screen = Some(DetailScreenState::new(set_clone, app.data.groups.clone()));
+        app.mode = AppMode::Detail;
+
+        app.handle_action(AppAction::DeleteCommand(0));
+        let ds = app.detail_screen.as_ref().unwrap();
+        assert!(ds.set.commands.is_empty());
+        assert_eq!(ds.focus, DetailFocus::Name);
+    }
+
+    // ---- Variable overlay ----
+    #[test]
+    fn test_handler_cancel_variables() {
+        let mut app = make_app();
+        app.variable_screen.active = true;
+        app.variable_screen.gi = 0;
+        app.variable_screen.si = 0;
+        app.pending_set = Some((0, 0));
+
+        app.handle_action(AppAction::CancelVariables);
+        assert!(!app.variable_screen.active);
+        assert!(app.pending_set.is_none());
+    }
+
+    #[test]
+    fn test_handler_confirm_variables() {
+        let mut app = make_app();
+        app.data = make_data_with_vars_and_cmds();
+        app.variable_screen.activate(&app.data.groups[0].sets[0], 0, 0);
+        app.variable_screen.inputs[0].content = "prod.example.com".to_string();
+
+        app.handle_action(AppAction::ConfirmVariables);
+        assert_eq!(
+            app.data.groups[0].sets[0].variables[0].default_value,
+            "prod.example.com"
+        );
+        assert_eq!(app.mode, AppMode::Execution);
+        assert!(app.exec_screen.is_some());
+        assert_eq!(app.pending_set, Some((0, 0)));
+    }
+
+    // ---- Execution actions ----
+    #[test]
+    fn test_handler_execute_set_no_variables() {
+        let mut app = make_app();
+        app.data = make_data_with_one_group();
+
+        app.handle_action(AppAction::ExecuteSet(0, 0));
+        assert_eq!(app.mode, AppMode::Execution);
+        assert!(app.exec_screen.is_some());
+        assert_eq!(app.pending_set, Some((0, 0)));
+    }
+
+    #[test]
+    fn test_handler_back_to_main() {
+        use crate::ui::execution_screen::ExecutionScreenState;
+        use crate::models::Command;
+        let mut app = make_app();
+        let cmds = vec![Command { position: 0, command: "ok".to_string() }];
+        app.exec_screen = Some(ExecutionScreenState::new("test".to_string(), &cmds));
+        app.mode = AppMode::Execution;
+
+        app.handle_action(AppAction::BackToMain);
+        assert_eq!(app.mode, AppMode::Main);
+        assert!(app.exec_screen.is_none());
+    }
+
+    #[test]
+    fn test_handler_skip_current() {
+        use crate::ui::execution_screen::ExecutionScreenState;
+        use crate::models::Command;
+        let mut app = make_app();
+        let cmds = vec![Command { position: 0, command: "a".to_string() }];
+        app.exec_screen = Some(ExecutionScreenState::new("t".to_string(), &cmds));
+        app.mode = AppMode::Execution;
+
+        app.handle_action(AppAction::SkipCurrent);
+        // skip_current calls teardown_execution(true, true) → keeps screen + marks skipped
+        assert_eq!(app.mode, AppMode::Execution);
+        assert!(app.exec_screen.is_some());
+        let es = app.exec_screen.as_ref().unwrap();
+        assert!(es.completed);
+        assert_eq!(es.skipped, 1);
+    }
 }
