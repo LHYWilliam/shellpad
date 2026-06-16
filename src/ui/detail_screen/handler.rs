@@ -1,9 +1,9 @@
-use super::{DetailFocus, DetailScreenState};
 use crate::action::AppAction;
-use super::editor::{handle_command_edit, handle_variable_edit};
 use crate::ui::widget::text_input::handle_text_input;
 use crate::ui::widget::{InlineEdit, ScrollableList, TextInput};
 use crossterm::event::KeyEvent;
+use super::{DetailFocus, DetailScreenState};
+use super::editor::{handle_command_edit, handle_variable_edit};
 
 impl DetailScreenState {
     /// Handle a key event.

@@ -277,9 +277,10 @@ mod tests {
     use crate::app::execution::ExecutionManager;
     use crate::mode::AppMode;
     use crate::models::{AppData, CommandSet, Group};
-    use crate::test_utils::make_app;
+    use crate::test_utils::{make_app, make_key};
     use crate::ui::detail_screen::DetailScreenState;
     use crate::ui::main_screen::Panel;
+    use crossterm::event::KeyCode;
 
     fn make_data_with_one_group() -> AppData {
         let mut g = Group::new("Deploy".to_string());
@@ -625,10 +626,7 @@ mod tests {
         app.detail_screen = Some(DetailScreenState::new(set, groups));
         app.mode = AppMode::Detail;
 
-        let key = crossterm::event::KeyEvent::new(
-            crossterm::event::KeyCode::Char('?'),
-            crossterm::event::KeyModifiers::empty(),
-        );
+        let key = make_key(KeyCode::Char('?'));
         app.handle_key(key);
         assert_eq!(app.mode, AppMode::Help);
         assert_eq!(app.prev_mode, Some(AppMode::Detail));
@@ -647,10 +645,7 @@ mod tests {
         };
         app.mode = AppMode::Execution;
 
-        let key = crossterm::event::KeyEvent::new(
-            crossterm::event::KeyCode::Char('?'),
-            crossterm::event::KeyModifiers::empty(),
-        );
+        let key = make_key(KeyCode::Char('?'));
         app.handle_key(key);
         assert_eq!(app.mode, AppMode::Help);
         // execution_state should NOT be cleaned up — Help is an overlay

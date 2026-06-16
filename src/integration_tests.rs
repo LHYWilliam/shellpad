@@ -8,6 +8,8 @@ mod tests {
     use uuid::Uuid;
 
     use crate::test_utils::make_app;
+    use crate::test_utils::make_key;
+    use crossterm::event::KeyCode;
 
     // ------------------------------------------------------------------
     // 5.1 Storage full lifecycle
@@ -106,20 +108,14 @@ mod tests {
         // Main screen: Enter on set -> ExecuteSet
         let mut main = MainScreenState::new();
         main.active_panel = Panel::Sets;
-        let enter = crossterm::event::KeyEvent::new(
-            crossterm::event::KeyCode::Enter,
-            crossterm::event::KeyModifiers::empty(),
-        );
+        let enter = make_key(KeyCode::Enter);
         assert!(matches!(
             main.handle_key(enter, &data),
             AppAction::ExecuteSet(0, 0)
         ));
 
         // 'e' -> EditSet
-        let e_key = crossterm::event::KeyEvent::new(
-            crossterm::event::KeyCode::Char('e'),
-            crossterm::event::KeyModifiers::empty(),
-        );
+        let e_key = make_key(KeyCode::Char('e'));
         assert!(matches!(
             main.handle_key(e_key, &data),
             AppAction::EditSet(0, 0)

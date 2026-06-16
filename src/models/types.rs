@@ -172,7 +172,7 @@ pub struct Command {
 }
 
 /// A named collection of commands to execute.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct CommandSet {
     pub id: Uuid,
     pub name: String,
@@ -203,7 +203,7 @@ impl CommandSet {
 }
 
 /// A group (folder) that organises command sets.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Group {
     pub id: Uuid,
     pub name: String,
@@ -221,7 +221,7 @@ impl Group {
 }
 
 /// Root data structure for the entire application.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct AppData {
     pub groups: Vec<Group>,
 }

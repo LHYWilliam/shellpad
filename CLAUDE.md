@@ -96,8 +96,11 @@ without updating this section.
 
 ### Handler Functions
 
-- **Default return** — every `match key.code { ... }` block ends with
-  `_ => AppAction::None`. No key event should fall through silently.
+- **Default return** — `match key.code { ... }` blocks end with
+  `_ => AppAction::None`. Exception: when the handler uses
+  `return AppAction::X` for action-producing arms and the match body
+  returns `()` for routing, the function-level `AppAction::None` is the
+  default (`detail_screen/handler.rs` is the example of this pattern).
 
 - **Return style** — use expression style in match arms, not `return`:
   ```rust

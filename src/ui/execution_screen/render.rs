@@ -1,4 +1,3 @@
-use super::{CmdStatus, ExecutionScreenState};
 use crate::ui::render::bordered_block_zone;
 use crate::ui::render::{empty_hint, list_scrollbar_areas, render_scrollbar, render_status_bar};
 use crate::ui::theme::Theme;
@@ -7,6 +6,7 @@ use ratatui::layout::{Constraint, Layout, Rect};
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Gauge, List, ListItem, Paragraph};
+use super::{CmdStatus, ExecutionScreenState};
 
 impl ExecutionScreenState {
     pub(crate) fn render(&self, frame: &mut Frame, area: Rect, theme: &Theme) {

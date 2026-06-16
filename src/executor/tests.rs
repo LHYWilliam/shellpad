@@ -1,14 +1,14 @@
-use super::async_executor::{execute_set, substitute_variables};
-use super::blocking::{
-    ExecuteResult, execute_set_blocking, substitute_variables_from_map,
-};
 use crate::error::ExecuteError;
-use super::events::ExecutionEvent;
 use crate::models::{Command, CommandSet, ExecMode, ShellCommand, Variable};
 use std::collections::HashMap;
 use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, mpsc};
 use uuid::Uuid;
+use super::async_executor::{execute_set, substitute_variables};
+use super::blocking::{
+    ExecuteResult, execute_set_blocking, substitute_variables_from_map,
+};
+use super::events::ExecutionEvent;
 
 /// Platform-appropriate shell command for tests.
 fn test_shell_cmd() -> ShellCommand {

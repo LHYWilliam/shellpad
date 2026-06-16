@@ -1,4 +1,3 @@
-use super::{DetailFocus, DetailScreenState};
 use crate::ui::render::bordered_block_zone;
 use crate::ui::render::{
     empty_hint, fill_row, list_item_style, list_scrollbar_areas, render_inline_cursor,
@@ -11,6 +10,7 @@ use ratatui::layout::{Constraint, Layout, Rect};
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{List, ListItem, Paragraph};
+use super::{DetailFocus, DetailScreenState};
 
 /// Editor context bundle for `render_items_list`.
 pub(crate) struct ItemListEditCtx<'a> {

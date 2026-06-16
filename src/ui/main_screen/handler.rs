@@ -1,10 +1,10 @@
 use crate::action::AppAction;
 use crate::models::AppData;
-use super::Panel;
 use crate::ui::main_screen::MainScreenState;
 use crate::ui::widget::TextInput;
 use crate::ui::widget::text_input::handle_text_input;
 use crossterm::event::KeyEvent;
+use super::Panel;
 
 impl MainScreenState {
     /// Handle a key event, returning an action.
