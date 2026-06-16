@@ -83,11 +83,19 @@ impl ExecutionScreenState {
 
             let duration_str = state.duration_ms.map(format_duration).unwrap_or_default();
 
-            items.push(ListItem::new(Line::from(Span::styled(
-                format!(" {} $ {}{}", status_symbol, state.command, duration_str),
+            let header_style = if Some(i) == self.focus_index {
+                Style::default()
+                    .fg(theme.accent_primary)
+                    .add_modifier(Modifier::BOLD)
+            } else {
                 Style::default()
                     .fg(status_color)
-                    .add_modifier(Modifier::BOLD),
+                    .add_modifier(Modifier::BOLD)
+            };
+
+            items.push(ListItem::new(Line::from(Span::styled(
+                format!(" {} $ {}{}", status_symbol, state.command, duration_str),
+                header_style,
             ))));
 
             // Output lines (indented)
@@ -140,7 +148,9 @@ impl ExecutionScreenState {
         }
 
         // Footer with key hints
-        let footer_text = if self.completed {
+        let footer_text = if self.focus_index.is_some() {
+            "[←/→] Browse commands  [z] Follow current  [q] Back"
+        } else if self.completed {
             if self.continue_from.is_some() {
                 " [q] Back to main  [n] Continue from next  [r] Re-execute all"
             } else {
@@ -158,17 +168,23 @@ impl ExecutionScreenState {
         // Split list inner into content + scrollbar
         let (content_area, scrollbar_area) = list_scrollbar_areas(list_inner);
 
-        // Use ListState with offset for auto-scroll
-        let mut list_state = ratatui::widgets::ListState::default().with_offset(self.scroll_offset);
+        // Scroll to focused command, or use auto-scroll offset
+        let target_cmd = self.focus_index.unwrap_or(self.current_index);
+        let scroll_offset = if self.focus_index.is_some() || self.auto_scroll {
+            self.items_offset_for_command(target_cmd)
+        } else {
+            self.scroll_offset
+        };
+        let mut list_state = ratatui::widgets::ListState::default().with_offset(scroll_offset);
         frame.render_stateful_widget(List::new(items), content_area, &mut list_state);
 
-        // Scrollbar tracks current command position
+        // Scrollbar tracks focused or current command
         render_scrollbar(
             frame,
             scrollbar_area,
             theme,
             self.cmd_states.len(),
-            self.current_index,
+            target_cmd,
         );
 
         render_status_bar(frame, footer_area, theme, footer_text);

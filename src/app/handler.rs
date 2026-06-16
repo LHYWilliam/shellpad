@@ -578,7 +578,7 @@ mod tests {
         let mut app = make_app();
         let cmds = vec![Command { position: 0, command: "ok".to_string() }];
         app.execution_state = ExecutionState::Running {
-            screen: ExecutionScreenState::new("test".to_string(), &cmds),
+            screen: Box::new(ExecutionScreenState::new("test".to_string(), &cmds)),
             manager: ExecutionManager::new(),
             pending_set: (0, 0),
         };
@@ -596,7 +596,7 @@ mod tests {
         let mut app = make_app();
         let cmds = vec![Command { position: 0, command: "a".to_string() }];
         app.execution_state = ExecutionState::Running {
-            screen: ExecutionScreenState::new("t".to_string(), &cmds),
+            screen: Box::new(ExecutionScreenState::new("t".to_string(), &cmds)),
             manager: ExecutionManager::new(),
             pending_set: (0, 0),
         };
@@ -620,7 +620,7 @@ mod tests {
         app.data = make_data_with_one_group();
         let cmds = vec![Command { position: 0, command: "ok".to_string() }];
         app.execution_state = ExecutionState::Running {
-            screen: ExecutionScreenState::new("t".to_string(), &cmds),
+            screen: Box::new(ExecutionScreenState::new("t".to_string(), &cmds)),
             manager: ExecutionManager::new(),
             pending_set: (0, 0),
         };
@@ -656,7 +656,7 @@ mod tests {
         let mut app = make_app();
         let cmds = vec![Command { position: 0, command: "x".to_string() }];
         app.execution_state = ExecutionState::Running {
-            screen: ExecutionScreenState::new("t".to_string(), &cmds),
+            screen: Box::new(ExecutionScreenState::new("t".to_string(), &cmds)),
             manager: ExecutionManager::new(),
             pending_set: (0, 0),
         };

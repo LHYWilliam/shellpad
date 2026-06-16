@@ -53,6 +53,7 @@ impl ExecutionScreenState {
                         self.current_index = index;
                         if self.auto_scroll {
                             self.scroll_offset = self.items_offset_for_command(index);
+                            self.focus_index = None;
                         }
                     }
                 }

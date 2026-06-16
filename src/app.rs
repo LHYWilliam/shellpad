@@ -34,7 +34,7 @@ pub(crate) enum ExecutionState {
     },
     /// Background thread is running with an active screen.
     Running {
-        screen: ExecutionScreenState,
+        screen: Box<ExecutionScreenState>,
         manager: ExecutionManager,
         /// (group_index, set_index) — saved for restart / continue.
         pending_set: (usize, usize),
@@ -145,7 +145,7 @@ impl App {
                 0usize,
             );
             self.execution_state = ExecutionState::Running {
-                screen,
+                screen: Box::new(screen),
                 manager,
                 pending_set: (gi, si),
             };
