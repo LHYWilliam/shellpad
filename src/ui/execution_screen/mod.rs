@@ -21,7 +21,7 @@ pub(crate) struct CmdState {
 
 pub struct ExecutionScreenState {
     pub set_name: String,
-    pub cmd_states: Vec<CmdState>,
+    pub(crate) cmd_states: Vec<CmdState>,
     pub current_index: usize,
     pub total: usize,
     pub succeeded: usize,
