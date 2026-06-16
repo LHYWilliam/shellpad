@@ -1,4 +1,4 @@
-use crate::action::AppAction;
+use crate::action::{AppAction, DeleteKind};
 use crate::models::AppData;
 use crate::ui::main_screen::MainScreenState;
 use crate::ui::widget::TextInput;
@@ -151,7 +151,12 @@ impl MainScreenState {
                 if self.active_panel == Panel::Sets
                     && let Some((gi, si)) = self.selected_set_idx(data)
                 {
-                    return AppAction::DeleteSet(gi, si);
+                    let set_name = data.groups[gi].sets[si].name.clone();
+                    return AppAction::RequestDelete(DeleteKind::Set {
+                        group_index: gi,
+                        set_index: si,
+                        set_name,
+                    });
                 }
                 AppAction::None
             }
@@ -159,7 +164,12 @@ impl MainScreenState {
                 if self.active_panel == Panel::Groups
                     && let Some(gi) = self.selected_group_idx(data)
                 {
-                    return AppAction::DeleteGroup(gi);
+                    let group = &data.groups[gi];
+                    return AppAction::RequestDelete(DeleteKind::Group {
+                        group_index: gi,
+                        group_name: group.name.clone(),
+                        set_count: group.sets.len(),
+                    });
                 }
                 AppAction::None
             }
@@ -202,7 +212,7 @@ impl MainScreenState {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::action::AppAction;
+    use crate::action::{AppAction, DeleteKind};
     use crate::models::{AppData, CommandSet, Group};
     use crate::test_utils::make_key;
     use crossterm::event::KeyCode;
@@ -250,21 +260,41 @@ mod tests {
     }
 
     #[test]
-    fn test_d_returns_delete_set() {
+    fn test_d_returns_request_delete_set() {
         let mut state = MainScreenState::new();
         state.active_panel = Panel::Sets;
         let data = make_data();
         let action = state.handle_key(make_key(KeyCode::Char('d')), &data);
-        assert!(matches!(action, AppAction::DeleteSet(0, 0)));
+        assert!(
+            matches!(action, AppAction::RequestDelete(DeleteKind::Set {
+                group_index: 0,
+                set_index: 0,
+                ..
+            }))
+        );
     }
 
     #[test]
-    fn test_big_d_returns_delete_group() {
+    fn test_d_on_groups_panel_does_nothing() {
+        let mut state = MainScreenState::new();
+        state.active_panel = Panel::Groups;
+        let data = make_data();
+        let action = state.handle_key(make_key(KeyCode::Char('d')), &data);
+        assert!(matches!(action, AppAction::None));
+    }
+
+    #[test]
+    fn test_big_d_returns_request_delete_group() {
         let mut state = MainScreenState::new();
         state.active_panel = Panel::Groups;
         let data = make_data();
         let action = state.handle_key(make_key(KeyCode::Char('D')), &data);
-        assert!(matches!(action, AppAction::DeleteGroup(0)));
+        assert!(
+            matches!(action, AppAction::RequestDelete(DeleteKind::Group {
+                group_index: 0,
+                ..
+            }))
+        );
     }
 
     #[test]
