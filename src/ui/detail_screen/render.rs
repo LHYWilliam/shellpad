@@ -1,0 +1,323 @@
+use super::{DetailFocus, DetailScreenState};
+use crate::ui::render::{
+    bordered_block, empty_hint, fill_row, list_scrollbar_areas, render_inline_cursor,
+    render_scrollbar, render_status_bar, set_cursor_after_prefix,
+};
+use crate::ui::theme::Theme;
+use crate::ui::widget::ScrollableList;
+use ratatui::Frame;
+use ratatui::layout::{Constraint, Layout, Rect};
+use ratatui::style::{Modifier, Style};
+use ratatui::text::{Line, Span};
+use ratatui::widgets::{List, ListItem, Paragraph};
+
+impl DetailScreenState {
+    pub(crate) fn render_metadata(&self, frame: &mut Frame, area: Rect, theme: &Theme) {
+        let props_focused = matches!(
+            self.focus,
+            DetailFocus::Name | DetailFocus::Group | DetailFocus::Shell | DetailFocus::ExecMode
+        );
+        let block = bordered_block(theme, " Properties ", props_focused);
+
+        let inner = block.inner(area);
+        frame.render_widget(&block, area);
+
+        // Name, Group+Shell, ExecMode in rows inside the block
+        let rows = Layout::vertical([
+            Constraint::Length(1),
+            Constraint::Length(1),
+            Constraint::Length(1),
+        ]);
+        let [name_row, gs_row, mode_row] = rows.areas(inner);
+
+        // Name
+        let is_name_focused = self.focus == DetailFocus::Name;
+        let name_style = if is_name_focused {
+            if self.editing_name {
+                Style::default()
+                    .fg(theme.text_on_selected)
+                    .bg(theme.accent_primary)
+                    .add_modifier(Modifier::BOLD)
+            } else {
+                Style::default().fg(theme.accent_primary)
+            }
+        } else {
+            theme.normal_style()
+        };
+        let display_name = if self.editing_name {
+            self.name_input.content.as_str()
+        } else {
+            self.set.name.as_str()
+        };
+        let name_text = format!(" Name: {}", display_name);
+        let name_line = fill_row(
+            Line::from(Span::styled(name_text, name_style)),
+            name_style,
+            name_row.width,
+        );
+        frame.render_widget(Paragraph::new(name_line), name_row);
+
+        // Cursor for name editing
+        if self.editing_name {
+            let prefix_width = unicode_width::UnicodeWidthStr::width(" Name: ");
+            set_cursor_after_prefix(
+                frame,
+                &self.name_input.content,
+                self.name_input.cursor,
+                prefix_width as u16,
+                name_row,
+            );
+        }
+
+        // Group and Shell on the same row (side by side)
+        let group_name = self
+            .groups
+            .iter()
+            .find(|g| g.id == self.set.group_id)
+            .map(|g| g.name.as_str())
+            .unwrap_or("(unknown)");
+        let group_style = if self.focus == DetailFocus::Group {
+            Style::default().fg(theme.accent_primary)
+        } else {
+            theme.normal_style()
+        };
+
+        let shell_style = if self.focus == DetailFocus::Shell {
+            Style::default().fg(theme.accent_primary)
+        } else {
+            theme.normal_style()
+        };
+
+        let half_layout = Layout::horizontal([Constraint::Ratio(1, 2), Constraint::Ratio(1, 2)]);
+        let [group_col, shell_col] = half_layout.areas(gs_row);
+        frame.render_widget(
+            Paragraph::new(Line::from(Span::styled(
+                format!(" Group: {}", group_name),
+                group_style,
+            ))),
+            group_col,
+        );
+        frame.render_widget(
+            Paragraph::new(Line::from(Span::styled(
+                format!(" Shell: {}", self.set.shell.label()),
+                shell_style,
+            ))),
+            shell_col,
+        );
+
+        // Exec mode (full width)
+        let mode_style = if self.focus == DetailFocus::ExecMode {
+            Style::default().fg(theme.accent_primary)
+        } else {
+            theme.normal_style()
+        };
+        let mode_text = format!(" Mode: {}", self.set.exec_mode.label());
+        frame.render_widget(
+            Paragraph::new(Line::from(Span::styled(mode_text, mode_style))),
+            mode_row,
+        );
+    }
+
+    /// Shared list renderer for Variables and Commands.
+    /// `item_fn(index, is_editing) -> (label, style)` provides per-item content.
+    /// `preview_label` is shown when `insert_at` is Some.
+    /// Returns `list_area` for cursor positioning.
+    pub(crate) fn render_items_list<F>(
+        &self,
+        frame: &mut Frame,
+        area: Rect,
+        theme: &Theme,
+        title: &str,
+        focused: bool,
+        count: usize,
+        list: &ScrollableList,
+        editing_item: Option<usize>,
+        insert_at: Option<usize>,
+        item_fn: F,
+        preview_label: Option<String>,
+        empty_text: &str,
+    ) -> Rect
+    where
+        F: Fn(usize, bool) -> (String, Style),
+    {
+        let block = bordered_block(theme, title, focused);
+        let inner = block.inner(area);
+        frame.render_widget(&block, area);
+
+        let (list_area, scrollbar_area) = list_scrollbar_areas(inner);
+
+        let mut items: Vec<ListItem> = (0..count)
+            .map(|i| {
+                let is_editing = Some(i) == editing_item;
+                let (label, style) = item_fn(i, is_editing);
+                ListItem::new(fill_row(
+                    Line::from(Span::styled(label, style)),
+                    style,
+                    list_area.width,
+                ))
+            })
+            .collect();
+
+        // Preview row for new inserts
+        if let Some(idx) = editing_item
+            && insert_at.is_some()
+            && let Some(label) = &preview_label
+        {
+            let style = Style::default()
+                .fg(theme.text_on_selected)
+                .bg(theme.accent_primary)
+                .add_modifier(Modifier::BOLD);
+            let preview = ListItem::new(fill_row(
+                Line::from(Span::styled(label.clone(), style)),
+                style,
+                list_area.width,
+            ));
+            let pos = insert_at.unwrap_or(idx.min(items.len()));
+            items.insert(pos, preview);
+        }
+
+        if count == 0 {
+            items.push(empty_hint(theme, empty_text));
+        }
+
+        let mut list_state =
+            ratatui::widgets::ListState::default().with_selected(list.selected_or_none(count));
+        frame.render_stateful_widget(List::new(items), list_area, &mut list_state);
+
+        render_scrollbar(frame, scrollbar_area, theme, count, list.selected);
+        list_area
+    }
+
+    pub(crate) fn render_variables(&self, frame: &mut Frame, area: Rect, theme: &Theme) {
+        let count = self.set.variables.len();
+        let preview = self
+            .var_edit
+            .insert_at
+            .is_some()
+            .then(|| format!("  ▶ {}", self.var_edit.edit_input.content));
+        let list_area = self.render_items_list(
+            frame,
+            area,
+            theme,
+            &format!(" Variables ({}) ", count),
+            self.focus == DetailFocus::Variables,
+            count,
+            &self.variable_list,
+            self.var_edit.editing,
+            self.var_edit.insert_at,
+            |i, is_editing| {
+                let label = if is_editing {
+                    format!("  ▶ {}", self.var_edit.edit_input.content)
+                } else {
+                    let v = &self.set.variables[i];
+                    format!("  {} = {}", v.name, v.default_value)
+                };
+                let style = if is_editing {
+                    Style::default()
+                        .fg(theme.text_on_selected)
+                        .bg(theme.accent_primary)
+                        .add_modifier(Modifier::BOLD)
+                } else if i == self.variable_list.selected && self.focus == DetailFocus::Variables {
+                    theme.selected_style(theme.selection_bg_secondary)
+                } else {
+                    theme.normal_style()
+                };
+                (label, style)
+            },
+            preview,
+            " (empty — press a to add a variable) ",
+        );
+
+        if let Some(idx) = self.var_edit.editing {
+            let pos = self.var_edit.insert_at.unwrap_or(idx);
+            render_inline_cursor(
+                frame,
+                list_area,
+                self.variable_list.offset,
+                pos,
+                &self.var_edit.edit_input,
+                unicode_width::UnicodeWidthStr::width("  ▶ ") as u16,
+            );
+        }
+    }
+
+    pub(crate) fn render_commands(&self, frame: &mut Frame, area: Rect, theme: &Theme) {
+        let count = self.set.commands.len();
+        let preview = self.cmd_edit.insert_at.is_some().then(|| {
+            let pos = self.cmd_edit.insert_at.unwrap_or(0);
+            format!("  #{}▶ {}", pos, self.cmd_edit.edit_input.content)
+        });
+        let list_area = self.render_items_list(
+            frame,
+            area,
+            theme,
+            &format!(" Commands ({}) ", count),
+            self.focus == DetailFocus::Commands,
+            count,
+            &self.command_list,
+            self.cmd_edit.editing,
+            self.cmd_edit.insert_at,
+            |i, is_editing| {
+                let pos = self.set.commands[i].position;
+                let is_insert = self.cmd_edit.insert_at.is_some();
+                let display_pos = if is_editing {
+                    self.cmd_edit.insert_at.unwrap_or(pos)
+                } else if is_insert && i >= self.cmd_edit.insert_at.unwrap() {
+                    pos + 1
+                } else {
+                    pos
+                };
+                let content = if is_editing {
+                    self.cmd_edit.edit_input.content.as_str()
+                } else {
+                    self.set.commands[i].command.as_str()
+                };
+                let label = format!("  #{}  {}", display_pos, content);
+                let style = if is_editing {
+                    Style::default()
+                        .fg(theme.text_on_selected)
+                        .bg(theme.accent_primary)
+                        .add_modifier(Modifier::BOLD)
+                } else if i == self.command_list.selected && self.focus == DetailFocus::Commands {
+                    theme.selected_style(theme.selection_bg_secondary)
+                } else {
+                    theme.normal_style()
+                };
+                (label, style)
+            },
+            preview,
+            " (empty — press a to add a command) ",
+        );
+
+        if let Some(idx) = self.cmd_edit.editing {
+            let pos = self.cmd_edit.insert_at.unwrap_or(idx);
+            let display_prefix = format!("  #{}▶ ", pos);
+            render_inline_cursor(
+                frame,
+                list_area,
+                self.command_list.offset,
+                pos,
+                &self.cmd_edit.edit_input,
+                unicode_width::UnicodeWidthStr::width(display_prefix.as_str()) as u16,
+            );
+        }
+    }
+
+    pub(crate) fn render_status_bar(&self, frame: &mut Frame, area: Rect, theme: &Theme) {
+        let is_editing = self.var_edit.is_editing() || self.cmd_edit.is_editing();
+        let status: String = if is_editing {
+            " [Enter] Confirm  [Esc] Cancel".into()
+        } else {
+            match self.focus {
+                DetailFocus::Name => "[Enter] Edit name  [Tab] Next".into(),
+                DetailFocus::Group => "[←/→] Change group  [Tab] Next".into(),
+                DetailFocus::Shell => "[←/→] Change shell  [Tab] Next".into(),
+                DetailFocus::ExecMode => "[←/→] Change mode  [Tab] Next".into(),
+                DetailFocus::Variables => "[a] Add  [e] Edit  [d] Delete  [Tab] Next".into(),
+                DetailFocus::Commands => "[a] Add  [e] Edit  [d] Delete  [Tab] Next".into(),
+            }
+        };
+        let text = format!(" {}  |  [Ctrl+S] Save  [Esc] Cancel", status);
+        render_status_bar(frame, area, theme, &text);
+    }
+}
