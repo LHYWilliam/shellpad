@@ -5,7 +5,54 @@ use crossterm::event::KeyEvent;
 use super::{DetailFocus, DetailScreenState};
 use super::editor::{handle_command_edit, handle_variable_edit};
 
+enum DetailRegion { Properties, Variables, Commands }
+
 impl DetailScreenState {
+    fn region(&self) -> DetailRegion {
+        match self.focus {
+            DetailFocus::Name | DetailFocus::WorkDir | DetailFocus::Group
+            | DetailFocus::Shell | DetailFocus::ExecMode => DetailRegion::Properties,
+            DetailFocus::Variables => DetailRegion::Variables,
+            DetailFocus::Commands => DetailRegion::Commands,
+        }
+    }
+
+    fn next_region(&mut self) {
+        self.commit_name_edit();
+        self.commit_workdir_edit();
+        match self.region() {
+            DetailRegion::Properties => {
+                self.focus = DetailFocus::Variables;
+                self.variable_list.selected = 0;
+            }
+            DetailRegion::Variables => {
+                self.focus = DetailFocus::Commands;
+                self.command_list.selected = 0;
+            }
+            DetailRegion::Commands => {
+                self.focus = DetailFocus::Name;
+            }
+        }
+    }
+
+    fn prev_region(&mut self) {
+        self.commit_name_edit();
+        self.commit_workdir_edit();
+        match self.region() {
+            DetailRegion::Properties => {
+                self.focus = DetailFocus::Commands;
+                self.command_list.selected = 0;
+            }
+            DetailRegion::Variables => {
+                self.focus = DetailFocus::Name;
+            }
+            DetailRegion::Commands => {
+                self.focus = DetailFocus::Variables;
+                self.variable_list.selected = 0;
+            }
+        }
+    }
+
     /// Handle a key event.
     pub fn handle_key(&mut self, key: KeyEvent) -> AppAction {
         use crossterm::event::KeyCode;
@@ -32,30 +79,10 @@ impl DetailScreenState {
 
         match key.code {
             KeyCode::Tab | KeyCode::Char('\t') => {
-                self.commit_name_edit();
-                self.commit_workdir_edit();
-                self.focus = match self.focus {
-                    DetailFocus::Name => DetailFocus::WorkDir,
-                    DetailFocus::WorkDir => DetailFocus::Group,
-                    DetailFocus::Group => DetailFocus::Shell,
-                    DetailFocus::Shell => DetailFocus::ExecMode,
-                    DetailFocus::ExecMode => DetailFocus::Variables,
-                    DetailFocus::Variables => DetailFocus::Commands,
-                    DetailFocus::Commands => DetailFocus::Name,
-                };
+                self.next_region();
             }
             KeyCode::BackTab => {
-                self.commit_name_edit();
-                self.commit_workdir_edit();
-                self.focus = match self.focus {
-                    DetailFocus::Name => DetailFocus::Commands,
-                    DetailFocus::WorkDir => DetailFocus::Name,
-                    DetailFocus::Group => DetailFocus::WorkDir,
-                    DetailFocus::Shell => DetailFocus::Group,
-                    DetailFocus::ExecMode => DetailFocus::Shell,
-                    DetailFocus::Variables => DetailFocus::ExecMode,
-                    DetailFocus::Commands => DetailFocus::Variables,
-                };
+                self.prev_region();
             }
             KeyCode::Up if key.modifiers.contains(crossterm::event::KeyModifiers::CONTROL) => {
                 match self.focus {
@@ -76,15 +103,28 @@ impl DetailScreenState {
                     _ => {}
                 }
             }
-            KeyCode::Up => match self.focus {
-                DetailFocus::Variables => {
-                    self.variable_list.select_previous();
+            KeyCode::Up => {
+                match self.region() {
+                    DetailRegion::Properties => {
+                        self.commit_name_edit();
+                        self.commit_workdir_edit();
+                        self.focus = match self.focus {
+                            DetailFocus::Name => DetailFocus::ExecMode,
+                            DetailFocus::WorkDir => DetailFocus::Name,
+                            DetailFocus::Group => DetailFocus::WorkDir,
+                            DetailFocus::Shell => DetailFocus::Group,
+                            DetailFocus::ExecMode => DetailFocus::Shell,
+                            _ => self.focus,
+                        };
+                    }
+                    DetailRegion::Variables => {
+                        self.variable_list.select_previous();
+                    }
+                    DetailRegion::Commands => {
+                        self.command_list.select_previous();
+                    }
                 }
-                DetailFocus::Commands => {
-                    self.command_list.select_previous();
-                }
-                _ => {}
-            },
+            }
             KeyCode::Down if key.modifiers.contains(crossterm::event::KeyModifiers::CONTROL) => {
                 match self.focus {
                     DetailFocus::Variables if !self.set.variables.is_empty() => {
@@ -104,15 +144,28 @@ impl DetailScreenState {
                     _ => {}
                 }
             }
-            KeyCode::Down => match self.focus {
-                DetailFocus::Variables => {
-                    self.variable_list.select_next(self.set.variables.len());
+            KeyCode::Down => {
+                match self.region() {
+                    DetailRegion::Properties => {
+                        self.commit_name_edit();
+                        self.commit_workdir_edit();
+                        self.focus = match self.focus {
+                            DetailFocus::Name => DetailFocus::WorkDir,
+                            DetailFocus::WorkDir => DetailFocus::Group,
+                            DetailFocus::Group => DetailFocus::Shell,
+                            DetailFocus::Shell => DetailFocus::ExecMode,
+                            DetailFocus::ExecMode => DetailFocus::Name,
+                            _ => self.focus,
+                        };
+                    }
+                    DetailRegion::Variables => {
+                        self.variable_list.select_next(self.set.variables.len());
+                    }
+                    DetailRegion::Commands => {
+                        self.command_list.select_next(self.set.commands.len());
+                    }
                 }
-                DetailFocus::Commands => {
-                    self.command_list.select_next(self.set.commands.len());
-                }
-                _ => {}
-            },
+            }
             KeyCode::Left => match self.focus {
                 DetailFocus::Group => {
                     self.cycle_group(-1);
@@ -323,31 +376,30 @@ mod tests {
     }
 
     #[test]
-    fn test_tab_cycles_focus_forward() {
+    fn test_tab_cycles_properties_to_variables_to_commands() {
         let mut state = make_state();
-        assert_eq!(state.focus, DetailFocus::Name);
-        state.handle_key(make_key(KeyCode::Tab));
-        assert_eq!(state.focus, DetailFocus::WorkDir);
-        state.handle_key(make_key(KeyCode::Tab));
-        assert_eq!(state.focus, DetailFocus::Group);
-        state.handle_key(make_key(KeyCode::Tab));
-        assert_eq!(state.focus, DetailFocus::Shell);
-        state.handle_key(make_key(KeyCode::Tab));
-        assert_eq!(state.focus, DetailFocus::ExecMode);
+        assert_eq!(state.focus, DetailFocus::Name); // Properties first
         state.handle_key(make_key(KeyCode::Tab));
         assert_eq!(state.focus, DetailFocus::Variables);
+        assert_eq!(state.variable_list.selected, 0);
         state.handle_key(make_key(KeyCode::Tab));
         assert_eq!(state.focus, DetailFocus::Commands);
+        assert_eq!(state.command_list.selected, 0);
         state.handle_key(make_key(KeyCode::Tab));
-        assert_eq!(state.focus, DetailFocus::Name); // wraps around
+        assert_eq!(state.focus, DetailFocus::Name); // wraps to Properties
     }
 
     #[test]
-    fn test_backtab_cycles_focus_backward() {
+    fn test_backtab_cycles_commands_to_variables_to_properties() {
         let mut state = make_state();
-        // Start at Name (index 0), send backtab -> goes to Commands (last)
-        state.handle_key(make_key(KeyCode::BackTab));
+        state.handle_key(make_key(KeyCode::BackTab)); // Name → Commands
         assert_eq!(state.focus, DetailFocus::Commands);
+        assert_eq!(state.command_list.selected, 0);
+        state.handle_key(make_key(KeyCode::BackTab)); // Commands → Variables
+        assert_eq!(state.focus, DetailFocus::Variables);
+        assert_eq!(state.variable_list.selected, 0);
+        state.handle_key(make_key(KeyCode::BackTab)); // Variables → Properties
+        assert_eq!(state.focus, DetailFocus::Name);
     }
 
     #[test]
@@ -535,6 +587,6 @@ mod tests {
         state.handle_key(make_key(KeyCode::Tab)); // Tab commits + moves
         assert!(!state.workdir_editing);
         assert_eq!(state.set.working_dir, Some("/committed".to_string()));
-        assert_eq!(state.focus, DetailFocus::Group);
+        assert_eq!(state.focus, DetailFocus::Variables);
     }
 }
