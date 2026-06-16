@@ -272,31 +272,13 @@ impl App {
 
 #[cfg(test)]
 mod tests {
-    use super::{App, ExecutionState};
+    use super::*;
     use crate::action::AppAction;
     use crate::app::execution::ExecutionManager;
-    use crate::app::toast::ToastManager;
-    use crate::mode::AppMode;
     use crate::models::{AppData, CommandSet, Group};
+    use crate::test_utils::make_app;
     use crate::ui::detail_screen::DetailScreenState;
-    use crate::ui::main_screen::{MainScreenState, Panel};
-    use crate::ui::theme::Theme;
-    use crate::ui::variable_screen::VariableScreenState;
-
-    fn make_app() -> App {
-        App {
-            data: AppData::empty(),
-            mode: AppMode::Main,
-            running: true,
-            main_screen: MainScreenState::new(),
-            detail_screen: None,
-            execution_state: ExecutionState::Idle { pending_set: None },
-            prev_mode: None,
-            variable_screen: VariableScreenState::new(),
-            theme: Theme::default_dark(),
-            toasts: ToastManager::new(),
-        }
-    }
+    use crate::ui::main_screen::Panel;
 
     fn make_data_with_one_group() -> AppData {
         let mut g = Group::new("Deploy".to_string());

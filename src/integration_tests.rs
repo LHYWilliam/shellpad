@@ -1,34 +1,13 @@
 #[cfg(test)]
 mod tests {
     use crate::action::AppAction;
-    use crate::app::App;
-    use crate::app::toast::ToastManager;
-    use crate::mode::AppMode;
     use crate::models::{AppData, CommandSet, Group, Variable};
     use crate::storage;
     use crate::ui::detail_screen::{DetailFocus, DetailScreenState};
     use crate::ui::main_screen::{MainScreenState, Panel};
-    use crate::ui::theme::Theme;
     use uuid::Uuid;
 
-    // ------------------------------------------------------------------
-    // Helper: create an App that doesn't touch the real config file
-    // ------------------------------------------------------------------
-    fn test_app() -> App {
-        use crate::app::ExecutionState;
-        App {
-            data: AppData::empty(),
-            mode: AppMode::Main,
-            running: true,
-            main_screen: MainScreenState::new(),
-            detail_screen: None,
-            execution_state: ExecutionState::Idle { pending_set: None },
-            prev_mode: None,
-            variable_screen: crate::ui::variable_screen::VariableScreenState::new(),
-            theme: Theme::default_dark(),
-            toasts: ToastManager::new(),
-        }
-    }
+    use crate::test_utils::make_app;
 
     // ------------------------------------------------------------------
     // 5.1 Storage full lifecycle
@@ -71,7 +50,7 @@ mod tests {
     // ------------------------------------------------------------------
     #[test]
     fn test_app_crud_cycle() {
-        let mut app = test_app();
+        let mut app = make_app();
 
         app.handle_action(AppAction::NewGroup);
         assert_eq!(app.data.groups.len(), 1);
@@ -166,7 +145,7 @@ mod tests {
     // ------------------------------------------------------------------
     #[test]
     fn test_safe_actions_do_not_panic() {
-        let mut app = test_app();
+        let mut app = make_app();
         let actions = vec![
             AppAction::None,
             AppAction::Help,
