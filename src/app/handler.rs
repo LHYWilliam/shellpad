@@ -205,8 +205,13 @@ impl App {
                 }
             }
             AppAction::ReExec => {
+                let pending = if let ExecutionState::Running { pending_set, .. } = self.execution_state {
+                    Some(pending_set)
+                } else {
+                    None
+                };
                 self.teardown_execution(false, false);
-                if let ExecutionState::Running { pending_set: (gi, si), .. } = self.execution_state {
+                if let Some((gi, si)) = pending {
                     self.do_execute_with(gi, si, 0);
                 }
             }
@@ -582,5 +587,24 @@ mod tests {
             assert!(screen.completed);
             assert_eq!(screen.skipped, 1);
         }
+    }
+
+    #[test]
+    fn test_handler_re_exec() {
+        use crate::ui::execution_screen::ExecutionScreenState;
+        use crate::models::Command;
+        let mut app = make_app();
+        app.data = make_data_with_one_group();
+        let cmds = vec![Command { position: 0, command: "ok".to_string() }];
+        app.execution_state = ExecutionState::Running {
+            screen: ExecutionScreenState::new("t".to_string(), &cmds),
+            manager: ExecutionManager::new(),
+            pending_set: (0, 0),
+        };
+        app.mode = AppMode::Execution;
+
+        app.handle_action(AppAction::ReExec);
+        assert_eq!(app.mode, AppMode::Execution);
+        assert!(matches!(app.execution_state, ExecutionState::Running { .. }));
     }
 }
