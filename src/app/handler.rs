@@ -279,6 +279,8 @@ impl App {
                 }
                 self.do_execute();
             }
+            // Temporary: placeholder until Task 2
+            AppAction::Reorder(_, _) => {}
             AppAction::RequestDelete(kind) => {
                 self.mode = AppMode::ConfirmDelete {
                     kind,

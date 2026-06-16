@@ -29,6 +29,15 @@ pub enum DeleteKind {
     },
 }
 
+/// What the user wants to reorder — identifies the target item and its position.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ReorderKind {
+    Group(usize),
+    Set(usize, usize),
+    Variable(usize),
+    Command(usize),
+}
+
 /// Unified action enum returned by all screens.
 /// The `app/handler.rs` handles all variants centrally.
 pub enum AppAction {
@@ -63,4 +72,7 @@ pub enum AppAction {
 
     // === Confirmation ===
     RequestDelete(DeleteKind),
+
+    // === Reordering ===
+    Reorder(ReorderKind, isize), // direction: -1 up, +1 down
 }
