@@ -156,7 +156,7 @@ impl App {
                 self.detail_screen = None;
                 self.mode = AppMode::Main;
                 self.auto_save();
-                self.toasts.add("Command set saved", ToastSeverity::Success);
+                self.toasts.add("Command set saved", ToastSeverity::Info);
             }
             AppAction::CancelEdit => {
                 self.detail_screen = None;
@@ -171,6 +171,7 @@ impl App {
                     if ds.set.variables.is_empty() {
                         ds.focus = crate::ui::detail_screen::DetailFocus::Name;
                     }
+                    self.auto_save();
                     self.toasts.add("Variable deleted", ToastSeverity::Info);
                 }
             }
@@ -186,6 +187,7 @@ impl App {
                     if ds.set.commands.is_empty() {
                         ds.focus = crate::ui::detail_screen::DetailFocus::Name;
                     }
+                    self.auto_save();
                     self.toasts.add("Command deleted", ToastSeverity::Info);
                 }
             }
