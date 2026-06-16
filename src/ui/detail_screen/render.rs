@@ -24,17 +24,22 @@ impl DetailScreenState {
     pub(crate) fn render_metadata(&self, frame: &mut Frame, area: Rect, theme: &Theme) {
         let props_focused = matches!(
             self.focus,
-            DetailFocus::Name | DetailFocus::Group | DetailFocus::Shell | DetailFocus::ExecMode
+            DetailFocus::Name
+                | DetailFocus::Group
+                | DetailFocus::Shell
+                | DetailFocus::ExecMode
+                | DetailFocus::WorkDir
         );
         let inner = bordered_block_zone(frame, area, theme, " Properties ", props_focused);
 
-        // Name, Group+Shell, ExecMode in rows inside the block
+        // Name, Group+Shell, ExecMode, WorkDir in rows inside the block
         let rows = Layout::vertical([
             Constraint::Length(1),
             Constraint::Length(1),
             Constraint::Length(1),
+            Constraint::Length(1),
         ]);
-        let [name_row, gs_row, mode_row] = rows.areas(inner);
+        let [name_row, gs_row, mode_row, workdir_row] = rows.areas(inner);
 
         // Name
         let is_name_focused = self.focus == DetailFocus::Name;
@@ -122,6 +127,54 @@ impl DetailScreenState {
             Paragraph::new(Line::from(Span::styled(mode_text, mode_style))),
             mode_row,
         );
+
+        // WorkDir
+        let is_workdir_focused = self.focus == DetailFocus::WorkDir;
+        let workdir_style = if is_workdir_focused {
+            if self.workdir_editing {
+                Style::default()
+                    .fg(theme.text_on_selected)
+                    .bg(theme.accent_primary)
+                    .add_modifier(Modifier::BOLD)
+            } else {
+                Style::default().fg(theme.accent_primary)
+            }
+        } else {
+            theme.normal_style()
+        };
+        let wd_text = if self.workdir_editing {
+            format!(" WorkDir: {}", self.workdir_input.content)
+        } else {
+            match &self.set.working_dir {
+                Some(p) => format!(" WorkDir: {}", p),
+                None => format!(" WorkDir: (default — launcher CWD)"),
+            }
+        };
+        let wd_display_style = if !is_workdir_focused && self.set.working_dir.is_none() {
+            Style::default()
+                .fg(theme.text_disabled)
+                .add_modifier(Modifier::DIM)
+        } else {
+            workdir_style
+        };
+        let wd_line = fill_row(
+            Line::from(Span::styled(wd_text, wd_display_style)),
+            wd_display_style,
+            workdir_row.width,
+        );
+        frame.render_widget(Paragraph::new(wd_line), workdir_row);
+
+        // Cursor for workdir editing
+        if self.workdir_editing {
+            let prefix_width = unicode_width::UnicodeWidthStr::width(" WorkDir: ");
+            set_cursor_after_prefix(
+                frame,
+                &self.workdir_input.content,
+                self.workdir_input.cursor,
+                prefix_width as u16,
+                workdir_row,
+            );
+        }
     }
 
     /// Shared list renderer for Variables and Commands.
@@ -298,6 +351,9 @@ impl DetailScreenState {
             (false, DetailFocus::Group) => "[←/→] Change group  [Tab] Next  |  [Ctrl+S] Save",
             (false, DetailFocus::Shell) => "[←/→] Change shell  [Tab] Next  |  [Ctrl+S] Save",
             (false, DetailFocus::ExecMode) => "[←/→] Change mode  [Tab] Next  |  [Ctrl+S] Save",
+            (false, DetailFocus::WorkDir) => {
+                "[Enter] Edit work dir  [Tab] Next  |  [Ctrl+S] Save"
+            }
             (false, DetailFocus::Variables) => {
                 "[a] Add  [e/Enter] Edit  [d] Delete  [↑/↓] Nav  [Ctrl+↑/↓] Move  [Tab] Next  |  [Ctrl+S] Save"
             }
