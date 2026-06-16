@@ -109,7 +109,7 @@ impl DetailScreenState {
                         self.commit_name_edit();
                         self.commit_workdir_edit();
                         self.focus = match self.focus {
-                            DetailFocus::Name => DetailFocus::ExecMode,
+                            DetailFocus::Name => DetailFocus::Name,
                             DetailFocus::WorkDir => DetailFocus::Name,
                             DetailFocus::Group => DetailFocus::WorkDir,
                             DetailFocus::Shell => DetailFocus::Group,
@@ -154,7 +154,7 @@ impl DetailScreenState {
                             DetailFocus::WorkDir => DetailFocus::Group,
                             DetailFocus::Group => DetailFocus::Shell,
                             DetailFocus::Shell => DetailFocus::ExecMode,
-                            DetailFocus::ExecMode => DetailFocus::Name,
+                            DetailFocus::ExecMode => DetailFocus::ExecMode,
                             _ => self.focus,
                         };
                     }
@@ -364,7 +364,7 @@ impl DetailScreenState {
 mod tests {
     use super::*;
     use crate::action::{AppAction, DeleteKind, ReorderKind};
-    use crate::models::{CommandSet, Group};
+    use crate::models::{CommandSet, ExecMode, Group};
     use crate::test_utils::make_key;
     use crate::ui::detail_screen::DetailFocus;
     use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
@@ -603,14 +603,13 @@ mod tests {
         state.handle_key(make_key(KeyCode::Down));
         assert_eq!(state.focus, DetailFocus::ExecMode);
         state.handle_key(make_key(KeyCode::Down));
-        assert_eq!(state.focus, DetailFocus::Name); // wraps
+        assert_eq!(state.focus, DetailFocus::ExecMode); // stops at bottom
     }
 
     #[test]
     fn test_properties_up_cycles_reverse() {
         let mut state = make_state();
-        state.handle_key(make_key(KeyCode::Up));
-        assert_eq!(state.focus, DetailFocus::ExecMode);
+        state.focus = DetailFocus::ExecMode;
         state.handle_key(make_key(KeyCode::Up));
         assert_eq!(state.focus, DetailFocus::Shell);
         state.handle_key(make_key(KeyCode::Up));
@@ -618,7 +617,9 @@ mod tests {
         state.handle_key(make_key(KeyCode::Up));
         assert_eq!(state.focus, DetailFocus::WorkDir);
         state.handle_key(make_key(KeyCode::Up));
-        assert_eq!(state.focus, DetailFocus::Name); // wraps
+        assert_eq!(state.focus, DetailFocus::Name);
+        state.handle_key(make_key(KeyCode::Up));
+        assert_eq!(state.focus, DetailFocus::Name); // stops at top
     }
 
     #[test]
@@ -638,5 +639,32 @@ mod tests {
         state.handle_key(make_key(KeyCode::Tab)); // Variables → Commands
         state.handle_key(make_key(KeyCode::Tab)); // Commands → Properties
         assert_eq!(state.focus, DetailFocus::Name); // resets to first
+    }
+
+    #[test]
+    fn test_properties_up_at_name_stops() {
+        let mut state = make_state();
+        assert_eq!(state.focus, DetailFocus::Name);
+        state.handle_key(make_key(KeyCode::Up));
+        // name only valid for properties, but Up from Name should no-op
+        assert_eq!(state.focus, DetailFocus::Name); // stays, does not wrap
+    }
+
+    #[test]
+    fn test_properties_down_at_exec_mode_stops() {
+        let mut state = make_state();
+        state.focus = DetailFocus::ExecMode;
+        state.handle_key(make_key(KeyCode::Down));
+        assert_eq!(state.focus, DetailFocus::ExecMode); // no-op
+    }
+
+    #[test]
+    fn test_right_past_last_exec_mode_stops() {
+        let mut state = make_state();
+        state.focus = DetailFocus::ExecMode;
+        state.handle_key(make_key(KeyCode::Right)); // Stop → Continue
+        state.handle_key(make_key(KeyCode::Right)); // should stop (no wrap)
+        assert_eq!(state.set.exec_mode, ExecMode::ContinueOnError);
+        assert_eq!(state.focus, DetailFocus::ExecMode);
     }
 }

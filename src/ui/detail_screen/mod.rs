@@ -111,30 +111,36 @@ impl DetailScreenState {
             .groups
             .iter()
             .position(|g| g.id == self.set.group_id)
-            .unwrap_or(0);
-        let len = self.groups.len();
+            .unwrap_or(0) as isize;
+        let len = self.groups.len() as isize;
         if len == 0 {
             return;
         }
-        let next = (current as isize + delta).rem_euclid(len as isize) as usize;
-        self.set.group_id = self.groups[next].id;
+        let candidate = current + delta;
+        if candidate < 0 || candidate >= len {
+            return;
+        }
+        self.set.group_id = self.groups[candidate as usize].id;
     }
 
     fn cycle_shell(&mut self, delta: isize) {
-        // Build 6-element cycle: SystemDefault, Bash, Zsh, Fish, PowerShell, Custom(prev path)
         let saved_custom = match &self.set.shell {
             ShellType::Custom(p) => Some(p.clone()),
             _ => None,
         };
         let variants = ShellType::builtin_variants();
-        let current = match &self.set.shell {
-            ShellType::Custom(_) => 5usize,
+        let current: isize = match &self.set.shell {
+            ShellType::Custom(_) => 5,
             other => variants
                 .iter()
                 .position(|s| std::mem::discriminant(s) == std::mem::discriminant(other))
-                .unwrap_or(0),
+                .unwrap_or(0) as isize,
         };
-        let next = ((current as isize + delta).rem_euclid(6)) as usize;
+        let candidate = current + delta;
+        if candidate < 0 || candidate >= 6 {
+            return;
+        }
+        let next = candidate as usize;
         self.set.shell = if next == 5 {
             ShellType::Custom(saved_custom.unwrap_or_else(|| "/usr/bin/sh".to_string()))
         } else {
@@ -147,8 +153,11 @@ impl DetailScreenState {
         let pos = variants
             .iter()
             .position(|v| *v == self.set.exec_mode)
-            .unwrap_or(0);
-        let next = (pos as isize + delta).rem_euclid(variants.len() as isize) as usize;
-        self.set.exec_mode = variants[next];
+            .unwrap_or(0) as isize;
+        let candidate = pos + delta;
+        if candidate < 0 || candidate >= variants.len() as isize {
+            return;
+        }
+        self.set.exec_mode = variants[candidate as usize];
     }
 }
