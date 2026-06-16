@@ -292,23 +292,19 @@ impl DetailScreenState {
 
     pub(crate) fn render_status_bar(&self, frame: &mut Frame, area: Rect, theme: &Theme) {
         let is_editing = self.var_edit.is_editing() || self.cmd_edit.is_editing();
-        let text: String = if is_editing {
-            "[Enter] Confirm  [Esc] Cancel".into()
-        } else {
-            let status: String = match self.focus {
-                DetailFocus::Name => "[Enter] Edit name  [Tab] Next".into(),
-                DetailFocus::Group => "[←/→] Change group  [Tab] Next".into(),
-                DetailFocus::Shell => "[←/→] Change shell  [Tab] Next".into(),
-                DetailFocus::ExecMode => "[←/→] Change mode  [Tab] Next".into(),
-                DetailFocus::Variables => {
-                    "[a] Add  [e/Enter] Edit  [d] Delete  [↑/↓] Nav  [Tab] Next".into()
-                }
-                DetailFocus::Commands => {
-                    "[a] Add  [e/Enter] Edit  [d] Delete  [↑/↓] Nav  [Tab] Next".into()
-                }
-            };
-            format!(" {}  |  [Ctrl+S] Save  [Esc] Cancel", status)
+        let text = match (is_editing, self.focus) {
+            (true, _) => "[Enter] Confirm  [Esc] Cancel",
+            (false, DetailFocus::Name) => "[Enter] Edit name  [Tab] Next  |  [Ctrl+S] Save",
+            (false, DetailFocus::Group) => "[←/→] Change group  [Tab] Next  |  [Ctrl+S] Save",
+            (false, DetailFocus::Shell) => "[←/→] Change shell  [Tab] Next  |  [Ctrl+S] Save",
+            (false, DetailFocus::ExecMode) => "[←/→] Change mode  [Tab] Next  |  [Ctrl+S] Save",
+            (false, DetailFocus::Variables) => {
+                "[a] Add  [e/Enter] Edit  [d] Delete  [↑/↓] Nav  [Tab] Next  |  [Ctrl+S] Save"
+            }
+            (false, DetailFocus::Commands) => {
+                "[a] Add  [e/Enter] Edit  [d] Delete  [↑/↓] Nav  [Tab] Next  |  [Ctrl+S] Save"
+            }
         };
-        render_status_bar(frame, area, theme, &text);
+        render_status_bar(frame, area, theme, text);
     }
 }
