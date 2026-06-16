@@ -1,5 +1,6 @@
 use crate::action::AppAction;
 use crate::models::AppData;
+use super::Panel;
 use crate::ui::main_screen::MainScreenState;
 use crate::ui::widget::TextInput;
 use crate::ui::widget::text_input::handle_text_input;
@@ -37,7 +38,7 @@ impl MainScreenState {
                     self.search_mode = false;
                     self.search_input = TextInput::new(String::new());
                     self.set_list.reset();
-                    self.active_panel = crate::ui::main_screen::Panel::Groups;
+                    self.active_panel = Groups;
                     AppAction::None
                 }
                 KeyCode::Enter => {
@@ -45,7 +46,7 @@ impl MainScreenState {
                     if let Some((gi, si, _)) = results.get(self.set_list.selected) {
                         self.group_list.selected = *gi;
                         self.set_list.selected = *si;
-                        self.active_panel = crate::ui::main_screen::Panel::Sets;
+                        self.active_panel = Sets;
                     }
                     self.search_mode = false;
                     self.search_input = TextInput::new(String::new());
@@ -62,7 +63,7 @@ impl MainScreenState {
                 }
                 _ => {
                     handle_text_input(&mut self.search_input, key);
-                    self.active_panel = crate::ui::main_screen::Panel::Sets;
+                    self.active_panel = Sets;
                     self.set_list.reset();
                     AppAction::None
                 }
@@ -72,10 +73,10 @@ impl MainScreenState {
         match key.code {
             KeyCode::Up | KeyCode::Char('k') | KeyCode::Char('K') => {
                 match self.active_panel {
-                    crate::ui::main_screen::Panel::Groups => self.group_list.select_previous(),
-                    crate::ui::main_screen::Panel::Sets => {
+                    Groups => self.group_list.select_previous(),
+                    Sets => {
                         if self.visible_sets(data).is_empty() {
-                            self.active_panel = crate::ui::main_screen::Panel::Groups;
+                            self.active_panel = Groups;
                         } else {
                             self.set_list.select_previous();
                         }
@@ -85,13 +86,13 @@ impl MainScreenState {
             }
             KeyCode::Down | KeyCode::Char('j') | KeyCode::Char('J') => {
                 match self.active_panel {
-                    crate::ui::main_screen::Panel::Groups => {
+                    Groups => {
                         self.group_list.select_next(data.groups.len())
                     }
-                    crate::ui::main_screen::Panel::Sets => {
+                    Sets => {
                         let n = self.visible_sets(data).len();
                         if n == 0 {
-                            self.active_panel = crate::ui::main_screen::Panel::Groups;
+                            self.active_panel = Groups;
                         } else {
                             self.set_list.select_next(n);
                         }
@@ -101,30 +102,30 @@ impl MainScreenState {
             }
             KeyCode::Left => {
                 match self.active_panel {
-                    crate::ui::main_screen::Panel::Sets => {
-                        self.active_panel = crate::ui::main_screen::Panel::Groups
+                    Sets => {
+                        self.active_panel = Groups
                     }
-                    crate::ui::main_screen::Panel::Groups => { /* already on the leftmost panel */ }
+                    Groups => { /* already on the leftmost panel */ }
                 }
                 AppAction::None
             }
             KeyCode::Right => {
                 match self.active_panel {
-                    crate::ui::main_screen::Panel::Groups => {
+                    Groups => {
                         let has_sets = self
                             .selected_group_idx(data)
                             .map(|gi| !data.groups[gi].sets.is_empty())
                             .unwrap_or(false);
                         if has_sets {
-                            self.active_panel = crate::ui::main_screen::Panel::Sets;
+                            self.active_panel = Sets;
                         }
                     }
-                    crate::ui::main_screen::Panel::Sets => { /* already on the rightmost panel */ }
+                    Sets => { /* already on the rightmost panel */ }
                 }
                 AppAction::None
             }
             KeyCode::Enter => {
-                if self.active_panel == crate::ui::main_screen::Panel::Sets
+                if self.active_panel == Sets
                     && let Some((gi, si)) = self.selected_set_idx(data)
                 {
                     return AppAction::ExecuteSet(gi, si);
@@ -132,7 +133,7 @@ impl MainScreenState {
                 AppAction::None
             }
             KeyCode::Char('e') | KeyCode::Char('E') => {
-                if self.active_panel == crate::ui::main_screen::Panel::Sets
+                if self.active_panel == Sets
                     && let Some((gi, si)) = self.selected_set_idx(data)
                 {
                     return AppAction::EditSet(gi, si);
@@ -147,7 +148,7 @@ impl MainScreenState {
                 }
             }
             KeyCode::Char('d') => {
-                if self.active_panel == crate::ui::main_screen::Panel::Sets
+                if self.active_panel == Sets
                     && let Some((gi, si)) = self.selected_set_idx(data)
                 {
                     return AppAction::DeleteSet(gi, si);
@@ -155,7 +156,7 @@ impl MainScreenState {
                 AppAction::None
             }
             KeyCode::Char('D') => {
-                if self.active_panel == crate::ui::main_screen::Panel::Groups
+                if self.active_panel == Groups
                     && let Some(gi) = self.selected_group_idx(data)
                 {
                     return AppAction::DeleteGroup(gi);
@@ -164,7 +165,7 @@ impl MainScreenState {
             }
             KeyCode::Char('g') => AppAction::NewGroup,
             KeyCode::Char('R') => {
-                if self.active_panel == crate::ui::main_screen::Panel::Groups
+                if self.active_panel == Groups
                     && let Some(gi) = self.selected_group_idx(data)
                 {
                     let current = data.groups[gi].name.clone();
@@ -177,7 +178,7 @@ impl MainScreenState {
                 self.search_mode = true;
                 self.search_input.content.clear();
                 self.set_list.reset();
-                self.active_panel = crate::ui::main_screen::Panel::Sets;
+                self.active_panel = Sets;
                 AppAction::None
             }
             KeyCode::Char('h') | KeyCode::Char('H')
@@ -228,7 +229,7 @@ mod tests {
     #[test]
     fn test_enter_on_set_returns_execute_set() {
         let mut state = MainScreenState::new();
-        state.active_panel = crate::ui::main_screen::Panel::Sets;
+        state.active_panel = Sets;
         let data = make_data();
         let action = state.handle_key(make_key(KeyCode::Enter), &data);
         assert!(matches!(action, AppAction::ExecuteSet(0, 0)));
@@ -237,7 +238,7 @@ mod tests {
     #[test]
     fn test_e_returns_edit_set() {
         let mut state = MainScreenState::new();
-        state.active_panel = crate::ui::main_screen::Panel::Sets;
+        state.active_panel = Sets;
         let data = make_data();
         let action = state.handle_key(make_key(KeyCode::Char('e')), &data);
         assert!(matches!(action, AppAction::EditSet(0, 0)));
@@ -254,7 +255,7 @@ mod tests {
     #[test]
     fn test_d_returns_delete_set() {
         let mut state = MainScreenState::new();
-        state.active_panel = crate::ui::main_screen::Panel::Sets;
+        state.active_panel = Sets;
         let data = make_data();
         let action = state.handle_key(make_key(KeyCode::Char('d')), &data);
         assert!(matches!(action, AppAction::DeleteSet(0, 0)));
@@ -263,7 +264,7 @@ mod tests {
     #[test]
     fn test_big_d_returns_delete_group() {
         let mut state = MainScreenState::new();
-        state.active_panel = crate::ui::main_screen::Panel::Groups;
+        state.active_panel = Groups;
         let data = make_data();
         let action = state.handle_key(make_key(KeyCode::Char('D')), &data);
         assert!(matches!(action, AppAction::DeleteGroup(0)));
