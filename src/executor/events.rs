@@ -20,6 +20,4 @@ pub enum ExecutionEvent {
         failed: usize,
         total_duration_ms: u128,
     },
-    /// Execution was interrupted by user (results are partial).
-    Interrupted { last_index: usize },
 }

@@ -32,8 +32,6 @@ pub enum AppAction {
     SkipCurrent,
     ContinueFrom(usize),
     ReExec,
-    #[allow(dead_code)]
-    ToggleAutoScroll,
     BackToMain,
 
     // === Variable overlay ===

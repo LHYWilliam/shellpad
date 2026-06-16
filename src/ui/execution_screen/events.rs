@@ -93,9 +93,6 @@ impl ExecutionScreenState {
                     self.completed = true;
                     self.total_duration_ms = Some(total_duration_ms);
                 }
-                ExecutionEvent::Interrupted { last_index: _ } => {
-                    self.completed = true;
-                }
             }
         }
     }
@@ -203,15 +200,6 @@ mod tests {
         state.process_events(&rx);
         assert!(state.completed);
         assert_eq!(state.total_duration_ms, Some(500));
-    }
-
-    #[test]
-    fn test_process_interrupted() {
-        let mut state = make_state(&["a"]);
-        let (tx, rx) = mpsc::channel();
-        let _ = tx.send(ExecutionEvent::Interrupted { last_index: 0 });
-        state.process_events(&rx);
-        assert!(state.completed);
     }
 
     #[test]

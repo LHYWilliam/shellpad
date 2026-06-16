@@ -174,7 +174,6 @@ mod tests {
             AppAction::NewGroup,
             AppAction::CancelEdit,
             AppAction::BackToMain,
-            AppAction::ToggleAutoScroll,
             AppAction::CancelVariables,
         ];
         for action in actions {

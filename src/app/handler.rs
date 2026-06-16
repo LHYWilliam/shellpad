@@ -208,10 +208,6 @@ impl App {
                     self.do_execute_with(gi, si, 0);
                 }
             }
-            AppAction::ToggleAutoScroll => {
-                // Handled internally by execution_screen
-            }
-
             // ---- Variable overlay ----
             AppAction::ConfirmVariables => {
                 let gi = self.variable_screen.gi;
