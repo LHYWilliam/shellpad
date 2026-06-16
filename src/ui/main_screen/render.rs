@@ -4,7 +4,7 @@ use crate::ui::main_screen::search::find_matches_case_insensitive;
 use crate::ui::main_screen::{MainScreenState, Panel};
 use crate::ui::render::{
     empty_hint, fill_row, list_scrollbar_areas, render_inline_cursor, render_scrollbar,
-    render_status_bar, set_cursor_after_prefix,
+    render_status_bar, set_cursor_after_prefix, styled_list_item,
 };
 use crate::ui::theme::Theme;
 use ratatui::Frame;
@@ -58,12 +58,7 @@ impl MainScreenState {
                 } else {
                     theme.normal_style()
                 };
-                let line = fill_row(
-                    Line::from(Span::styled(label, style)),
-                    style,
-                    list_area.width,
-                );
-                ListItem::new(line)
+                styled_list_item(label, style, list_area.width)
             })
             .collect();
 
