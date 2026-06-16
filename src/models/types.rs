@@ -181,6 +181,7 @@ pub struct CommandSet {
     pub exec_mode: ExecMode,
     pub variables: Vec<Variable>,
     pub commands: Vec<Command>,
+    pub working_dir: Option<String>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
@@ -196,6 +197,7 @@ impl CommandSet {
             exec_mode: ExecMode::StopOnError,
             variables: Vec::new(),
             commands: Vec::new(),
+            working_dir: None,
             created_at: now,
             updated_at: now,
         }
@@ -322,5 +324,12 @@ mod tests {
         let set = CommandSet::new("Test".to_string(), group_id);
         assert_eq!(set.created_at, set.updated_at);
         assert!(set.created_at <= Utc::now());
+    }
+
+    #[test]
+    fn test_command_set_working_dir_defaults_to_none() {
+        let group_id = Uuid::new_v4();
+        let set = CommandSet::new("Test".to_string(), group_id);
+        assert_eq!(set.working_dir, None);
     }
 }
