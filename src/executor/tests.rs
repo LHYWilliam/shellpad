@@ -1,24 +1,42 @@
 use super::async_executor::{execute_set, substitute_variables};
-use super::blocking::{execute_set_blocking, ExecuteError, ExecuteResult, substitute_variables_from_map};
+use super::blocking::{
+    ExecuteError, ExecuteResult, execute_set_blocking, substitute_variables_from_map,
+};
 use super::events::ExecutionEvent;
 use crate::models::{Command, CommandSet, ExecMode, ShellCommand, Variable};
 use std::collections::HashMap;
 use std::sync::atomic::AtomicBool;
-use std::sync::{mpsc, Arc};
+use std::sync::{Arc, mpsc};
 use uuid::Uuid;
 
 /// Platform-appropriate shell command for tests.
 fn test_shell_cmd() -> ShellCommand {
     #[cfg(windows)]
-    { ShellCommand { program: "cmd.exe".to_string(), flag: "/C".to_string() } }
+    {
+        ShellCommand {
+            program: "cmd.exe".to_string(),
+            flag: "/C".to_string(),
+        }
+    }
     #[cfg(not(windows))]
-    { ShellCommand { program: "sh".to_string(), flag: "-c".to_string() } }
+    {
+        ShellCommand {
+            program: "sh".to_string(),
+            flag: "-c".to_string(),
+        }
+    }
 }
 
 /// Command that exits with non-zero status.
 fn false_cmd() -> &'static str {
-    #[cfg(windows)] { "exit 1" }
-    #[cfg(not(windows))] { "false" }
+    #[cfg(windows)]
+    {
+        "exit 1"
+    }
+    #[cfg(not(windows))]
+    {
+        "false"
+    }
 }
 
 #[test]
@@ -94,16 +112,40 @@ fn test_execute_echo() {
     });
     set.exec_mode = ExecMode::StopOnError;
 
-    let handle = execute_set(set.commands.clone(), set.exec_mode, set.variables.clone(), test_shell_cmd(), tx.clone(), Arc::new(AtomicBool::new(false)), 0);
+    let handle = execute_set(
+        set.commands.clone(),
+        set.exec_mode,
+        set.variables.clone(),
+        test_shell_cmd(),
+        tx.clone(),
+        Arc::new(AtomicBool::new(false)),
+        0,
+    );
     handle.join().unwrap();
     drop(tx);
 
     let events: Vec<ExecutionEvent> = rx.iter().collect();
 
-    assert!(events.iter().any(|e| matches!(e, ExecutionEvent::Starting { .. })));
-    assert!(events.iter().any(|e| matches!(e, ExecutionEvent::StdoutLine { line, .. } if line == "hello_world")));
-    assert!(events.iter().any(|e| matches!(e, ExecutionEvent::Finished { .. })));
-    assert!(events.iter().any(|e| matches!(e, ExecutionEvent::CompletedAll { .. })));
+    assert!(
+        events
+            .iter()
+            .any(|e| matches!(e, ExecutionEvent::Starting { .. }))
+    );
+    assert!(
+        events
+            .iter()
+            .any(|e| matches!(e, ExecutionEvent::StdoutLine { line, .. } if line == "hello_world"))
+    );
+    assert!(
+        events
+            .iter()
+            .any(|e| matches!(e, ExecutionEvent::Finished { .. }))
+    );
+    assert!(
+        events
+            .iter()
+            .any(|e| matches!(e, ExecutionEvent::CompletedAll { .. }))
+    );
 }
 
 #[test]
@@ -121,7 +163,15 @@ fn test_execute_failure_continue_on_error() {
     });
     set.exec_mode = ExecMode::ContinueOnError;
 
-    let handle = execute_set(set.commands.clone(), set.exec_mode, set.variables.clone(), test_shell_cmd(), tx.clone(), Arc::new(AtomicBool::new(false)), 0);
+    let handle = execute_set(
+        set.commands.clone(),
+        set.exec_mode,
+        set.variables.clone(),
+        test_shell_cmd(),
+        tx.clone(),
+        Arc::new(AtomicBool::new(false)),
+        0,
+    );
     handle.join().unwrap();
     drop(tx);
 
@@ -130,7 +180,10 @@ fn test_execute_failure_continue_on_error() {
     let completed = events
         .iter()
         .find_map(|e| {
-            if let ExecutionEvent::CompletedAll { succeeded, failed, .. } = e {
+            if let ExecutionEvent::CompletedAll {
+                succeeded, failed, ..
+            } = e
+            {
                 Some((*succeeded, *failed))
             } else {
                 None
@@ -156,7 +209,15 @@ fn test_execute_failure_stop_on_error() {
     });
     set.exec_mode = ExecMode::StopOnError;
 
-    let handle = execute_set(set.commands.clone(), set.exec_mode, set.variables.clone(), test_shell_cmd(), tx.clone(), Arc::new(AtomicBool::new(false)), 0);
+    let handle = execute_set(
+        set.commands.clone(),
+        set.exec_mode,
+        set.variables.clone(),
+        test_shell_cmd(),
+        tx.clone(),
+        Arc::new(AtomicBool::new(false)),
+        0,
+    );
     handle.join().unwrap();
     drop(tx);
 
@@ -197,7 +258,11 @@ fn test_substitute_variables_from_map_empty() {
 
 #[test]
 fn test_execute_result_new() {
-    let r = ExecuteResult { total: 3, succeeded: 2, failed: 1 };
+    let r = ExecuteResult {
+        total: 3,
+        succeeded: 2,
+        failed: 1,
+    };
     assert_eq!(r.total, 3);
     assert_eq!(r.succeeded, 2);
     assert_eq!(r.failed, 1);
@@ -250,8 +315,14 @@ fn test_execute_set_blocking_false_fails() {
 #[test]
 fn test_execute_set_blocking_continue_on_error() {
     let mut set = CommandSet::new("test".to_string(), Uuid::new_v4());
-    set.commands.push(Command { position: 0, command: false_cmd().to_string() });
-    set.commands.push(Command { position: 1, command: "echo ok".to_string() });
+    set.commands.push(Command {
+        position: 0,
+        command: false_cmd().to_string(),
+    });
+    set.commands.push(Command {
+        position: 1,
+        command: "echo ok".to_string(),
+    });
     set.exec_mode = ExecMode::ContinueOnError;
     let vars = HashMap::new();
     let result = execute_set_blocking(&set, &test_shell_cmd(), &vars);
@@ -264,8 +335,14 @@ fn test_execute_set_blocking_continue_on_error() {
 #[test]
 fn test_execute_set_blocking_stop_on_error() {
     let mut set = CommandSet::new("test".to_string(), Uuid::new_v4());
-    set.commands.push(Command { position: 0, command: false_cmd().to_string() });
-    set.commands.push(Command { position: 1, command: "echo no".to_string() });
+    set.commands.push(Command {
+        position: 0,
+        command: false_cmd().to_string(),
+    });
+    set.commands.push(Command {
+        position: 1,
+        command: "echo no".to_string(),
+    });
     set.exec_mode = ExecMode::StopOnError;
     let vars = HashMap::new();
     let result = execute_set_blocking(&set, &test_shell_cmd(), &vars);

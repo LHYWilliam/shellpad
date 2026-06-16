@@ -1,3 +1,4 @@
+use crate::action::AppAction;
 use crate::models::{CommandSet, ExecMode, Group, ShellType};
 use crate::ui::detail_editor::{handle_command_edit, handle_variable_edit};
 use crate::ui::render::{
@@ -21,14 +22,6 @@ pub enum DetailFocus {
     ExecMode,
     Variables,
     Commands,
-}
-
-pub enum DetailScreenAction {
-    None,
-    Save(CommandSet),
-    Cancel,
-    DeleteVariable(usize),
-    DeleteCommand(usize),
 }
 
 pub struct DetailScreenState {
@@ -406,7 +399,7 @@ impl DetailScreenState {
     }
 
     /// Handle a key event.
-    pub fn handle_key(&mut self, key: crossterm::event::KeyEvent) -> DetailScreenAction {
+    pub fn handle_key(&mut self, key: crossterm::event::KeyEvent) -> AppAction {
         use crossterm::event::KeyCode;
 
         // Handle inline editing
@@ -552,14 +545,14 @@ impl DetailScreenState {
                         .variable_list
                         .selected
                         .min(self.set.variables.len().saturating_sub(1));
-                    return DetailScreenAction::DeleteVariable(idx);
+                    return AppAction::DeleteVariable(idx);
                 }
                 DetailFocus::Commands if !self.set.commands.is_empty() => {
                     let idx = self
                         .command_list
                         .selected
                         .min(self.set.commands.len().saturating_sub(1));
-                    return DetailScreenAction::DeleteCommand(idx);
+                    return AppAction::DeleteCommand(idx);
                 }
                 _ => {}
             },
@@ -568,13 +561,13 @@ impl DetailScreenState {
                     .modifiers
                     .contains(crossterm::event::KeyModifiers::CONTROL) =>
             {
-                return DetailScreenAction::Save(self.set.clone());
+                return AppAction::SaveSet(self.set.clone());
             }
             KeyCode::Esc => {
                 if self.editing_name {
                     self.editing_name = false;
                 } else {
-                    return DetailScreenAction::Cancel;
+                    return AppAction::CancelEdit;
                 }
             }
             _ => {}
@@ -585,7 +578,7 @@ impl DetailScreenState {
             handle_text_input(&mut self.name_input, key);
         }
 
-        DetailScreenAction::None
+        AppAction::None
     }
 
     fn commit_name_edit(&mut self) {

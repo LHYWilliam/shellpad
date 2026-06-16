@@ -1,3 +1,4 @@
+use crate::action::AppAction;
 use crate::models::CommandSet;
 use crate::ui::render::{bordered_block_info, centered_rect, fill_row, set_cursor_after_prefix};
 use crate::ui::theme::Theme;
@@ -9,12 +10,6 @@ use ratatui::layout::Rect;
 use ratatui::style::Style;
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Clear, Paragraph};
-
-pub enum VariableScreenAction {
-    Execute { gi: usize, si: usize },
-    Cancel,
-    None,
-}
 
 pub struct VariableScreenState {
     pub active: bool,
@@ -51,33 +46,30 @@ impl VariableScreenState {
         self.si = si;
     }
 
-    pub fn handle_key(&mut self, key: KeyEvent) -> VariableScreenAction {
+    pub fn handle_key(&mut self, key: KeyEvent) -> AppAction {
         match key.code {
-            KeyCode::Enter => VariableScreenAction::Execute {
-                gi: self.gi,
-                si: self.si,
-            },
-            KeyCode::Esc => VariableScreenAction::Cancel,
+            KeyCode::Enter => AppAction::ConfirmVariables,
+            KeyCode::Esc => AppAction::CancelVariables,
             KeyCode::Tab | KeyCode::Down => {
                 let n = self.inputs.len();
                 if n > 0 {
                     self.focus = (self.focus + 1) % n;
                 }
-                VariableScreenAction::None
+                AppAction::None
             }
             KeyCode::Up => {
                 let n = self.inputs.len();
                 if n > 0 {
                     self.focus = (self.focus + n - 1) % n;
                 }
-                VariableScreenAction::None
+                AppAction::None
             }
             _ => {
                 let n = self.inputs.len();
                 if n > 0 && self.focus < n {
                     handle_text_input(&mut self.inputs[self.focus], key);
                 }
-                VariableScreenAction::None
+                AppAction::None
             }
         }
     }

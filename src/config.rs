@@ -18,8 +18,7 @@ pub fn data_dir() -> PathBuf {
             }
             #[cfg(not(windows))]
             {
-                let home = std::env::var("HOME")
-                    .unwrap_or_else(|_| "/tmp".to_string());
+                let home = std::env::var("HOME").unwrap_or_else(|_| "/tmp".to_string());
                 PathBuf::from(home).join(".config/launcher")
             }
         })

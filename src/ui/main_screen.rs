@@ -1,3 +1,4 @@
+use crate::action::AppAction;
 use crate::models::AppData;
 use crate::ui::render::{
     bordered_block, empty_hint, fill_row, list_scrollbar_areas, render_inline_cursor,
@@ -46,19 +47,6 @@ fn find_matches_case_insensitive<'a>(text: &'a str, query: &str) -> Vec<(usize, 
         }
     }
     matches
-}
-
-pub enum MainScreenAction {
-    None,
-    ExecuteSet(usize, usize), // (group_index, set_index)
-    EditSet(usize, usize),    // (group_index, set_index)
-    NewSet(usize),            // group_index
-    DeleteSet(usize, usize),  // (group_index, set_index)
-    NewGroup,
-    RenameGroup(usize, String),
-    DeleteGroup(usize),
-    Quit,
-    Help,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -397,11 +385,7 @@ impl MainScreenState {
     }
 
     /// Handle a key event, returning an action.
-    pub fn handle_key(
-        &mut self,
-        key: crossterm::event::KeyEvent,
-        data: &AppData,
-    ) -> MainScreenAction {
+    pub fn handle_key(&mut self, key: crossterm::event::KeyEvent, data: &AppData) -> AppAction {
         use crossterm::event::KeyCode;
 
         // Rename mode (takes priority over search)
@@ -411,15 +395,15 @@ impl MainScreenState {
                     let name = self.rename_input.content.clone();
                     let gi = self.group_list.selected;
                     self.rename_mode = false;
-                    MainScreenAction::RenameGroup(gi, name)
+                    AppAction::RenameGroup(gi, name)
                 }
                 KeyCode::Esc => {
                     self.rename_mode = false;
-                    MainScreenAction::None
+                    AppAction::None
                 }
                 _ => {
                     handle_text_input(&mut self.rename_input, key);
-                    MainScreenAction::None
+                    AppAction::None
                 }
             };
         }
@@ -432,7 +416,7 @@ impl MainScreenState {
                     self.search_input = TextInput::new(String::new());
                     self.set_list.reset();
                     self.active_panel = Panel::Groups;
-                    MainScreenAction::None
+                    AppAction::None
                 }
                 KeyCode::Enter => {
                     let results = data.filter_sets(&self.search_input.content);
@@ -443,22 +427,22 @@ impl MainScreenState {
                     }
                     self.search_mode = false;
                     self.search_input = TextInput::new(String::new());
-                    MainScreenAction::None
+                    AppAction::None
                 }
                 KeyCode::Up | KeyCode::Char('k') | KeyCode::Char('K') => {
                     self.set_list.select_previous();
-                    MainScreenAction::None
+                    AppAction::None
                 }
                 KeyCode::Down | KeyCode::Char('j') | KeyCode::Char('J') => {
                     let n = data.filter_sets(&self.search_input.content).len();
                     self.set_list.select_next(n);
-                    MainScreenAction::None
+                    AppAction::None
                 }
                 _ => {
                     handle_text_input(&mut self.search_input, key);
                     self.active_panel = Panel::Sets;
                     self.set_list.reset();
-                    MainScreenAction::None
+                    AppAction::None
                 }
             };
         }
@@ -475,7 +459,7 @@ impl MainScreenState {
                         }
                     }
                 }
-                MainScreenAction::None
+                AppAction::None
             }
             KeyCode::Down | KeyCode::Char('j') | KeyCode::Char('J') => {
                 match self.active_panel {
@@ -489,14 +473,14 @@ impl MainScreenState {
                         }
                     }
                 }
-                MainScreenAction::None
+                AppAction::None
             }
             KeyCode::Left => {
                 match self.active_panel {
                     Panel::Sets => self.active_panel = Panel::Groups,
                     Panel::Groups => { /* already on the leftmost panel */ }
                 }
-                MainScreenAction::None
+                AppAction::None
             }
             KeyCode::Right => {
                 match self.active_panel {
@@ -511,48 +495,48 @@ impl MainScreenState {
                     }
                     Panel::Sets => { /* already on the rightmost panel */ }
                 }
-                MainScreenAction::None
+                AppAction::None
             }
             KeyCode::Enter => {
                 if self.active_panel == Panel::Sets
                     && let Some((gi, si)) = self.selected_set_idx(data)
                 {
-                    return MainScreenAction::ExecuteSet(gi, si);
+                    return AppAction::ExecuteSet(gi, si);
                 }
-                MainScreenAction::None
+                AppAction::None
             }
             KeyCode::Char('e') | KeyCode::Char('E') => {
                 if self.active_panel == Panel::Sets
                     && let Some((gi, si)) = self.selected_set_idx(data)
                 {
-                    return MainScreenAction::EditSet(gi, si);
+                    return AppAction::EditSet(gi, si);
                 }
-                MainScreenAction::None
+                AppAction::None
             }
             KeyCode::Char('n') | KeyCode::Char('N') => {
                 if let Some(gi) = self.selected_group_idx(data) {
-                    MainScreenAction::NewSet(gi)
+                    AppAction::NewSet(gi)
                 } else {
-                    MainScreenAction::None
+                    AppAction::None
                 }
             }
             KeyCode::Char('d') => {
                 if self.active_panel == Panel::Sets
                     && let Some((gi, si)) = self.selected_set_idx(data)
                 {
-                    return MainScreenAction::DeleteSet(gi, si);
+                    return AppAction::DeleteSet(gi, si);
                 }
-                MainScreenAction::None
+                AppAction::None
             }
             KeyCode::Char('D') => {
                 if self.active_panel == Panel::Groups
                     && let Some(gi) = self.selected_group_idx(data)
                 {
-                    return MainScreenAction::DeleteGroup(gi);
+                    return AppAction::DeleteGroup(gi);
                 }
-                MainScreenAction::None
+                AppAction::None
             }
-            KeyCode::Char('g') => MainScreenAction::NewGroup,
+            KeyCode::Char('g') => AppAction::NewGroup,
             KeyCode::Char('R') => {
                 if self.active_panel == Panel::Groups
                     && let Some(gi) = self.selected_group_idx(data)
@@ -561,33 +545,33 @@ impl MainScreenState {
                     self.rename_mode = true;
                     self.rename_input = TextInput::new(current);
                 }
-                MainScreenAction::None
+                AppAction::None
             }
             KeyCode::Char('/') => {
                 self.search_mode = true;
                 self.search_input.content.clear();
                 self.set_list.reset();
                 self.active_panel = Panel::Sets;
-                MainScreenAction::None
+                AppAction::None
             }
-            KeyCode::Char('?') => MainScreenAction::Help,
+            KeyCode::Char('?') => AppAction::Help,
             KeyCode::Char('h') | KeyCode::Char('H') => {
                 if key
                     .modifiers
                     .contains(crossterm::event::KeyModifiers::CONTROL)
                 {
-                    return MainScreenAction::Help;
+                    return AppAction::Help;
                 }
-                MainScreenAction::None
+                AppAction::None
             }
             KeyCode::Esc | KeyCode::Char('q') => {
                 if key.code == KeyCode::Esc {
-                    MainScreenAction::None
+                    AppAction::None
                 } else {
-                    MainScreenAction::Quit
+                    AppAction::Quit
                 }
             }
-            _ => MainScreenAction::None,
+            _ => AppAction::None,
         }
     }
 }

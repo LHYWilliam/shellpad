@@ -54,8 +54,14 @@ impl ShellType {
             ShellType::Zsh => "zsh".to_string(),
             ShellType::Fish => "fish".to_string(),
             ShellType::PowerShell => {
-                #[cfg(windows)] { "powershell.exe".to_string() }
-                #[cfg(not(windows))] { "pwsh".to_string() }
+                #[cfg(windows)]
+                {
+                    "powershell.exe".to_string()
+                }
+                #[cfg(not(windows))]
+                {
+                    "pwsh".to_string()
+                }
             }
             ShellType::Custom(path) => path.clone(),
         }
@@ -68,15 +74,20 @@ impl ShellType {
             ShellType::SystemDefault => {
                 #[cfg(windows)]
                 {
-                    let comspec = std::env::var("ComSpec")
-                        .unwrap_or_else(|_| "cmd.exe".to_string());
-                    ShellCommand { program: comspec, flag: "/C".to_string() }
+                    let comspec =
+                        std::env::var("ComSpec").unwrap_or_else(|_| "cmd.exe".to_string());
+                    ShellCommand {
+                        program: comspec,
+                        flag: "/C".to_string(),
+                    }
                 }
                 #[cfg(not(windows))]
                 {
-                    let shell = std::env::var("SHELL")
-                        .unwrap_or_else(|_| "sh".to_string());
-                    ShellCommand { program: shell, flag: "-c".to_string() }
+                    let shell = std::env::var("SHELL").unwrap_or_else(|_| "sh".to_string());
+                    ShellCommand {
+                        program: shell,
+                        flag: "-c".to_string(),
+                    }
                 }
             }
             ShellType::Bash | ShellType::Zsh | ShellType::Fish => ShellCommand {
@@ -85,9 +96,19 @@ impl ShellType {
             },
             ShellType::PowerShell => {
                 #[cfg(windows)]
-                { ShellCommand { program: "powershell.exe".to_string(), flag: "-Command".to_string() } }
+                {
+                    ShellCommand {
+                        program: "powershell.exe".to_string(),
+                        flag: "-Command".to_string(),
+                    }
+                }
                 #[cfg(not(windows))]
-                { ShellCommand { program: "pwsh".to_string(), flag: "-Command".to_string() } }
+                {
+                    ShellCommand {
+                        program: "pwsh".to_string(),
+                        flag: "-Command".to_string(),
+                    }
+                }
             }
             ShellType::Custom(path) => {
                 let lower = path.to_lowercase();
@@ -98,7 +119,10 @@ impl ShellType {
                 } else {
                     "-c"
                 };
-                ShellCommand { program: path.clone(), flag: flag.to_string() }
+                ShellCommand {
+                    program: path.clone(),
+                    flag: flag.to_string(),
+                }
             }
         }
     }
@@ -375,9 +399,12 @@ mod tests {
     #[test]
     fn test_filter_sets() {
         let mut g = Group::new("Dev".to_string());
-        g.sets.push(CommandSet::new("Deploy Backend".to_string(), g.id));
-        g.sets.push(CommandSet::new("Build Frontend".to_string(), g.id));
-        g.sets.push(CommandSet::new("Database Migrate".to_string(), g.id));
+        g.sets
+            .push(CommandSet::new("Deploy Backend".to_string(), g.id));
+        g.sets
+            .push(CommandSet::new("Build Frontend".to_string(), g.id));
+        g.sets
+            .push(CommandSet::new("Database Migrate".to_string(), g.id));
         let data = AppData { groups: vec![g] };
 
         let results = data.filter_sets("backend");

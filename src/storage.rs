@@ -23,9 +23,14 @@ pub fn save_app_data(data: &AppData) -> io::Result<()> {
 fn load_app_data_from(path: &Path) -> Result<AppData, String> {
     if !path.exists() {
         if let Some(parent) = path.parent()
-            && let Err(e) = fs::create_dir_all(parent) {
-                return Err(format!("Failed to create config directory `{}`: {}", parent.display(), e));
-            }
+            && let Err(e) = fs::create_dir_all(parent)
+        {
+            return Err(format!(
+                "Failed to create config directory `{}`: {}",
+                parent.display(),
+                e
+            ));
+        }
         return Ok(AppData::empty());
     }
 
@@ -42,9 +47,10 @@ fn load_app_data_from(path: &Path) -> Result<AppData, String> {
                 eprintln!("{}", msg);
                 let _ = fs::rename(path, &bak);
                 if let Some(parent) = path.parent()
-                    && let Ok(dir) = fs::File::open(parent) {
-                        let _ = dir.sync_all();
-                    }
+                    && let Ok(dir) = fs::File::open(parent)
+                {
+                    let _ = dir.sync_all();
+                }
                 Err(msg)
             }
         },
@@ -61,8 +67,7 @@ fn save_app_data_to(data: &AppData, path: &Path, tmp: &Path) -> io::Result<()> {
         fs::create_dir_all(parent)?;
     }
 
-    let json = serde_json::to_string_pretty(data)
-        .map_err(io::Error::other)?;
+    let json = serde_json::to_string_pretty(data).map_err(io::Error::other)?;
 
     // Write to temp file and fsync (ensure data reaches disk before rename)
     let mut file = fs::File::create(tmp)?;
@@ -77,18 +82,20 @@ fn save_app_data_to(data: &AppData, path: &Path, tmp: &Path) -> io::Result<()> {
             let _ = fs::remove_file(tmp);
             // Sync parent directory after copy+remove too
             if let Some(parent) = path.parent()
-                && let Ok(dir) = fs::File::open(parent) {
-                    let _ = dir.sync_all();
-                }
+                && let Ok(dir) = fs::File::open(parent)
+            {
+                let _ = dir.sync_all();
+            }
         } else {
             return Err(e);
         }
     } else {
         // Sync parent directory metadata so the rename is durable
         if let Some(parent) = path.parent()
-            && let Ok(dir) = fs::File::open(parent) {
-                let _ = dir.sync_all();
-            }
+            && let Ok(dir) = fs::File::open(parent)
+        {
+            let _ = dir.sync_all();
+        }
     }
 
     Ok(())
@@ -182,7 +189,9 @@ mod tests {
 
             let mut group = Group::new("G".to_string());
             group.sets.push(CommandSet::new("S".to_string(), group.id));
-            let data2 = AppData { groups: vec![group] };
+            let data2 = AppData {
+                groups: vec![group],
+            };
             save_app_data_to(&data2, &path, &tmp).unwrap();
 
             let loaded = load_app_data_from(&path).unwrap();

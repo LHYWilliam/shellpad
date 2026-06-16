@@ -1,5 +1,5 @@
+use crate::action::AppAction;
 use crate::models::{Command, Variable};
-use crate::ui::detail_screen::DetailScreenAction;
 use crate::ui::widget::{InlineEdit, ScrollableList};
 use crossterm::event::{KeyCode, KeyEvent};
 
@@ -9,7 +9,7 @@ pub fn handle_variable_edit(
     idx: usize,
     variables: &mut Vec<Variable>,
     list: &mut ScrollableList,
-) -> DetailScreenAction {
+) -> AppAction {
     match key.code {
         KeyCode::Enter => {
             let input = edit.edit_input.content.clone();
@@ -37,11 +37,11 @@ pub fn handle_variable_edit(
                 );
             }
             edit.editing = None;
-            DetailScreenAction::None
+            AppAction::None
         }
         KeyCode::Esc => {
             edit.cancel();
-            DetailScreenAction::None
+            AppAction::None
         }
         _ => {
             let n = variables.len();
@@ -49,7 +49,7 @@ pub fn handle_variable_edit(
                 let protect = edit.edit_input.content.find('=').map(|p| p + 1);
                 edit.handle_key_protected(key, protect);
             }
-            DetailScreenAction::None
+            AppAction::None
         }
     }
 }
@@ -60,7 +60,7 @@ pub fn handle_command_edit(
     idx: usize,
     commands: &mut Vec<Command>,
     list: &mut ScrollableList,
-) -> DetailScreenAction {
+) -> AppAction {
     match key.code {
         KeyCode::Enter => {
             let cmd = edit.edit_input.content.clone();
@@ -77,15 +77,15 @@ pub fn handle_command_edit(
                 c.position = i;
             }
             edit.editing = None;
-            DetailScreenAction::None
+            AppAction::None
         }
         KeyCode::Esc => {
             edit.cancel();
-            DetailScreenAction::None
+            AppAction::None
         }
         _ => {
             edit.handle_key(key);
-            DetailScreenAction::None
+            AppAction::None
         }
     }
 }

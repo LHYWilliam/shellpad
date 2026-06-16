@@ -61,9 +61,12 @@ pub fn run_cli() -> Option<i32> {
     };
 
     match command {
-        Commands::Run { id, group, set, var } => {
-            Some(handle_run(&data, id, group, set, var))
-        }
+        Commands::Run {
+            id,
+            group,
+            set,
+            var,
+        } => Some(handle_run(&data, id, group, set, var)),
         Commands::Search { set, group } => {
             handle_search(&data, set, group);
             Some(0)
@@ -157,7 +160,10 @@ fn resolve_set<'a>(
             }
         }
         match matches.len() {
-            0 => Err(format!("No command set found for group '{}' set '{}'", gname, sname)),
+            0 => Err(format!(
+                "No command set found for group '{}' set '{}'",
+                gname, sname
+            )),
             1 => {
                 let (gi, si) = matches[0];
                 Ok((&data.groups[gi].sets[si], gi, si))
@@ -189,7 +195,10 @@ fn resolve_variables(
             let val = ov[eq_pos + 1..].trim().to_string();
             overrides_map.insert(key, val);
         } else {
-            return Err(format!("Invalid --var format '{}' (expected key=value)", ov));
+            return Err(format!(
+                "Invalid --var format '{}' (expected key=value)",
+                ov
+            ));
         }
     }
 
@@ -229,7 +238,10 @@ fn handle_search(data: &AppData, set_query: Option<String>, group_query: Option<
             eprintln!("No command sets matching '{}'", query);
             return;
         }
-        println!("{:<38} | {:<20} | {:<20} | {:<12} | Commands", "UUID", "Group", "Set Name", "Shell");
+        println!(
+            "{:<38} | {:<20} | {:<20} | {:<12} | Commands",
+            "UUID", "Group", "Set Name", "Shell"
+        );
         println!("{}", "-".repeat(110));
         for &(gi, _si, s) in &results {
             let gname = &data.groups[gi].name;
@@ -258,7 +270,12 @@ fn handle_search(data: &AppData, set_query: Option<String>, group_query: Option<
         println!("{:<38} | {:<20} | Sets", "UUID", "Group Name");
         println!("{}", "-".repeat(65));
         for g in &matching {
-            println!("{:<38} | {:<20} | {}", g.id, truncate(&g.name, 20), g.sets.len());
+            println!(
+                "{:<38} | {:<20} | {}",
+                g.id,
+                truncate(&g.name, 20),
+                g.sets.len()
+            );
         }
     }
 }

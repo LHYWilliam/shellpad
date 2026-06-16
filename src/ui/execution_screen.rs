@@ -1,3 +1,4 @@
+use crate::action::AppAction;
 use crate::executor::ExecutionEvent;
 use crate::ui::render::{
     bordered_block, list_scrollbar_areas, render_scrollbar, render_status_bar,
@@ -24,15 +25,6 @@ pub(crate) struct CmdState {
     command: String,
     output_lines: Vec<String>,
     duration_ms: Option<u128>,
-}
-
-pub enum ExecutionScreenAction {
-    BackToMain,
-    Interrupt,
-    Skip,
-    Continue,
-    Reexecute,
-    None,
 }
 
 pub struct ExecutionScreenState {
@@ -346,28 +338,29 @@ impl ExecutionScreenState {
     }
 
     /// Handle key events.
-    pub fn handle_key(&mut self, key: crossterm::event::KeyEvent) -> ExecutionScreenAction {
+    pub fn handle_key(&mut self, key: crossterm::event::KeyEvent) -> AppAction {
         use crossterm::event::KeyCode;
 
         match key.code {
-            KeyCode::Char('q') => ExecutionScreenAction::BackToMain,
+            KeyCode::Char('q') => AppAction::BackToMain,
             KeyCode::Char('c')
                 if key
                     .modifiers
                     .contains(crossterm::event::KeyModifiers::CONTROL) =>
             {
-                ExecutionScreenAction::Interrupt
+                AppAction::KillExec
             }
-            KeyCode::Char('s') if !self.completed => ExecutionScreenAction::Skip,
+            KeyCode::Char('s') if !self.completed => AppAction::SkipCurrent,
             KeyCode::Char('n') if self.completed && self.continue_from.is_some() => {
-                ExecutionScreenAction::Continue
+                let start = self.continue_from.unwrap_or(0);
+                AppAction::ContinueFrom(start)
             }
-            KeyCode::Char('r') if self.completed => ExecutionScreenAction::Reexecute,
+            KeyCode::Char('r') if self.completed => AppAction::ReExec,
             KeyCode::Char('z') => {
                 self.auto_scroll = !self.auto_scroll;
-                ExecutionScreenAction::None
+                AppAction::None
             }
-            _ => ExecutionScreenAction::None,
+            _ => AppAction::None,
         }
     }
 }

@@ -3,7 +3,7 @@ use crate::models::{Command, CommandSet, ExecMode, ShellCommand, Variable};
 use std::io::{BufRead, BufReader, Read};
 use std::process::{Child, Command as StdCommand, Stdio};
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{mpsc, Arc};
+use std::sync::{Arc, mpsc};
 use std::thread;
 
 /// Substitute `{{var}}` placeholders in `template` with values from the command set.
@@ -83,11 +83,12 @@ pub fn execute_set(
 
             let resolved = substitute_variables_inner(&cmd.command, &variables);
 
-            if tx.send(ExecutionEvent::Starting {
-                index: actual_index,
-                command: resolved.clone(),
-            })
-            .is_err()
+            if tx
+                .send(ExecutionEvent::Starting {
+                    index: actual_index,
+                    command: resolved.clone(),
+                })
+                .is_err()
             {
                 return;
             }

@@ -2,20 +2,11 @@
 #[derive(Debug, Clone)]
 pub enum ExecutionEvent {
     /// A command is about to start.
-    Starting {
-        index: usize,
-        command: String,
-    },
+    Starting { index: usize, command: String },
     /// A line of stdout from the currently running command.
-    StdoutLine {
-        index: usize,
-        line: String,
-    },
+    StdoutLine { index: usize, line: String },
     /// A line of stderr from the currently running command.
-    StderrLine {
-        index: usize,
-        line: String,
-    },
+    StderrLine { index: usize, line: String },
     /// The current command has finished.
     Finished {
         index: usize,
@@ -30,7 +21,5 @@ pub enum ExecutionEvent {
         total_duration_ms: u128,
     },
     /// Execution was interrupted by user (results are partial).
-    Interrupted {
-        last_index: usize,
-    },
+    Interrupted { last_index: usize },
 }
