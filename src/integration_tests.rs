@@ -2,7 +2,6 @@
 mod tests {
     use crate::action::AppAction;
     use crate::app::App;
-    use crate::app::execution::ExecutionManager;
     use crate::app::toast::ToastManager;
     use crate::mode::AppMode;
     use crate::models::{AppData, CommandSet, Group, Variable};
@@ -16,16 +15,15 @@ mod tests {
     // Helper: create an App that doesn't touch the real config file
     // ------------------------------------------------------------------
     fn test_app() -> App {
+        use crate::app::ExecutionState;
         App {
             data: AppData::empty(),
             mode: AppMode::Main,
             running: true,
             main_screen: MainScreenState::new(),
             detail_screen: None,
-            exec_screen: None,
-            execution: ExecutionManager::new(),
+            execution_state: ExecutionState::Idle { pending_set: None },
             variable_screen: crate::ui::variable_screen::VariableScreenState::new(),
-            pending_set: None,
             theme: Theme::default_dark(),
             toasts: ToastManager::new(),
         }

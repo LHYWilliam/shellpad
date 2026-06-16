@@ -23,6 +23,24 @@ use std::time::Duration;
 /// Event loop tick interval (milliseconds).
 const TICK_RATE_MS: u64 = 100;
 
+/// Consolidated execution lifecycle — replaces separate `exec_screen`,
+/// `execution`, and `pending_set` fields. Only one variant is active.
+pub(crate) enum ExecutionState {
+    /// No execution in progress.
+    Idle {
+        /// Pending set indices for execution. Set temporarily between
+        /// `ConfirmVariables` / `ExecuteSet` and `do_execute()`.
+        pending_set: Option<(usize, usize)>,
+    },
+    /// Background thread is running with an active screen.
+    Running {
+        screen: ExecutionScreenState,
+        manager: ExecutionManager,
+        /// (group_index, set_index) — saved for restart / continue.
+        pending_set: (usize, usize),
+    },
+}
+
 pub(crate) mod execution;
 pub(crate) mod handler;
 pub(crate) mod render;
@@ -35,11 +53,9 @@ pub struct App {
 
     pub main_screen: MainScreenState,
     pub detail_screen: Option<DetailScreenState>,
-    pub exec_screen: Option<ExecutionScreenState>,
 
-    pub execution: ExecutionManager,
+    pub execution_state: ExecutionState,
     pub variable_screen: VariableScreenState,
-    pub pending_set: Option<(usize, usize)>,
 
     pub theme: Theme,
     pub toasts: ToastManager,
@@ -60,13 +76,11 @@ impl App {
         Self {
             main_screen: MainScreenState::new(),
             detail_screen: None,
-            exec_screen: None,
             data,
             mode: AppMode::Main,
             running: true,
-            execution: ExecutionManager::new(),
+            execution_state: ExecutionState::Idle { pending_set: None },
             variable_screen: VariableScreenState::new(),
-            pending_set: None,
             theme: Theme::default_dark(),
             toasts: ToastManager::new(),
         }
@@ -88,13 +102,13 @@ impl App {
             }
 
             // Drain execution events on each tick
-            if let Some(ref rx) = self.execution.rx {
-                if let Some(ref mut es) = self.exec_screen {
-                    es.process_events(rx);
-                } else {
-                    // Drain channel even when screen is gone — the sender
-                    // thread may still push events before kill_signal takes effect.
-                    while rx.try_recv().is_ok() {}
+            if let ExecutionState::Running {
+                ref mut screen,
+                ref manager, ..
+            } = self.execution_state
+            {
+                if let Some(ref rx) = manager.rx {
+                    screen.process_events(rx);
                 }
             }
         }
@@ -102,7 +116,11 @@ impl App {
     }
 
     fn do_execute(&mut self) {
-        if let Some((gi, si)) = self.pending_set.take() {
+        let pending = match &mut self.execution_state {
+            ExecutionState::Idle { pending_set } => pending_set.take(),
+            ExecutionState::Running { .. } => None,
+        };
+        if let Some((gi, si)) = pending {
             self.do_execute_with(gi, si, 0);
         }
     }
@@ -114,43 +132,72 @@ impl App {
         let set = &self.data.groups[gi].sets[si];
         let shell_cmd = set.shell.resolve_command();
 
-        let (commands, index_offset) = if start_from == 0 {
+        if start_from == 0 {
             let cmds = set.commands.clone();
-            self.exec_screen = Some(ExecutionScreenState::new(set.name.clone(), &cmds));
-            self.pending_set = Some((gi, si));
-            (cmds, 0usize)
-        } else {
-            let cmds = set.commands[start_from..].to_vec();
-            if let Some(ref mut es) = self.exec_screen {
-                es.reset_from(start_from);
-            }
-            (cmds, start_from)
-        };
+            let screen = ExecutionScreenState::new(set.name.clone(), &cmds);
+            let mut manager = ExecutionManager::new();
+            manager.start(
+                cmds,
+                set.exec_mode,
+                set.variables.clone(),
+                shell_cmd,
+                0usize,
+            );
+            self.execution_state = ExecutionState::Running {
+                screen,
+                manager,
+                pending_set: (gi, si),
+            };
+            self.mode = AppMode::Execution;
+            return;
+        }
 
-        self.execution.start(
-            commands,
-            set.exec_mode,
-            set.variables.clone(),
-            shell_cmd,
-            index_offset,
-        );
+        // Continuing from a skip point — screen + manager already exist
+        let cmds = set.commands[start_from..].to_vec();
+        if let ExecutionState::Running {
+            ref mut screen,
+            ref mut manager,
+            ..
+        } = self.execution_state
+        {
+            screen.reset_from(start_from);
+            manager.start(
+                cmds,
+                set.exec_mode,
+                set.variables.clone(),
+                shell_cmd,
+                start_from,
+            );
+        }
         self.mode = AppMode::Execution;
     }
 
     fn teardown_execution(&mut self, keep_screen: bool, mark_skipped: bool) {
-        self.execution.kill();
-        if mark_skipped && let Some(ref mut es) = self.exec_screen {
-            es.mark_remaining_as_skipped();
+        if let ExecutionState::Running {
+            ref mut screen,
+            ref mut manager,
+            ..
+        } = self.execution_state
+        {
+            manager.kill();
+            if mark_skipped {
+                screen.mark_remaining_as_skipped();
+            }
         }
         if !keep_screen {
-            self.exec_screen = None;
+            self.execution_state = ExecutionState::Idle { pending_set: None };
         }
     }
 }
 
 impl Drop for App {
     fn drop(&mut self) {
-        self.execution.kill();
+        if let ExecutionState::Running {
+            ref mut manager, ..
+        } = self.execution_state
+        {
+            manager.kill();
+        }
         let _ = storage::save_app_data(&self.data);
     }
 }

@@ -9,7 +9,7 @@ use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Clear, Paragraph};
 
-use super::App;
+use super::{App, ExecutionState};
 
 impl App {
     pub fn render(&mut self, frame: &mut Frame) {
@@ -62,8 +62,8 @@ impl App {
                 }
             }
             AppMode::Execution => {
-                if let Some(ref es) = self.exec_screen {
-                    es.render(frame, content_area, &self.theme);
+                if let ExecutionState::Running { ref screen, .. } = self.execution_state {
+                    screen.render(frame, content_area, &self.theme);
                 }
             }
             AppMode::Help => {

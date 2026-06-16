@@ -6,7 +6,7 @@ use crate::ui::detail_screen::DetailScreenState;
 use crate::ui::main_screen::Panel;
 use crate::ui::toast::ToastSeverity;
 
-use super::App;
+use super::{App, ExecutionState};
 
 impl App {
     pub fn handle_key(&mut self, key: crossterm::event::KeyEvent) {
@@ -27,8 +27,8 @@ impl App {
                 }
             }
             AppMode::Execution => {
-                if let Some(ref mut es) = self.exec_screen {
-                    let action = es.handle_key(key);
+                if let ExecutionState::Running { ref mut screen, .. } = self.execution_state {
+                    let action = screen.handle_key(key);
                     self.handle_action(action);
                 }
             }
@@ -49,7 +49,9 @@ impl App {
                     if !set.variables.is_empty() {
                         self.variable_screen.activate(set, gi, si);
                     } else {
-                        self.pending_set = Some((gi, si));
+                        if let ExecutionState::Idle { ref mut pending_set } = self.execution_state {
+                            *pending_set = Some((gi, si));
+                        }
                         self.do_execute();
                     }
                 }
@@ -173,17 +175,17 @@ impl App {
 
             // ---- Execution screen ----
             AppAction::BackToMain => {
-                if let Some(ref es) = self.exec_screen
-                    && es.completed
+                if let ExecutionState::Running { ref screen, .. } = self.execution_state
+                    && screen.completed
                 {
                     let summary = format!(
                         "Done: {}/{}",
-                        es.succeeded + es.failed + es.skipped,
-                        es.total,
+                        screen.succeeded + screen.failed + screen.skipped,
+                        screen.total,
                     );
-                    let severity = if es.failed > 0 {
+                    let severity = if screen.failed > 0 {
                         ToastSeverity::Error
-                    } else if es.skipped > 0 {
+                    } else if screen.skipped > 0 {
                         ToastSeverity::Info
                     } else {
                         ToastSeverity::Success
@@ -198,13 +200,13 @@ impl App {
                 self.mode = AppMode::Execution;
             }
             AppAction::ContinueFrom(start) => {
-                if let Some((gi, si)) = self.pending_set {
+                if let ExecutionState::Running { pending_set: (gi, si), .. } = self.execution_state {
                     self.do_execute_with(gi, si, start);
                 }
             }
             AppAction::ReExec => {
                 self.teardown_execution(false, false);
-                if let Some((gi, si)) = self.pending_set {
+                if let ExecutionState::Running { pending_set: (gi, si), .. } = self.execution_state {
                     self.do_execute_with(gi, si, 0);
                 }
             }
@@ -222,12 +224,16 @@ impl App {
                 }
                 self.variable_screen = crate::ui::variable_screen::VariableScreenState::new();
                 self.auto_save();
-                self.pending_set = Some((gi, si));
+                if let ExecutionState::Idle { ref mut pending_set } = self.execution_state {
+                    *pending_set = Some((gi, si));
+                }
                 self.do_execute();
             }
             AppAction::CancelVariables => {
                 self.variable_screen = crate::ui::variable_screen::VariableScreenState::new();
-                self.pending_set = None;
+                if let ExecutionState::Idle { ref mut pending_set } = self.execution_state {
+                    *pending_set = None;
+                }
             }
         }
     }
@@ -242,7 +248,7 @@ impl App {
 
 #[cfg(test)]
 mod tests {
-    use super::App;
+    use super::{App, ExecutionState};
     use crate::action::AppAction;
     use crate::app::execution::ExecutionManager;
     use crate::app::toast::ToastManager;
@@ -260,10 +266,8 @@ mod tests {
             running: true,
             main_screen: MainScreenState::new(),
             detail_screen: None,
-            exec_screen: None,
-            execution: ExecutionManager::new(),
+            execution_state: ExecutionState::Idle { pending_set: None },
             variable_screen: VariableScreenState::new(),
-            pending_set: None,
             theme: Theme::default_dark(),
             toasts: ToastManager::new(),
         }
@@ -505,11 +509,11 @@ mod tests {
         app.variable_screen.active = true;
         app.variable_screen.gi = 0;
         app.variable_screen.si = 0;
-        app.pending_set = Some((0, 0));
+        app.execution_state = ExecutionState::Idle { pending_set: Some((0, 0)) };
 
         app.handle_action(AppAction::CancelVariables);
         assert!(!app.variable_screen.active);
-        assert!(app.pending_set.is_none());
+        assert!(matches!(app.execution_state, ExecutionState::Idle { pending_set: None }));
     }
 
     #[test]
@@ -525,8 +529,7 @@ mod tests {
             "prod.example.com"
         );
         assert_eq!(app.mode, AppMode::Execution);
-        assert!(app.exec_screen.is_some());
-        assert_eq!(app.pending_set, Some((0, 0)));
+        assert!(matches!(app.execution_state, ExecutionState::Running { .. }));
     }
 
     // ---- Execution actions ----
@@ -537,8 +540,7 @@ mod tests {
 
         app.handle_action(AppAction::ExecuteSet(0, 0));
         assert_eq!(app.mode, AppMode::Execution);
-        assert!(app.exec_screen.is_some());
-        assert_eq!(app.pending_set, Some((0, 0)));
+        assert!(matches!(app.execution_state, ExecutionState::Running { .. }));
     }
 
     #[test]
@@ -547,12 +549,16 @@ mod tests {
         use crate::models::Command;
         let mut app = make_app();
         let cmds = vec![Command { position: 0, command: "ok".to_string() }];
-        app.exec_screen = Some(ExecutionScreenState::new("test".to_string(), &cmds));
+        app.execution_state = ExecutionState::Running {
+            screen: ExecutionScreenState::new("test".to_string(), &cmds),
+            manager: ExecutionManager::new(),
+            pending_set: (0, 0),
+        };
         app.mode = AppMode::Execution;
 
         app.handle_action(AppAction::BackToMain);
         assert_eq!(app.mode, AppMode::Main);
-        assert!(app.exec_screen.is_none());
+        assert!(matches!(app.execution_state, ExecutionState::Idle { .. }));
     }
 
     #[test]
@@ -561,15 +567,20 @@ mod tests {
         use crate::models::Command;
         let mut app = make_app();
         let cmds = vec![Command { position: 0, command: "a".to_string() }];
-        app.exec_screen = Some(ExecutionScreenState::new("t".to_string(), &cmds));
+        app.execution_state = ExecutionState::Running {
+            screen: ExecutionScreenState::new("t".to_string(), &cmds),
+            manager: ExecutionManager::new(),
+            pending_set: (0, 0),
+        };
         app.mode = AppMode::Execution;
 
         app.handle_action(AppAction::SkipCurrent);
         // skip_current calls teardown_execution(true, true) → keeps screen + marks skipped
         assert_eq!(app.mode, AppMode::Execution);
-        assert!(app.exec_screen.is_some());
-        let es = app.exec_screen.as_ref().unwrap();
-        assert!(es.completed);
-        assert_eq!(es.skipped, 1);
+        assert!(matches!(app.execution_state, ExecutionState::Running { .. }));
+        if let ExecutionState::Running { ref screen, .. } = app.execution_state {
+            assert!(screen.completed);
+            assert_eq!(screen.skipped, 1);
+        }
     }
 }
