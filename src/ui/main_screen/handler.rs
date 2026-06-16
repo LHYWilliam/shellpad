@@ -180,15 +180,12 @@ impl MainScreenState {
                 self.active_panel = crate::ui::main_screen::Panel::Sets;
                 AppAction::None
             }
-            KeyCode::Char('h') | KeyCode::Char('H') => {
-                if key
-                    .modifiers
-                    .contains(crossterm::event::KeyModifiers::CONTROL)
-                {
-                    return AppAction::Help;
-                }
-                AppAction::None
+            KeyCode::Char('h') | KeyCode::Char('H')
+                if key.modifiers.contains(crossterm::event::KeyModifiers::CONTROL) =>
+            {
+                AppAction::Help
             }
+            KeyCode::Char('h') | KeyCode::Char('H') => AppAction::None,
             KeyCode::Esc | KeyCode::Char('q') => {
                 if key.code == KeyCode::Esc {
                     AppAction::None
