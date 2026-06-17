@@ -73,9 +73,7 @@ impl ExecutionScreenState {
                 ExecutionEvent::StderrLine { index, line } => {
                     if index < self.cmd_states.len() {
                         let state = &mut self.cmd_states[index];
-                        state
-                            .output_lines
-                            .push_back(format!("[stderr] {}", line));
+                        state.output_lines.push_back(format!("[stderr] {}", line));
                         if state.output_lines.len() > MAX_OUTPUT_LINES {
                             state.output_lines.pop_front();
                             if !state.truncated {
