@@ -21,10 +21,12 @@ impl ExecutionScreenState {
     }
 
     /// Mark all remaining Pending commands as Skipped.
-    /// Called after the execution thread is stopped (Skip or Interrupt).
+    /// Mark all remaining Pending normal commands as Skipped.  Defer commands
+    /// are NOT marked — they will be executed by Phase 2 and produce their own
+    /// Finished events. Marking them here would double-count them.
     pub(crate) fn mark_remaining_as_skipped(&mut self) {
         for (i, state) in self.cmd_states.iter_mut().enumerate() {
-            if state.status == CmdStatus::Pending {
+            if state.status == CmdStatus::Pending && !state.defer {
                 state.status = CmdStatus::Skipped;
                 self.skipped += 1;
                 if self.continue_from.is_none() {
@@ -257,6 +259,32 @@ mod tests {
         }
         assert_eq!(state.skipped, 3);
         assert_eq!(state.continue_from, Some(0));
+    }
+
+    #[test]
+    fn test_mark_remaining_skips_normals_not_defers() {
+        let cmds: Vec<_> = ["n1", "n2", "d1", "d2"]
+            .iter()
+            .enumerate()
+            .map(|(i, c)| crate::models::Command {
+                position: i,
+                command: c.to_string(),
+            })
+            .collect();
+        let mut state = ExecutionScreenState::new("test".to_string(), &cmds);
+        // Mark last two as defer
+        state.cmd_states[2].defer = true;
+        state.cmd_states[3].defer = true;
+
+        state.mark_remaining_as_skipped();
+
+        // Normals → Skipped
+        assert_eq!(state.cmd_states[0].status, CmdStatus::Skipped);
+        assert_eq!(state.cmd_states[1].status, CmdStatus::Skipped);
+        // Defers → still Pending
+        assert_eq!(state.cmd_states[2].status, CmdStatus::Pending);
+        assert_eq!(state.cmd_states[3].status, CmdStatus::Pending);
+        assert_eq!(state.skipped, 2);
     }
 
     #[test]
