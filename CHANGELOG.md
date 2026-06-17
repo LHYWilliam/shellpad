@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.2.1 (2026-06-17) — CI Polish
+
+### Internal
+- Fix clippy warnings: too_many_arguments, needless_return, manual_range_contains
+- Run cargo fmt across all test code
+- Remove CLI argument count warnings
+- Add crates.io badge to README
+- Add `--json` search example to CLI docs
+
 ## v0.2.0 (2026-06-18) — Initial Public Release
 
 ### Features
