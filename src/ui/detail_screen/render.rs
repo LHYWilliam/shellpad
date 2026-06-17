@@ -5,7 +5,7 @@ use crate::ui::render::{
     render_scrollbar, render_status_bar, set_cursor_after_prefix, styled_list_item,
 };
 use crate::ui::theme::Theme;
-use crate::ui::widget::ScrollableList;
+use crate::ui::widget::{InlineEdit, ScrollableList, TextInput};
 use ratatui::Frame;
 use ratatui::layout::{Constraint, Layout, Rect};
 use ratatui::style::{Modifier, Style};
@@ -45,91 +45,24 @@ impl DetailScreenState {
         let [name_row, workdir_row, sep_row, group_row, shell_row, mode_row] = rows.areas(inner);
 
         // Name
-        let is_name_focused = self.focus == DetailFocus::Name;
-        let name_style = if is_name_focused {
-            if self.editing_name {
-                Style::default()
-                    .fg(theme.text_on_selected)
-                    .bg(theme.accent_primary)
-                    .add_modifier(Modifier::BOLD)
-            } else {
-                Style::default().fg(theme.accent_primary)
-            }
-        } else {
-            theme.normal_style()
-        };
-        let display_name = if self.editing_name {
-            self.name_input.content.as_str()
-        } else {
-            self.set.name.as_str()
-        };
-        let name_text = format!(" Name: {}", display_name);
-        let name_line = fill_row(
-            Line::from(Span::styled(name_text, name_style)),
-            name_style,
-            name_row.width,
+        self.render_editable_field(
+            frame, name_row, theme, "Name",
+            self.focus == DetailFocus::Name,
+            self.editing_name,
+            &self.name_input,
+            &self.set.name,
+            false,
         );
-        frame.render_widget(Paragraph::new(name_line), name_row);
-
-        // Cursor for name editing
-        if self.editing_name {
-            let prefix_width = unicode_width::UnicodeWidthStr::width(" Name: ");
-            set_cursor_after_prefix(
-                frame,
-                &self.name_input.content,
-                self.name_input.cursor,
-                prefix_width as u16,
-                name_row,
-            );
-        }
 
         // WorkDir
-        let is_workdir_focused = self.focus == DetailFocus::WorkDir;
-        let workdir_style = if is_workdir_focused {
-            if self.workdir_editing {
-                Style::default()
-                    .fg(theme.text_on_selected)
-                    .bg(theme.accent_primary)
-                    .add_modifier(Modifier::BOLD)
-            } else {
-                Style::default().fg(theme.accent_primary)
-            }
-        } else {
-            theme.normal_style()
-        };
-        let wd_text = if self.workdir_editing {
-            format!(" WorkDir: {}", self.workdir_input.content)
-        } else {
-            match &self.set.working_dir {
-                Some(p) => format!(" WorkDir: {}", p),
-                None => format!(" WorkDir: (default — launcher CWD)"),
-            }
-        };
-        let wd_display_style = if !is_workdir_focused && self.set.working_dir.is_none() {
-            Style::default()
-                .fg(theme.text_disabled)
-                .add_modifier(Modifier::DIM)
-        } else {
-            workdir_style
-        };
-        let wd_line = fill_row(
-            Line::from(Span::styled(wd_text, wd_display_style)),
-            wd_display_style,
-            workdir_row.width,
+        self.render_editable_field(
+            frame, workdir_row, theme, "WorkDir",
+            self.focus == DetailFocus::WorkDir,
+            self.workdir_editing,
+            &self.workdir_input,
+            self.set.working_dir.as_deref().unwrap_or("(default — launcher CWD)"),
+            self.set.working_dir.is_none(),
         );
-        frame.render_widget(Paragraph::new(wd_line), workdir_row);
-
-        // Cursor for workdir editing
-        if self.workdir_editing {
-            let prefix_width = unicode_width::UnicodeWidthStr::width(" WorkDir: ");
-            set_cursor_after_prefix(
-                frame,
-                &self.workdir_input.content,
-                self.workdir_input.cursor,
-                prefix_width as u16,
-                workdir_row,
-            );
-        }
 
         // Separator — full width
         frame.render_widget(
@@ -193,6 +126,85 @@ impl DetailScreenState {
             Paragraph::new(Line::from(Span::styled(mode_label, mode_style))),
             mode_row,
         );
+    }
+
+    fn render_editable_field(
+        &self,
+        frame: &mut Frame,
+        row: Rect,
+        theme: &Theme,
+        label: &str,
+        focused: bool,
+        editing: bool,
+        input: &TextInput,
+        display: &str,
+        dim: bool,
+    ) {
+        let style = if focused {
+            if editing {
+                Style::default()
+                    .fg(theme.text_on_selected)
+                    .bg(theme.accent_primary)
+                    .add_modifier(Modifier::BOLD)
+            } else {
+                Style::default().fg(theme.accent_primary)
+            }
+        } else {
+            theme.normal_style()
+        };
+
+        let display_style = if dim && !focused {
+            Style::default()
+                .fg(theme.text_disabled)
+                .add_modifier(Modifier::DIM)
+        } else {
+            style
+        };
+
+        let text = if editing {
+            format!(" {}: {}", label, input.content)
+        } else {
+            format!(" {}: {}", label, display)
+        };
+
+        let line = fill_row(
+            Line::from(Span::styled(text, display_style)),
+            display_style,
+            row.width,
+        );
+        frame.render_widget(Paragraph::new(line), row);
+
+        if editing {
+            let prefix_width = unicode_width::UnicodeWidthStr::width(format!(" {}: ", label).as_str());
+            set_cursor_after_prefix(
+                frame,
+                &input.content,
+                input.cursor,
+                prefix_width as u16,
+                row,
+            );
+        }
+    }
+
+    fn render_edit_cursor(
+        &self,
+        frame: &mut Frame,
+        list_area: Rect,
+        edit: &InlineEdit,
+        list: &ScrollableList,
+        prefix: &str,
+    ) {
+        if let Some(idx) = edit.editing {
+            let pos = edit.insert_at.unwrap_or(idx);
+            render_inline_cursor(
+                frame,
+                list_area,
+                list.offset,
+                pos,
+                &edit.edit_input,
+                unicode_width::UnicodeWidthStr::width(prefix) as u16,
+            );
+        }
     }
 
     pub(crate) fn render_picker(&self, frame: &mut Frame, area: Rect, theme: &Theme) {
@@ -403,17 +415,7 @@ impl DetailScreenState {
             },
         );
 
-        if let Some(idx) = self.var_edit.editing {
-            let pos = self.var_edit.insert_at.unwrap_or(idx);
-            render_inline_cursor(
-                frame,
-                list_area,
-                self.variable_list.offset,
-                pos,
-                &self.var_edit.edit_input,
-                unicode_width::UnicodeWidthStr::width("  ▶ ") as u16,
-            );
-        }
+        self.render_edit_cursor(frame, list_area, &self.var_edit, &self.variable_list, "  ▶ ");
     }
 
     pub(crate) fn render_commands(&self, frame: &mut Frame, area: Rect, theme: &Theme) {
@@ -461,15 +463,8 @@ impl DetailScreenState {
 
         if let Some(idx) = self.cmd_edit.editing {
             let pos = self.cmd_edit.insert_at.unwrap_or(idx);
-            let display_prefix = format!("  #{}▶ ", pos);
-            render_inline_cursor(
-                frame,
-                list_area,
-                self.command_list.offset,
-                pos,
-                &self.cmd_edit.edit_input,
-                unicode_width::UnicodeWidthStr::width(display_prefix.as_str()) as u16,
-            );
+            self.render_edit_cursor(frame, list_area, &self.cmd_edit, &self.command_list,
+                &format!("  #{}▶ ", pos));
         }
     }
 
