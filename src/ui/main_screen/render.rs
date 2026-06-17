@@ -100,7 +100,7 @@ impl MainScreenState {
         area: Rect,
         theme: &Theme,
     ) {
-        let inner = bordered_block_zone(frame, area, theme, " Search ", false);
+        let inner = bordered_block_zone(frame, area, theme, " Search ", self.search_mode);
         frame.render_widget(
             Paragraph::new(Line::from(Span::styled(
                 format!(" Search: {} ", self.search_input.content),
