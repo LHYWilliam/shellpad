@@ -1,9 +1,14 @@
 # Changelog
 
-## v0.2.5 (2026-06-17) — Workflow test
+## v0.2.6 (2026-06-17) — Exit codes & visual polish
 
-### Internal
-- Test GitHub Release automation
+### Features
+- Display exit code on command failure (e.g. `[127] $ unknown-cmd`)
+- Replace emoji with geometric symbols: `○` `▶` `✓` `✕` `~` `■` `→`
+- Add screenshots to README (main + execution)
+- CI: run test.yml gate before publish; extract changelog for release body
+
+## v0.2.5 (2026-06-17) — Workflow test
 
 ## v0.2.4 (2026-06-17) — Free scroll & ring buffer
 
