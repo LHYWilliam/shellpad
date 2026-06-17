@@ -325,6 +325,7 @@ impl App {
                 }
                 self.variable_screen = crate::ui::variable_screen::VariableScreenState::new();
                 self.auto_save();
+                self.toasts.add("Variables saved", ToastSeverity::Info);
                 if let ExecutionState::Idle { ref mut pending_set } = self.execution_state {
                     *pending_set = Some((gi, si));
                 }
