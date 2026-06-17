@@ -6,10 +6,16 @@ impl ExecutionScreenState {
     /// Calculate the flat items Vec index for a given command index.
     pub(crate) fn items_offset_for_command(&self, cmd_idx: usize) -> usize {
         let mut offset = 0;
-        for i in 0..cmd_idx.min(self.cmd_states.len()) {
+        let count = cmd_idx.min(self.cmd_states.len());
+        for i in 0..count {
             offset += 1; // command header line
+            if self.cmd_states[i].truncated {
+                offset += 1; // truncation marker
+            }
             offset += self.cmd_states[i].output_lines.len(); // output lines
-            offset += 1; // separator line
+            if i + 1 < self.cmd_states.len() {
+                offset += 1; // separator (not after last command)
+            }
         }
         offset
     }
@@ -319,5 +325,20 @@ mod tests {
         // cmd 0: 1 header + 2 outputs + 1 separator = 4
         assert_eq!(state.items_offset_for_command(1), 4);
         assert_eq!(state.items_offset_for_command(0), 0);
+    }
+
+    #[test]
+    fn test_items_offset_includes_truncation_marker() {
+        let mut state = make_state(&["a", "b"]);
+        state.cmd_states[0].truncated = true;
+        assert_eq!(state.items_offset_for_command(1), 3);
+    }
+
+    #[test]
+    fn test_items_offset_no_trailing_separator_for_last_command() {
+        let state = make_state(&["a", "b"]);
+        assert_eq!(state.items_offset_for_command(2), 3);
+        assert_eq!(state.items_offset_for_command(0), 0);
+        assert_eq!(state.items_offset_for_command(1), 2);
     }
 }
