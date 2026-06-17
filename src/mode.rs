@@ -15,5 +15,7 @@ pub enum AppMode {
         kind: crate::action::DeleteKind,
         /// Mode to restore after confirm/cancel
         prev: Box<AppMode>,
+        /// Which button is focused
+        selected: crate::action::ConfirmChoice,
     },
 }

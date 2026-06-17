@@ -86,7 +86,7 @@ impl App {
                 }
                 draw_help(frame, content_area, &self.theme);
             }
-            AppMode::ConfirmDelete { kind, prev } => {
+            AppMode::ConfirmDelete { kind, prev, .. } => {
                 // Render underlying screen based on the stored prev mode
                 match prev.as_ref() {
                     AppMode::Detail => {

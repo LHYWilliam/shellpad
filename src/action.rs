@@ -38,6 +38,13 @@ pub enum ReorderKind {
     Command(usize),
 }
 
+/// Which button is focused in the delete confirmation dialog.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ConfirmChoice {
+    Confirm,
+    Cancel,
+}
+
 /// Unified action enum returned by all screens.
 /// The `app/handler.rs` handles all variants centrally.
 pub enum AppAction {

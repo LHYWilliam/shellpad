@@ -1,4 +1,4 @@
-use crate::action::{AppAction, DeleteKind, ReorderKind};
+use crate::action::{AppAction, ConfirmChoice, DeleteKind, ReorderKind};
 use crate::mode::AppMode;
 use crate::models::CommandSet;
 use crate::storage;
@@ -361,6 +361,7 @@ impl App {
                 self.mode = AppMode::ConfirmDelete {
                     kind,
                     prev: Box::new(self.mode.clone()),
+                    selected: ConfirmChoice::Cancel,
                 };
             }
 
@@ -384,7 +385,7 @@ impl App {
 #[cfg(test)]
 mod tests {
     use super::ExecutionState;
-    use crate::action::{AppAction, DeleteKind, ReorderKind};
+    use crate::action::{AppAction, ConfirmChoice, DeleteKind, ReorderKind};
     use crate::app::execution::ExecutionManager;
     use crate::mode::AppMode;
     use crate::models::{AppData, CommandSet, Group};
