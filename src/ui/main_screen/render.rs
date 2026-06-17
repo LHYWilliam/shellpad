@@ -53,7 +53,9 @@ impl MainScreenState {
                 let name_width = unicode_width::UnicodeWidthStr::width(name.as_str());
                 let pad = avail.saturating_sub(name_width + count.len());
                 let label = format!("{}{:>pad$}{}", name, "", count, pad = pad);
-                let style = if i == self.group_list.selected {
+                let style = if self.rename_mode && i == self.group_list.selected {
+                    theme.editing_style()
+                } else if i == self.group_list.selected {
                     theme.selected_style()
                 } else {
                     theme.normal_style()
@@ -68,8 +70,13 @@ impl MainScreenState {
 
         let mut list_state = ratatui::widgets::ListState::default()
             .with_selected(self.group_list.selected_or_none(data.groups.len()));
+        let list_highlight = if self.rename_mode {
+            theme.editing_style()
+        } else {
+            theme.selected_style()
+        };
         let list =
-            List::new(items).highlight_style(theme.selected_style());
+            List::new(items).highlight_style(list_highlight);
         frame.render_stateful_widget(list, list_area, &mut list_state);
 
         // Render scrollbar
