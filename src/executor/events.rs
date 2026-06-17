@@ -13,6 +13,8 @@ pub enum ExecutionEvent {
         success: bool,
         duration_ms: u128,
         exit_code: Option<i32>,
+        /// True if the command was terminated by skip (s) or abort (Ctrl+C).
+        skipped: bool,
     },
     /// All commands in the set have been executed.
     CompletedAll {
