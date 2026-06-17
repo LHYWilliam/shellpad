@@ -3,7 +3,7 @@ name = "shellpad"
 version = "0.2.1"
 edition = "2024"
 description = "A Ratatui-based TUI for managing and executing collections of shell commands"
-repository = "https://github.com/LHYLiuWilliam/shellpad"
+repository = "https://github.com/LHYWilliam/shellpad"
 license = "MIT"
 keywords = ["tui", "shell", "terminal", "ratatui", "command-runner"]
 

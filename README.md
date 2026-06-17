@@ -1,6 +1,6 @@
 # ShellPad
 
-[![CI](https://github.com/LHYLiuWilliam/shellpad/actions/workflows/test.yml/badge.svg)](https://github.com/LHYLiuWilliam/shellpad/actions/workflows/test.yml)
+[![CI](https://github.com/LHYWilliam/shellpad/actions/workflows/test.yml/badge.svg)](https://github.com/LHYWilliam/shellpad/actions/workflows/test.yml)
 [![crates.io](https://img.shields.io/crates/v/shellpad.svg)](https://crates.io/crates/shellpad)
 ![Rust](https://img.shields.io/badge/rust-1.85%2B-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
@@ -34,7 +34,7 @@ Inspired by task runners like `just` and `make`, but interactive.
 cargo install shellpad
 
 # From source
-git clone https://github.com/LHYLiuWilliam/shellpad
+git clone https://github.com/LHYWilliam/shellpad
 cd shellpad
 cargo install --path .
 ```
