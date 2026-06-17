@@ -21,6 +21,7 @@ impl ExecutionManager {
     }
 
     /// Start execution of a command set.
+    #[allow(clippy::too_many_arguments)]
     pub fn start(
         &mut self,
         commands: Vec<crate::models::Command>,

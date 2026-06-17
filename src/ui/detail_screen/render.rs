@@ -500,12 +500,7 @@ impl DetailScreenState {
         }
     }
 
-    pub(crate) fn render_deferred_commands(
-        &self,
-        frame: &mut Frame,
-        area: Rect,
-        theme: &Theme,
-    ) {
+    pub(crate) fn render_deferred_commands(&self, frame: &mut Frame, area: Rect, theme: &Theme) {
         let count = self.set.defer_commands.len();
         let list_area = self.render_items_list(
             frame,
@@ -522,9 +517,7 @@ impl DetailScreenState {
                     .deferred_edit
                     .insert_at
                     .is_some()
-                    .then(|| {
-                        format!("  ▽ {}", self.deferred_edit.edit_input.content)
-                    }),
+                    .then(|| format!("  ▽ {}", self.deferred_edit.edit_input.content)),
                 empty_text: " (empty — press a to add a defer command) ",
             },
             |i, is_editing| {
@@ -555,8 +548,9 @@ impl DetailScreenState {
     }
 
     pub(crate) fn render_status_bar(&self, frame: &mut Frame, area: Rect, theme: &Theme) {
-        let is_editing =
-            self.var_edit.is_editing() || self.cmd_edit.is_editing() || self.deferred_edit.is_editing();
+        let is_editing = self.var_edit.is_editing()
+            || self.cmd_edit.is_editing()
+            || self.deferred_edit.is_editing();
         let text = match (is_editing, self.focus) {
             (true, _) => "[Enter] Confirm  [Esc] Cancel",
             (false, DetailFocus::Name) => {
@@ -577,8 +571,7 @@ impl DetailScreenState {
             (false, DetailFocus::Variables) => {
                 "[a] Add  [e/Enter] Edit  [d] Delete  [↑/↓] Nav  [Ctrl+↑/↓] Move  [Tab] Next  |  [Ctrl+S] Save"
             }
-            (false, DetailFocus::Commands) |
-            (false, DetailFocus::DeferredCommands) => {
+            (false, DetailFocus::Commands) | (false, DetailFocus::DeferredCommands) => {
                 "[a] Add  [e/Enter] Edit  [d] Delete  [↑/↓] Nav  [Ctrl+↑/↓] Move  [Tab] Next  |  [Ctrl+S] Save"
             }
         };

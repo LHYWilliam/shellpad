@@ -72,7 +72,12 @@ pub fn execute_set_blocking(
     for (di, cmd) in set.defer_commands.iter().enumerate() {
         let resolved = substitute_variables_from_map(&cmd.command, vars);
         let label = total + di + 1;
-        eprintln!("[{}/{}] $ {}", label, total + set.defer_commands.len(), resolved);
+        eprintln!(
+            "[{}/{}] $ {}",
+            label,
+            total + set.defer_commands.len(),
+            resolved
+        );
 
         let mut cmd_builder = Command::new(&shell_cmd.program);
         cmd_builder

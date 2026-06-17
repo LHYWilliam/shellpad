@@ -410,9 +410,7 @@ impl App {
                             let is_deferred =
                                 ds.focus == crate::ui::detail_screen::DetailFocus::DeferredCommands;
                             if is_deferred {
-                                if let Some(ni) =
-                                    new_idx(idx, ds.set.defer_commands.len())
-                                {
+                                if let Some(ni) = new_idx(idx, ds.set.defer_commands.len()) {
                                     ds.set.defer_commands.swap(idx, ni);
                                     ds.deferred_command_list.selected = ni;
                                     self.auto_save();

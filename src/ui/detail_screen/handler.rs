@@ -130,9 +130,7 @@ impl DetailScreenState {
                             .min(self.set.commands.len().saturating_sub(1));
                         return AppAction::Reorder(ReorderKind::Command(idx), -1);
                     }
-                    DetailFocus::DeferredCommands
-                        if !self.set.defer_commands.is_empty() =>
-                    {
+                    DetailFocus::DeferredCommands if !self.set.defer_commands.is_empty() => {
                         let idx = self
                             .deferred_command_list
                             .selected
@@ -185,9 +183,7 @@ impl DetailScreenState {
                             .min(self.set.commands.len().saturating_sub(1));
                         return AppAction::Reorder(ReorderKind::Command(idx), 1);
                     }
-                    DetailFocus::DeferredCommands
-                        if !self.set.defer_commands.is_empty() =>
-                    {
+                    DetailFocus::DeferredCommands if !self.set.defer_commands.is_empty() => {
                         let idx = self
                             .deferred_command_list
                             .selected
@@ -299,9 +295,7 @@ impl DetailScreenState {
                             self.set.commands.len(),
                         );
                     }
-                    DetailFocus::DeferredCommands
-                        if !self.set.defer_commands.is_empty() =>
-                    {
+                    DetailFocus::DeferredCommands if !self.set.defer_commands.is_empty() => {
                         let idx = self
                             .deferred_command_list
                             .selected
@@ -364,9 +358,7 @@ impl DetailScreenState {
                         cmd_preview,
                     });
                 }
-                DetailFocus::DeferredCommands
-                    if !self.set.defer_commands.is_empty() =>
-                {
+                DetailFocus::DeferredCommands if !self.set.defer_commands.is_empty() => {
                     let idx = self
                         .deferred_command_list
                         .selected
