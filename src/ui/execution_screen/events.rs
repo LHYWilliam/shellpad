@@ -1,4 +1,4 @@
-use super::{CmdStatus, ExecutionScreenState};
+use super::{CmdStatus, ExecutionScreenState, MAX_OUTPUT_LINES};
 use crate::executor::ExecutionEvent;
 use std::sync::mpsc;
 
@@ -59,14 +59,30 @@ impl ExecutionScreenState {
                 }
                 ExecutionEvent::StdoutLine { index, line } => {
                     if index < self.cmd_states.len() {
-                        self.cmd_states[index].output_lines.push(line);
+                        let state = &mut self.cmd_states[index];
+                        state.output_lines.push_back(line);
+                        if state.output_lines.len() > MAX_OUTPUT_LINES {
+                            state.output_lines.pop_front();
+                            if !state.truncated {
+                                state.truncated = true;
+                                self.output_truncated = true;
+                            }
+                        }
                     }
                 }
                 ExecutionEvent::StderrLine { index, line } => {
                     if index < self.cmd_states.len() {
-                        self.cmd_states[index]
+                        let state = &mut self.cmd_states[index];
+                        state
                             .output_lines
-                            .push(format!("[stderr] {}", line));
+                            .push_back(format!("[stderr] {}", line));
+                        if state.output_lines.len() > MAX_OUTPUT_LINES {
+                            state.output_lines.pop_front();
+                            if !state.truncated {
+                                state.truncated = true;
+                                self.output_truncated = true;
+                            }
+                        }
                     }
                 }
                 ExecutionEvent::Finished {
