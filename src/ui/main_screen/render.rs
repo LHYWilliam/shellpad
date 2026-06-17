@@ -8,7 +8,7 @@ use crate::ui::render::{
 };
 use crate::ui::theme::Theme;
 use ratatui::Frame;
-use ratatui::layout::{Constraint, Layout, Rect};
+use ratatui::layout::Rect;
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{List, ListItem, Paragraph};
@@ -127,50 +127,19 @@ impl MainScreenState {
         theme: &Theme,
     ) {
         let title = if self.search_mode {
-            " Search ".to_string()
+            " Results ".to_string()
         } else {
-            let group_name: &str = self
+            let name = self
                 .selected_group_idx(data)
                 .map(|gi| data.groups[gi].name.as_str())
                 .unwrap_or("Commands");
-            format!(" {} ", group_name)
+            format!(" {} ", name)
         };
 
         let inner =
             bordered_block_zone(frame, area, theme, &title, self.active_panel == Panel::Sets);
 
-        // When in search mode, split inner into search line + list area
-        let (list_area, scrollbar_area) = if self.search_mode {
-            let search_layout = Layout::vertical([Constraint::Length(1), Constraint::Min(1)]);
-            let [search_line, remaining] = search_layout.areas(inner);
-
-            // Render search query line
-            frame.render_widget(
-                Paragraph::new(Line::from(Span::styled(
-                    format!(" Search: {} ", self.search_input.content),
-                    Style::default().fg(theme.text_primary),
-                ))),
-                search_line,
-            );
-
-            // Cursor at end of search query
-            let prefix_width = unicode_width::UnicodeWidthStr::width(" Search: ");
-            set_cursor_after_prefix(
-                frame,
-                &self.search_input.content,
-                self.search_input.cursor,
-                prefix_width as u16,
-                search_line,
-            );
-
-            // Split remaining into list + scrollbar
-            let (list_area, sb_area) = list_scrollbar_areas(remaining);
-            (list_area, sb_area)
-        } else {
-            // Original: split inner into list + scrollbar
-            let (list_area, sb_area) = list_scrollbar_areas(inner);
-            (list_area, sb_area)
-        };
+        let (list_area, scrollbar_area) = list_scrollbar_areas(inner);
 
         let mut items: Vec<ListItem> = sets
             .iter()
