@@ -1,7 +1,12 @@
 use crate::action::AppAction;
+use std::collections::VecDeque;
 
 pub(crate) mod events;
 pub(crate) mod render;
+
+/// Max output lines per command. When exceeded, old lines are discarded
+/// to prevent OOM during long-running or high-output commands.
+pub(crate) const MAX_OUTPUT_LINES: usize = 10_000;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CmdStatus {
@@ -15,8 +20,9 @@ pub enum CmdStatus {
 pub(crate) struct CmdState {
     pub(crate) status: CmdStatus,
     command: String,
-    output_lines: Vec<String>,
+    output_lines: VecDeque<String>,
     duration_ms: Option<u128>,
+    pub(crate) truncated: bool,
 }
 
 pub struct ExecutionScreenState {
@@ -33,6 +39,7 @@ pub struct ExecutionScreenState {
     pub auto_scroll: bool,
     pub scroll_offset: usize,
     pub focus_index: Option<usize>,
+    pub(crate) output_truncated: bool,
 }
 
 impl ExecutionScreenState {
@@ -42,8 +49,9 @@ impl ExecutionScreenState {
             .map(|c| CmdState {
                 status: CmdStatus::Pending,
                 command: c.command.clone(),
-                output_lines: Vec::new(),
+                output_lines: VecDeque::new(),
                 duration_ms: None,
+                truncated: false,
             })
             .collect();
 
@@ -61,6 +69,7 @@ impl ExecutionScreenState {
             auto_scroll: true,
             scroll_offset: 0,
             focus_index: None,
+            output_truncated: false,
         }
     }
 
