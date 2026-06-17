@@ -70,8 +70,9 @@ pub enum AppAction {
     CommandSaved,
 
     // === Execution screen ===
-    SkipCurrent,
-    ContinueFrom(usize),
+    Pause,       // s — skip current command, enter pause
+    Continue,    // n — resume from pause
+    Abort,       // Ctrl+C — stop all remaining normals, run defers
     ReExec,
     BackToMain,
 

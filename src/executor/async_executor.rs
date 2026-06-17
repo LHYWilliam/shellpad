@@ -68,6 +68,7 @@ pub fn execute_set(
     shell_cmd: ShellCommand,
     tx: mpsc::Sender<ExecutionEvent>,
     kill_signal: Arc<AtomicBool>,
+    skip_signal: Arc<AtomicBool>,
     index_offset: usize,
     working_dir: Option<String>,
 ) -> thread::JoinHandle<()> {
@@ -76,23 +77,37 @@ pub fn execute_set(
         let mut succeeded = 0usize;
         let mut failed = 0usize;
 
-        // Closure: run a batch of commands. `stop_on_error` controls whether
-        // a failure breaks the loop (Phase 1 follows exec_mode; Phase 2 never stops).
-        // `succeeded`/`failed` are passed as arguments rather than captured, to avoid
-        // a &mut borrow that outlives the call and conflicts with CompletedAll below.
-        // `return` inside this closure exits run_phase itself; the caller then
-        // continues to Phase 2 or CompletedAll (tx.send will fail quickly → thread exit).
+        fn send_finished(
+            tx: &mpsc::Sender<ExecutionEvent>,
+            index: usize,
+            success: bool,
+            duration_ms: u128,
+            exit_code: Option<i32>,
+            skipped: bool,
+        ) {
+            let _ = tx.send(ExecutionEvent::Finished {
+                index,
+                success,
+                duration_ms,
+                exit_code,
+                skipped,
+            });
+        }
+
+        enum PhaseResult {
+            Completed,
+            Aborted,
+        }
+
         let run_phase = |cmds: &[Command],
                          index_base: usize,
                          stop_on_error: bool,
+                         check_signals: bool,
                          succeeded: &mut usize,
-                         failed: &mut usize| {
+                         failed: &mut usize|
+         -> PhaseResult {
             for (ci, cmd) in cmds.iter().enumerate() {
                 let actual_index = ci + index_base;
-
-                if kill_signal.load(Ordering::Relaxed) {
-                    break;
-                }
 
                 let resolved = {
                     let vars = variables
@@ -108,7 +123,7 @@ pub fn execute_set(
                     })
                     .is_err()
                 {
-                    return;
+                    return PhaseResult::Completed;
                 }
 
                 let cmd_start = std::time::Instant::now();
@@ -121,12 +136,10 @@ pub fn execute_set(
                                 index: actual_index,
                                 line: format!("Failed to spawn command: {}", e),
                             });
-                            let _ = tx.send(ExecutionEvent::Finished {
-                                index: actual_index,
-                                success: false,
-                                duration_ms: cmd_start.elapsed().as_millis(),
-                                exit_code: None,
-                            });
+                            send_finished(
+                                &tx, actual_index, false,
+                                cmd_start.elapsed().as_millis(), None, false,
+                            );
                             *failed += 1;
                             if stop_on_error {
                                 break;
@@ -145,31 +158,71 @@ pub fn execute_set(
                     thread::spawn(move || pipe_reader(stderr, actual_index, tx_err, true));
                 }
 
-                let (success, exit_code) = loop {
-                    if kill_signal.load(Ordering::Relaxed) {
-                        let _ = child.kill();
-                        child.wait().ok();
-                        break (false, None);
-                    }
-                    match child.try_wait() {
-                        Ok(Some(status)) => break (status.success(), status.code()),
-                        Ok(None) => thread::sleep(Duration::from_millis(POLL_MS)),
-                        Err(_) => break (false, None),
-                    }
-                };
+                let (success, exit_code, skipped) = if check_signals {
+                    let (succ, code, act) = loop {
+                        if kill_signal.load(Ordering::Relaxed) {
+                            let _ = child.kill();
+                            child.wait().ok();
+                            break (false, None, "abort");
+                        }
+                        if skip_signal.load(Ordering::Relaxed) {
+                            let _ = child.kill();
+                            child.wait().ok();
+                            break (false, None, "skip");
+                        }
+                        match child.try_wait() {
+                            Ok(Some(s)) => break (s.success(), s.code(), "done"),
+                            Ok(None) => thread::sleep(Duration::from_millis(POLL_MS)),
+                            Err(_) => break (false, None, "error"),
+                        }
+                    };
 
-                let duration = cmd_start.elapsed().as_millis();
+                    if act == "abort" {
+                        send_finished(
+                            &tx, actual_index, false,
+                            cmd_start.elapsed().as_millis(), None, true,
+                        );
+                        return PhaseResult::Aborted;
+                    }
+                    if act == "skip" {
+                        send_finished(
+                            &tx, actual_index, false,
+                            cmd_start.elapsed().as_millis(), None, true,
+                        );
+                        loop {
+                            thread::sleep(Duration::from_millis(100));
+                            if !skip_signal.load(Ordering::Relaxed) {
+                                break;
+                            }
+                            if kill_signal.load(Ordering::Relaxed) {
+                                return PhaseResult::Aborted;
+                            }
+                        }
+                        continue;
+                    }
+                    (succ, code, false)
+                } else {
+                    let (succ, code) = loop {
+                        match child.try_wait() {
+                            Ok(Some(s)) => break (s.success(), s.code()),
+                            Ok(None) => thread::sleep(Duration::from_millis(POLL_MS)),
+                            Err(_) => break (false, None),
+                        }
+                    };
+                    (succ, code, false)
+                };
 
                 if tx
                     .send(ExecutionEvent::Finished {
                         index: actual_index,
                         success,
-                        duration_ms: duration,
+                        duration_ms: cmd_start.elapsed().as_millis(),
                         exit_code,
+                        skipped,
                     })
                     .is_err()
                 {
-                    return;
+                    return PhaseResult::Completed;
                 }
 
                 if success {
@@ -181,24 +234,28 @@ pub fn execute_set(
                     }
                 }
             }
+            PhaseResult::Completed
         };
 
-        // Phase 1: normal commands
+        // Phase 1: normal commands (signal-aware)
         run_phase(
             &commands,
             index_offset,
             matches!(exec_mode, ExecMode::StopOnError),
+            true, // check_signals
             &mut succeeded,
             &mut failed,
         );
 
-        // Phase 2: defer commands (reset kill_signal for independent phase)
+        // Phase 2: defer commands (signal-proof)
         if !defer_commands.is_empty() {
             kill_signal.store(false, Ordering::Relaxed);
+            skip_signal.store(false, Ordering::Relaxed);
             run_phase(
                 &defer_commands,
                 commands.len() + index_offset,
-                false, // defers never stop on error
+                false, // never stop on error
+                false, // check_signals = false
                 &mut succeeded,
                 &mut failed,
             );

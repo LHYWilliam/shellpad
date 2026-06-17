@@ -119,6 +119,7 @@ fn test_execute_echo() {
         test_shell_cmd(),
         tx.clone(),
         Arc::new(AtomicBool::new(false)),
+        Arc::new(AtomicBool::new(false)),
         0,
         None,
     );
@@ -172,6 +173,7 @@ fn test_execute_failure_continue_on_error() {
         test_shell_cmd(),
         tx.clone(),
         Arc::new(AtomicBool::new(false)),
+        Arc::new(AtomicBool::new(false)),
         0,
         None,
     );
@@ -219,6 +221,7 @@ fn test_execute_failure_stop_on_error() {
         set.variables.clone(),
         test_shell_cmd(),
         tx.clone(),
+        Arc::new(AtomicBool::new(false)),
         Arc::new(AtomicBool::new(false)),
         0,
         None,

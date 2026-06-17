@@ -197,6 +197,7 @@ mod tests {
             success: true,
             duration_ms: 100,
             exit_code: Some(0),
+            skipped: false,
         });
         state.process_events(&rx);
         assert_eq!(state.cmd_states[0].status, CmdStatus::Success);
@@ -217,6 +218,7 @@ mod tests {
             success: false,
             duration_ms: 50,
             exit_code: Some(1),
+            skipped: false,
         });
         state.process_events(&rx);
         assert_eq!(state.cmd_states[0].status, CmdStatus::Failure);
