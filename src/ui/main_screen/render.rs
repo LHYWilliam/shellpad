@@ -1,5 +1,4 @@
 use crate::models::AppData;
-use crate::ui::main_screen::search::find_matches_case_insensitive;
 use crate::ui::main_screen::{MainScreenState, Panel};
 use crate::ui::render::bordered_block_zone;
 use crate::ui::render::{
@@ -124,7 +123,7 @@ impl MainScreenState {
         frame: &mut Frame,
         area: Rect,
         data: &AppData,
-        sets: &[(usize, usize, &crate::models::CommandSet)],
+        results: &[crate::models::FilterResult<'_>],
         theme: &Theme,
     ) {
         let title = if self.search_mode {
@@ -142,10 +141,11 @@ impl MainScreenState {
 
         let (list_area, scrollbar_area) = list_scrollbar_areas(inner);
 
-        let mut items: Vec<ListItem> = sets
+        let mut items: Vec<ListItem> = results
             .iter()
             .enumerate()
-            .map(|(i, &(gi, _, set))| {
+            .map(|(i, result)| {
+                let set = result.set;
                 let shell_label = set.shell.label();
                 let mode_label = match set.exec_mode {
                     crate::models::ExecMode::StopOnError => "■",
@@ -162,36 +162,30 @@ impl MainScreenState {
                 let prefix = format!(" {}  ", mode_label);
                 let suffix = format!("  [{}] ({} cmd)", shell_label, cmd_count);
 
-                // Build name part with optional search highlighting
+                // Build name part with fuzzy match highlighting
                 let name_part: Vec<Span> =
-                    if self.search_mode && !self.search_input.content.is_empty() && !is_selected {
-                        let matches =
-                            find_matches_case_insensitive(&set.name, &self.search_input.content);
-                        if matches.is_empty() {
-                            vec![Span::styled(set.name.clone(), text_style)]
-                        } else {
-                            let mut spans: Vec<Span> = Vec::new();
-                            let mut last_end = 0usize;
-                            for (match_start, match_end) in &matches {
-                                if *match_start > last_end {
-                                    spans.push(Span::styled(
-                                        &set.name[last_end..*match_start],
-                                        text_style,
-                                    ));
-                                }
+                    if !result.name_matches.is_empty() && !is_selected {
+                        let mut spans: Vec<Span> = Vec::new();
+                        let mut last_end = 0usize;
+                        for (match_start, match_end) in &result.name_matches {
+                            if *match_start > last_end {
                                 spans.push(Span::styled(
-                                    &set.name[*match_start..*match_end],
-                                    Style::default()
-                                        .fg(theme.accent_primary)
-                                        .add_modifier(Modifier::BOLD),
+                                    &set.name[last_end..*match_start],
+                                    text_style,
                                 ));
-                                last_end = *match_end;
                             }
-                            if last_end < set.name.len() {
-                                spans.push(Span::styled(&set.name[last_end..], text_style));
-                            }
-                            spans
+                            spans.push(Span::styled(
+                                &set.name[*match_start..*match_end],
+                                Style::default()
+                                    .fg(theme.accent_primary)
+                                    .add_modifier(Modifier::BOLD),
+                            ));
+                            last_end = *match_end;
                         }
+                        if last_end < set.name.len() {
+                            spans.push(Span::styled(&set.name[last_end..], text_style));
+                        }
+                        spans
                     } else {
                         vec![Span::styled(set.name.clone(), text_style)]
                     };
@@ -202,7 +196,7 @@ impl MainScreenState {
 
                 // Right-aligned group name in search mode
                 if self.search_mode {
-                    let gname = data.groups.get(gi).map(|g| g.name.as_str()).unwrap_or("?");
+                    let gname = data.groups.get(result.group_index).map(|g| g.name.as_str()).unwrap_or("?");
                     let text_width: usize = parts
                         .iter()
                         .map(|s| unicode_width::UnicodeWidthStr::width(s.content.as_ref()))
@@ -221,12 +215,12 @@ impl MainScreenState {
             .collect();
 
         // Empty-state hint when no sets
-        if sets.is_empty() {
+        if results.is_empty() {
             items.push(empty_hint(theme, " (empty — press n to add a set) "));
         }
 
         let selected = if self.active_panel == Panel::Sets {
-            self.set_list.selected_or_none(sets.len())
+            self.set_list.selected_or_none(results.len())
         } else {
             None
         };
@@ -239,7 +233,7 @@ impl MainScreenState {
             frame,
             scrollbar_area,
             theme,
-            sets.len(),
+            results.len(),
             selected.unwrap_or(0),
         );
     }

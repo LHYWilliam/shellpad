@@ -43,9 +43,9 @@ impl MainScreenState {
                 }
                 KeyCode::Enter => {
                     let results = data.filter_sets(&self.search_input.content);
-                    if let Some((gi, si, _)) = results.get(self.set_list.selected) {
-                        self.group_list.selected = *gi;
-                        self.set_list.selected = *si;
+                    if let Some(result) = results.get(self.set_list.selected) {
+                        self.group_list.selected = result.group_index;
+                        self.set_list.selected = result.set_index;
                         self.active_panel = Panel::Sets;
                     }
                     self.search_mode = false;

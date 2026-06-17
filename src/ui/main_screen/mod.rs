@@ -66,7 +66,7 @@ impl MainScreenState {
     pub fn visible_sets<'a>(
         &'a self,
         data: &'a AppData,
-    ) -> Vec<(usize, usize, &'a crate::models::CommandSet)> {
+    ) -> Vec<crate::models::FilterResult<'a>> {
         if self.search_mode {
             data.filter_sets(&self.search_input.content)
         } else if let Some(gi) = self.selected_group_idx(data) {
@@ -74,7 +74,12 @@ impl MainScreenState {
                 .sets
                 .iter()
                 .enumerate()
-                .map(|(si, s)| (gi, si, s))
+                .map(|(si, s)| crate::models::FilterResult {
+                    group_index: gi,
+                    set_index: si,
+                    set: s,
+                    name_matches: Vec::new(),
+                })
                 .collect()
         } else {
             Vec::new()

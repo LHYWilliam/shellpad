@@ -285,8 +285,9 @@ fn handle_search(
             let items = data
                 .filter_sets(&q)
                 .iter()
-                .map(|&(gi, _si, s)| {
-                    let gname = &data.groups[gi].name;
+                .map(|result| {
+                    let s = result.set;
+                    let gname = &data.groups[result.group_index].name;
                     SearchItem::Set(SetInfo {
                         id: s.id.to_string(),
                         name: s.name.clone(),
@@ -336,15 +337,15 @@ fn handle_search(
             "UUID", "Group", "Set Name", "Shell"
         );
         println!("{}", "-".repeat(110));
-        for &(gi, _si, s) in &results {
-            let gname = &data.groups[gi].name;
+        for result in &results {
+            let gname = &data.groups[result.group_index].name;
             println!(
                 "{:<38} | {:<20} | {:<20} | {:<12} | {}",
-                s.id.to_string(),
+                result.set.id.to_string(),
                 truncate(gname, 20),
-                truncate(&s.name, 20),
-                s.shell.label(),
-                s.commands.len()
+                truncate(&result.set.name, 20),
+                result.set.shell.label(),
+                result.set.commands.len()
             );
         }
     }
@@ -507,14 +508,14 @@ mod tests {
         let items: Vec<SearchItem> = data
             .filter_sets("P")
             .iter()
-            .map(|&(gi, _si, s)| {
+            .map(|result| {
                 SearchItem::Set(SetInfo {
-                    id: s.id.to_string(),
-                    name: s.name.clone(),
-                    group_name: data.groups[gi].name.clone(),
-                    shell: s.shell.label(),
+                    id: result.set.id.to_string(),
+                    name: result.set.name.clone(),
+                    group_name: data.groups[result.group_index].name.clone(),
+                    shell: result.set.shell.label(),
                     exec_mode: "stop_on_error".to_string(),
-                    command_count: s.commands.len(),
+                    command_count: result.set.commands.len(),
                 })
             })
             .collect();

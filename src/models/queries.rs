@@ -1,5 +1,17 @@
 use crate::models::types::{AppData, CommandSet, Group};
+use crate::ui::main_screen::search::fuzzy_match;
 use uuid::Uuid;
+
+/// Result of filtering command sets by search query.
+/// Carries pre-computed match positions for render-side highlighting.
+pub struct FilterResult<'a> {
+    pub group_index: usize,
+    pub set_index: usize,
+    pub set: &'a CommandSet,
+    /// Byte-offset pairs in `set.name` where fuzzy_match found query chars.
+    /// Empty if the match was in command text rather than set name.
+    pub name_matches: Vec<(usize, usize)>,
+}
 
 impl AppData {
     /// Iterate over every command set across all groups.
@@ -29,14 +41,32 @@ impl AppData {
         None
     }
 
-    /// Filter command sets whose name contains `query` (case-insensitive).
-    pub fn filter_sets(&self, query: &str) -> Vec<(usize, usize, &CommandSet)> {
-        let q = query.to_lowercase();
+    /// Filter command sets whose name or commands fuzzy-match `query`.
+    pub fn filter_sets(&self, query: &str) -> Vec<FilterResult<'_>> {
         let mut results = Vec::new();
         for (gi, group) in self.groups.iter().enumerate() {
             for (si, set) in group.sets.iter().enumerate() {
-                if set.name.to_lowercase().contains(&q) {
-                    results.push((gi, si, set));
+                // Try matching set name first
+                if let Some(matches) = fuzzy_match(&set.name, query) {
+                    results.push(FilterResult {
+                        group_index: gi,
+                        set_index: si,
+                        set,
+                        name_matches: matches,
+                    });
+                    continue;
+                }
+                // Fall back: search in command text
+                let cmd_match = set.commands.iter().any(|cmd| {
+                    fuzzy_match(&cmd.command, query).is_some()
+                });
+                if cmd_match {
+                    results.push(FilterResult {
+                        group_index: gi,
+                        set_index: si,
+                        set,
+                        name_matches: Vec::new(),
+                    });
                 }
             }
         }
@@ -78,7 +108,7 @@ mod tests {
     }
 
     #[test]
-    fn test_filter_sets() {
+    fn test_filter_sets_fuzzy_name() {
         let mut g = Group::new("Dev".to_string());
         g.sets
             .push(CommandSet::new("Deploy Backend".to_string(), g.id));
@@ -87,8 +117,27 @@ mod tests {
         g.sets
             .push(CommandSet::new("Database Migrate".to_string(), g.id));
         let data = AppData { groups: vec![g] };
-        let results = data.filter_sets("backend");
+        // "dpl" fuzzy-matches "Deploy" → finds "Deploy Backend"
+        let results = data.filter_sets("dpl");
         assert_eq!(results.len(), 1);
-        assert_eq!(results[0].2.name, "Deploy Backend");
+        assert_eq!(results[0].set.name, "Deploy Backend");
+        assert!(!results[0].name_matches.is_empty());
+    }
+
+    #[test]
+    fn test_filter_sets_command_text() {
+        let mut g = Group::new("Dev".to_string());
+        let mut set = CommandSet::new("My Tasks".to_string(), g.id);
+        set.commands.push(crate::models::Command {
+            position: 0,
+            command: "curl https://api.example.com".to_string(),
+        });
+        g.sets.push(set);
+        let data = AppData { groups: vec![g] };
+        let results = data.filter_sets("curl");
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].set.name, "My Tasks");
+        // Matched in command text, not name
+        assert!(results[0].name_matches.is_empty());
     }
 }
