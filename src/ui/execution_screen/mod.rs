@@ -128,6 +128,30 @@ impl ExecutionScreenState {
                 }
                 AppAction::None
             }
+            KeyCode::Up | KeyCode::Char('k') => {
+                self.focus_index = None;
+                self.auto_scroll = false;
+                self.scroll_offset = self.scroll_offset.saturating_sub(1);
+                AppAction::None
+            }
+            KeyCode::Down | KeyCode::Char('j') => {
+                self.focus_index = None;
+                self.auto_scroll = false;
+                self.scroll_offset = self.scroll_offset.saturating_add(1);
+                AppAction::None
+            }
+            KeyCode::PageUp => {
+                self.focus_index = None;
+                self.auto_scroll = false;
+                self.scroll_offset = self.scroll_offset.saturating_sub(PAGE_SIZE);
+                AppAction::None
+            }
+            KeyCode::PageDown => {
+                self.focus_index = None;
+                self.auto_scroll = false;
+                self.scroll_offset = self.scroll_offset.saturating_add(PAGE_SIZE);
+                AppAction::None
+            }
             KeyCode::Char('z') => {
                 if self.focus_index.is_some() {
                     self.focus_index = None;
@@ -148,5 +172,73 @@ impl ExecutionScreenState {
             total += 2; // blank line + summary line
         }
         total
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::test_utils::make_key;
+
+    fn make_test_state() -> ExecutionScreenState {
+        let cmds: Vec<crate::models::Command> = vec![
+            crate::models::Command {
+                position: 0,
+                command: "cmd1".to_string(),
+            },
+            crate::models::Command {
+                position: 1,
+                command: "cmd2".to_string(),
+            },
+        ];
+        ExecutionScreenState::new("test".to_string(), &cmds)
+    }
+
+    #[test]
+    fn test_scroll_up_enters_free_scroll_mode() {
+        let mut state = make_test_state();
+        state.scroll_offset = 10;
+        state.focus_index = Some(0);
+        state.auto_scroll = true;
+
+        let action = state.handle_key(make_key(crossterm::event::KeyCode::Up));
+        assert!(matches!(action, AppAction::None));
+        assert_eq!(state.focus_index, None);
+        assert!(!state.auto_scroll);
+        assert_eq!(state.scroll_offset, 9);
+    }
+
+    #[test]
+    fn test_scroll_down_increases_offset() {
+        let mut state = make_test_state();
+        state.scroll_offset = 5;
+
+        let _ = state.handle_key(make_key(crossterm::event::KeyCode::Down));
+        assert_eq!(state.scroll_offset, 6);
+        assert!(!state.auto_scroll);
+    }
+
+    #[test]
+    fn test_page_up_down() {
+        let mut state = make_test_state();
+        state.scroll_offset = 50;
+
+        let _ = state.handle_key(make_key(crossterm::event::KeyCode::PageUp));
+        assert_eq!(state.scroll_offset, 30);
+
+        let _ = state.handle_key(make_key(crossterm::event::KeyCode::PageDown));
+        assert_eq!(state.scroll_offset, 50);
+    }
+
+    #[test]
+    fn test_jk_vim_keys() {
+        let mut state = make_test_state();
+        state.scroll_offset = 10;
+
+        let _ = state.handle_key(make_key(crossterm::event::KeyCode::Char('j')));
+        assert_eq!(state.scroll_offset, 11);
+
+        let _ = state.handle_key(make_key(crossterm::event::KeyCode::Char('k')));
+        assert_eq!(state.scroll_offset, 10);
     }
 }
