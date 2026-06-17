@@ -9,6 +9,7 @@ enum DetailRegion {
     Properties,
     Variables,
     Commands,
+    DeferredCommands,
 }
 
 impl DetailScreenState {
@@ -21,6 +22,7 @@ impl DetailScreenState {
             | DetailFocus::ExecMode => DetailRegion::Properties,
             DetailFocus::Variables => DetailRegion::Variables,
             DetailFocus::Commands => DetailRegion::Commands,
+            DetailFocus::DeferredCommands => DetailRegion::DeferredCommands,
         }
     }
 
@@ -37,6 +39,10 @@ impl DetailScreenState {
                 self.command_list.selected = 0;
             }
             DetailRegion::Commands => {
+                self.focus = DetailFocus::DeferredCommands;
+                self.deferred_command_list.selected = 0;
+            }
+            DetailRegion::DeferredCommands => {
                 self.focus = DetailFocus::Name;
             }
         }
@@ -47,8 +53,8 @@ impl DetailScreenState {
         self.commit_workdir_edit();
         match self.region() {
             DetailRegion::Properties => {
-                self.focus = DetailFocus::Commands;
-                self.command_list.selected = 0;
+                self.focus = DetailFocus::DeferredCommands;
+                self.deferred_command_list.selected = 0;
             }
             DetailRegion::Variables => {
                 self.focus = DetailFocus::Name;
@@ -56,6 +62,10 @@ impl DetailScreenState {
             DetailRegion::Commands => {
                 self.focus = DetailFocus::Variables;
                 self.variable_list.selected = 0;
+            }
+            DetailRegion::DeferredCommands => {
+                self.focus = DetailFocus::Commands;
+                self.command_list.selected = 0;
             }
         }
     }
@@ -81,6 +91,15 @@ impl DetailScreenState {
                 idx,
                 &mut self.set.commands,
                 &mut self.command_list,
+            );
+        }
+        if let Some(idx) = self.deferred_edit.editing {
+            return handle_command_edit(
+                &mut self.deferred_edit,
+                key,
+                idx,
+                &mut self.set.defer_commands,
+                &mut self.deferred_command_list,
             );
         }
 
@@ -111,6 +130,15 @@ impl DetailScreenState {
                             .min(self.set.commands.len().saturating_sub(1));
                         return AppAction::Reorder(ReorderKind::Command(idx), -1);
                     }
+                    DetailFocus::DeferredCommands
+                        if !self.set.defer_commands.is_empty() =>
+                    {
+                        let idx = self
+                            .deferred_command_list
+                            .selected
+                            .min(self.set.defer_commands.len().saturating_sub(1));
+                        return AppAction::Reorder(ReorderKind::Command(idx), -1);
+                    }
                     _ => {}
                 }
             }
@@ -133,6 +161,9 @@ impl DetailScreenState {
                 DetailRegion::Commands => {
                     self.command_list.select_previous();
                 }
+                DetailRegion::DeferredCommands => {
+                    self.deferred_command_list.select_previous();
+                }
             },
             KeyCode::Down
                 if key
@@ -152,6 +183,15 @@ impl DetailScreenState {
                             .command_list
                             .selected
                             .min(self.set.commands.len().saturating_sub(1));
+                        return AppAction::Reorder(ReorderKind::Command(idx), 1);
+                    }
+                    DetailFocus::DeferredCommands
+                        if !self.set.defer_commands.is_empty() =>
+                    {
+                        let idx = self
+                            .deferred_command_list
+                            .selected
+                            .min(self.set.defer_commands.len().saturating_sub(1));
                         return AppAction::Reorder(ReorderKind::Command(idx), 1);
                     }
                     _ => {}
@@ -175,6 +215,10 @@ impl DetailScreenState {
                 }
                 DetailRegion::Commands => {
                     self.command_list.select_next(self.set.commands.len());
+                }
+                DetailRegion::DeferredCommands => {
+                    self.deferred_command_list
+                        .select_next(self.set.defer_commands.len());
                 }
             },
             KeyCode::Left => match self.focus {
@@ -255,6 +299,21 @@ impl DetailScreenState {
                             self.set.commands.len(),
                         );
                     }
+                    DetailFocus::DeferredCommands
+                        if !self.set.defer_commands.is_empty() =>
+                    {
+                        let idx = self
+                            .deferred_command_list
+                            .selected
+                            .min(self.set.defer_commands.len() - 1);
+                        let text = self.set.defer_commands[idx].command.clone();
+                        Self::list_edit_begin(
+                            &mut self.deferred_edit,
+                            &self.deferred_command_list,
+                            text,
+                            self.set.defer_commands.len(),
+                        );
+                    }
                     _ => {}
                 }
             }
@@ -271,6 +330,13 @@ impl DetailScreenState {
                         &mut self.cmd_edit,
                         &mut self.command_list,
                         self.set.commands.len(),
+                    );
+                }
+                DetailFocus::DeferredCommands => {
+                    Self::list_insert_begin(
+                        &mut self.deferred_edit,
+                        &mut self.deferred_command_list,
+                        self.set.defer_commands.len(),
                     );
                 }
                 _ => {}
@@ -293,6 +359,19 @@ impl DetailScreenState {
                         .selected
                         .min(self.set.commands.len().saturating_sub(1));
                     let cmd_preview = self.set.commands[idx].command.clone();
+                    return AppAction::RequestDelete(DeleteKind::Command {
+                        cmd_index: idx,
+                        cmd_preview,
+                    });
+                }
+                DetailFocus::DeferredCommands
+                    if !self.set.defer_commands.is_empty() =>
+                {
+                    let idx = self
+                        .deferred_command_list
+                        .selected
+                        .min(self.set.defer_commands.len().saturating_sub(1));
+                    let cmd_preview = self.set.defer_commands[idx].command.clone();
                     return AppAction::RequestDelete(DeleteKind::Command {
                         cmd_index: idx,
                         cmd_preview,
@@ -387,7 +466,7 @@ mod tests {
     }
 
     #[test]
-    fn test_tab_cycles_properties_to_variables_to_commands() {
+    fn test_tab_cycles_properties_to_variables_to_commands_to_deferred() {
         let mut state = make_state();
         assert_eq!(state.focus, DetailFocus::Name); // Properties first
         state.handle_key(make_key(KeyCode::Tab));
@@ -397,13 +476,17 @@ mod tests {
         assert_eq!(state.focus, DetailFocus::Commands);
         assert_eq!(state.command_list.selected, 0);
         state.handle_key(make_key(KeyCode::Tab));
+        assert_eq!(state.focus, DetailFocus::DeferredCommands);
+        state.handle_key(make_key(KeyCode::Tab));
         assert_eq!(state.focus, DetailFocus::Name); // wraps to Properties
     }
 
     #[test]
-    fn test_backtab_cycles_commands_to_variables_to_properties() {
+    fn test_backtab_cycles_deferred_to_commands_to_variables_to_properties() {
         let mut state = make_state();
-        state.handle_key(make_key(KeyCode::BackTab)); // Name → Commands
+        state.handle_key(make_key(KeyCode::BackTab)); // Name → DeferredCommands
+        assert_eq!(state.focus, DetailFocus::DeferredCommands);
+        state.handle_key(make_key(KeyCode::BackTab)); // DeferredCommands → Commands
         assert_eq!(state.focus, DetailFocus::Commands);
         assert_eq!(state.command_list.selected, 0);
         state.handle_key(make_key(KeyCode::BackTab)); // Commands → Variables
@@ -650,7 +733,8 @@ mod tests {
         let mut state = make_state();
         state.handle_key(make_key(KeyCode::Tab)); // Properties → Variables
         state.handle_key(make_key(KeyCode::Tab)); // Variables → Commands
-        state.handle_key(make_key(KeyCode::Tab)); // Commands → Properties
+        state.handle_key(make_key(KeyCode::Tab)); // Commands → DeferredCommands
+        state.handle_key(make_key(KeyCode::Tab)); // DeferredCommands → Properties
         assert_eq!(state.focus, DetailFocus::Name); // resets to first
     }
 

@@ -500,8 +500,63 @@ impl DetailScreenState {
         }
     }
 
+    pub(crate) fn render_deferred_commands(
+        &self,
+        frame: &mut Frame,
+        area: Rect,
+        theme: &Theme,
+    ) {
+        let count = self.set.defer_commands.len();
+        let list_area = self.render_items_list(
+            frame,
+            area,
+            theme,
+            &format!(" Deferred ({}) ", count),
+            self.focus == DetailFocus::DeferredCommands,
+            count,
+            &self.deferred_command_list,
+            ItemListEditCtx {
+                editing_item: self.deferred_edit.editing,
+                insert_at: self.deferred_edit.insert_at,
+                preview_label: self
+                    .deferred_edit
+                    .insert_at
+                    .is_some()
+                    .then(|| {
+                        format!("  ▽ {}", self.deferred_edit.edit_input.content)
+                    }),
+                empty_text: " (empty — press a to add a defer command) ",
+            },
+            |i, is_editing| {
+                let content = if is_editing {
+                    self.deferred_edit.edit_input.content.as_str()
+                } else {
+                    self.set.defer_commands[i].command.as_str()
+                };
+                let label = format!("  ▽ {}", content);
+                let is_insert = self.deferred_edit.insert_at.is_some();
+                let is_selected = !is_insert
+                    && i == self.deferred_command_list.selected
+                    && self.focus == DetailFocus::DeferredCommands;
+                let style = list_item_style(is_editing, is_selected, theme);
+                (label, style)
+            },
+        );
+
+        if self.deferred_edit.editing.is_some() {
+            self.render_edit_cursor(
+                frame,
+                list_area,
+                &self.deferred_edit,
+                &self.deferred_command_list,
+                "  ▽ ",
+            );
+        }
+    }
+
     pub(crate) fn render_status_bar(&self, frame: &mut Frame, area: Rect, theme: &Theme) {
-        let is_editing = self.var_edit.is_editing() || self.cmd_edit.is_editing();
+        let is_editing =
+            self.var_edit.is_editing() || self.cmd_edit.is_editing() || self.deferred_edit.is_editing();
         let text = match (is_editing, self.focus) {
             (true, _) => "[Enter] Confirm  [Esc] Cancel",
             (false, DetailFocus::Name) => {
@@ -522,7 +577,8 @@ impl DetailScreenState {
             (false, DetailFocus::Variables) => {
                 "[a] Add  [e/Enter] Edit  [d] Delete  [↑/↓] Nav  [Ctrl+↑/↓] Move  [Tab] Next  |  [Ctrl+S] Save"
             }
-            (false, DetailFocus::Commands) => {
+            (false, DetailFocus::Commands) |
+            (false, DetailFocus::DeferredCommands) => {
                 "[a] Add  [e/Enter] Edit  [d] Delete  [↑/↓] Nav  [Ctrl+↑/↓] Move  [Tab] Next  |  [Ctrl+S] Save"
             }
         };

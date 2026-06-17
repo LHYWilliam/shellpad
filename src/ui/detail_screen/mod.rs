@@ -19,6 +19,7 @@ pub enum DetailFocus {
     WorkDir,
     Variables,
     Commands,
+    DeferredCommands,
 }
 
 pub struct DetailScreenState {
@@ -33,6 +34,8 @@ pub struct DetailScreenState {
     pub workdir_input: TextInput,
     pub var_edit: InlineEdit,
     pub cmd_edit: InlineEdit,
+    pub deferred_command_list: ScrollableList,
+    pub deferred_edit: InlineEdit,
 }
 
 impl DetailScreenState {
@@ -50,6 +53,8 @@ impl DetailScreenState {
             workdir_input: TextInput::new(String::new()),
             var_edit: InlineEdit::new(),
             cmd_edit: InlineEdit::new(),
+            deferred_command_list: ScrollableList::new(),
+            deferred_edit: InlineEdit::new(),
         }
     }
 
@@ -74,15 +79,18 @@ impl DetailScreenState {
             Constraint::Length(9), // Properties block + picker
             Constraint::Min(3),    // variables
             Constraint::Min(3),    // commands
-            Constraint::Length(2), // status bar (separator + content)
+            Constraint::Min(2),    // deferred commands
+            Constraint::Length(2), // status bar
         ]);
-        let [meta_area, var_area, cmd_area, status_area] = layout.areas(inner);
+        let [meta_area, var_area, cmd_area, def_area, status_area] = layout.areas(inner);
 
         // Update scroll offsets (approx inner height = area - 2 for borders)
         self.variable_list
             .update_offset(var_area.height.saturating_sub(2) as usize);
         self.command_list
             .update_offset(cmd_area.height.saturating_sub(2) as usize);
+        self.deferred_command_list
+            .update_offset(def_area.height.saturating_sub(2) as usize);
 
         // When an Option is focused, split into Properties (left) + Picker (right)
         let show_picker = matches!(
@@ -100,6 +108,7 @@ impl DetailScreenState {
 
         self.render_variables(frame, var_area, theme);
         self.render_commands(frame, cmd_area, theme);
+        self.render_deferred_commands(frame, def_area, theme);
         self.render_status_bar(frame, status_area, theme);
     }
 
