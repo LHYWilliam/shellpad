@@ -64,9 +64,12 @@ impl ExecutionManager {
     }
 
     /// Abort all remaining normal commands, then run defers (Ctrl+C).
+    /// Only sets kill_signal — the executor's pause loop will detect it
+    /// naturally (within 100ms). Setting skip_signal=false here would cause
+    /// the pause loop to break and continue to the next command, producing a
+    /// second Finished event that double-counts the skipped command.
     pub fn abort_all(&self) {
         self.kill_signal.store(true, Ordering::Relaxed);
-        self.skip_signal.store(false, Ordering::Relaxed);
     }
 
     /// Kill the running execution thread (drop channel, wait for exit).
