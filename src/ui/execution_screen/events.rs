@@ -153,7 +153,12 @@ mod tests {
             line: "hi".to_string(),
         });
         state.process_events(&rx);
-        assert_eq!(state.cmd_states[0].output_lines, vec!["hi"]);
+        let lines: Vec<&str> = state.cmd_states[0]
+            .output_lines
+            .iter()
+            .map(|s| s.as_str())
+            .collect();
+        assert_eq!(lines, vec!["hi"]);
     }
 
     #[test]
@@ -165,7 +170,12 @@ mod tests {
             line: "err".to_string(),
         });
         state.process_events(&rx);
-        assert_eq!(state.cmd_states[0].output_lines, vec!["[stderr] err"]);
+        let lines: Vec<&str> = state.cmd_states[0]
+            .output_lines
+            .iter()
+            .map(|s| s.as_str())
+            .collect();
+        assert_eq!(lines, vec!["[stderr] err"]);
     }
 
     #[test]
