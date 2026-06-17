@@ -148,8 +148,8 @@ impl MainScreenState {
             .map(|(i, &(gi, _, set))| {
                 let shell_label = set.shell.label();
                 let mode_label = match set.exec_mode {
-                    crate::models::ExecMode::StopOnError => "🛑",
-                    crate::models::ExecMode::ContinueOnError => "⏩",
+                    crate::models::ExecMode::StopOnError => "■",
+                    crate::models::ExecMode::ContinueOnError => "→",
                 };
                 let cmd_count = set.commands.len();
                 let is_selected = i == self.set_list.selected && self.active_panel == Panel::Sets;
