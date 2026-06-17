@@ -90,16 +90,30 @@ impl MainScreenState {
 
         // Update scroll offsets before rendering (approximate inner height = area - 2 for borders)
         let left_vis = left_area.height.saturating_sub(2) as usize;
-        let right_vis = right_area.height.saturating_sub(2) as usize;
         self.group_list.update_offset(left_vis);
-        self.set_list.update_offset(right_vis);
+        // set_list offset updated below (depends on search/normal mode)
 
         // Left panel: groups
         self.render_group_panel(frame, left_area, data, theme);
 
-        // Right panel: command sets
-        let sets = self.visible_sets(data);
-        self.render_set_panel(frame, right_area, data, &sets, theme);
+        // Right panel: Search + Results (search mode) or command sets (normal)
+        if self.search_mode {
+            let search_layout = Layout::vertical([
+                Constraint::Length(3),  // Search block
+                Constraint::Min(1),     // Results block
+            ]);
+            let [search_area, results_area] = search_layout.areas(right_area);
+            let right_vis = results_area.height.saturating_sub(2) as usize;
+            self.set_list.update_offset(right_vis);
+            self.render_search_block(frame, search_area, theme);
+            let sets = self.visible_sets(data);
+            self.render_set_panel(frame, results_area, data, &sets, theme);
+        } else {
+            let right_vis = right_area.height.saturating_sub(2) as usize;
+            self.set_list.update_offset(right_vis);
+            let sets = self.visible_sets(data);
+            self.render_set_panel(frame, right_area, data, &sets, theme);
+        }
 
         // Status bar (key hints always visible)
         self.render_status_bar(frame, status_area, theme);

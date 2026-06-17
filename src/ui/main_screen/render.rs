@@ -94,6 +94,30 @@ impl MainScreenState {
         }
     }
 
+    pub(crate) fn render_search_block(
+        &self,
+        frame: &mut Frame,
+        area: Rect,
+        theme: &Theme,
+    ) {
+        let inner = bordered_block_zone(frame, area, theme, " Search ", false);
+        frame.render_widget(
+            Paragraph::new(Line::from(Span::styled(
+                format!(" Search: {} ", self.search_input.content),
+                Style::default().fg(theme.text_primary),
+            ))),
+            inner,
+        );
+        let prefix_width = unicode_width::UnicodeWidthStr::width(" Search: ");
+        set_cursor_after_prefix(
+            frame,
+            &self.search_input.content,
+            self.search_input.cursor,
+            prefix_width as u16,
+            inner,
+        );
+    }
+
     pub(crate) fn render_set_panel(
         &self,
         frame: &mut Frame,
