@@ -1,5 +1,26 @@
 # Changelog
 
+## v0.3.0 (2026-06-18) — Defer commands & execution redesign
+
+### Features
+- **Defer commands**: independent `defer_commands` list on CommandSet, runs after all
+  normal commands regardless of success/failure/interrupt. Defer phase is unkillable.
+- **Execution flow redesign**: `s` (skip current + pause), `n` (continue from pause),
+  `Ctrl+C` (abort all normals, run defers). Dual-signal executor (`kill_signal` + `skip_signal`).
+- **Fuzzy search**: character-level sequential matching (`"dpl"` matches `"Deploy"`).
+  Search scope extended to command text, not just set names.
+- **Import/export**: `shellpad export --id/--all`, `shellpad import --input`.
+  Pipe-friendly stdin/stdout support. Unified `AppData` JSON container format.
+- **Distinct defer separator**: `═` double-line boundary between normal and defer
+  commands in execution output. Highlighted Output block border.
+
+### Internal
+- Extract `run_phase` closure in executor, parameterized with `check_signals`
+- `Finished` event: add `skipped: bool` field for signal-kill distinction
+- Gauge progress bar: clamp to `[0, 100]` to prevent overflow panic
+- `mark_remaining_as_skipped` excludes defer commands to avoid double-counting
+- `BackToMain` handler gated on `screen.completed` for defense-in-depth
+
 ## v0.2.6 (2026-06-17) — Exit codes & visual polish
 
 ### Features
