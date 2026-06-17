@@ -6,7 +6,7 @@ on:
       - "v*"
 
 jobs:
-  publish:
+  crates:
     name: Publish to crates.io
     runs-on: ubuntu-latest
     permissions:
@@ -16,3 +16,26 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
       - run: cargo publish --registry crates-io
+
+  release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo build --release
+
+      - name: Upload binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: shellpad-${{ github.ref_name }}-linux
+          path: target/release/shellpad
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: ${{ github.ref_name }}
+          files: target/release/shellpad
+          generate_release_notes: true
