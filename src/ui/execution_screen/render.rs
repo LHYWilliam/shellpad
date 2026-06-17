@@ -1,4 +1,4 @@
-use super::{CmdStatus, ExecutionScreenState};
+use super::{CmdStatus, ExecutionScreenState, MAX_OUTPUT_LINES};
 use crate::ui::render::bordered_block_zone;
 use crate::ui::render::{empty_hint, list_scrollbar_areas, render_scrollbar, render_status_bar};
 use crate::ui::theme::Theme;
@@ -97,6 +97,19 @@ impl ExecutionScreenState {
                 format!(" {} $ {}{}", status_symbol, state.command, duration_str),
                 header_style,
             ))));
+
+            // Truncation marker — shown once above output lines
+            if state.truncated {
+                items.push(ListItem::new(Line::from(Span::styled(
+                    format!(
+                        "   ─ (output truncated, showing last {} lines) ─",
+                        MAX_OUTPUT_LINES
+                    ),
+                    Style::default()
+                        .fg(theme.text_disabled)
+                        .add_modifier(Modifier::DIM),
+                ))));
+            }
 
             // Output lines (indented)
             for line in &state.output_lines {
