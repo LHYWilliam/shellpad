@@ -35,10 +35,10 @@ pub struct Theme {
     pub accent_info: Color,
 
     // -- Selection backgrounds --
-    /// Background for focused panel/list selection (e.g., Groups panel)
-    pub selection_bg_primary: Color,
-    /// Background for alternate list selection (e.g., Sets panel, Variables list)
-    pub selection_bg_secondary: Color,
+    /// Background for selected items (lists, Properties fields)
+    pub selection_bg: Color,
+    /// Background for inline editing fields
+    pub editing_bg: Color,
 }
 
 impl Theme {
@@ -58,8 +58,8 @@ impl Theme {
             accent_error: Color::Red,
             accent_warning: Color::Yellow,
             accent_info: Color::Cyan,
-            selection_bg_primary: Color::Cyan,
-            selection_bg_secondary: Color::Green,
+            selection_bg: Color::Cyan,
+            editing_bg: Color::Green,
         }
     }
 
@@ -78,16 +78,24 @@ impl Theme {
             accent_error: Color::Rgb(243, 139, 168),           // red
             accent_warning: Color::Rgb(249, 226, 175),         // yellow
             accent_info: Color::Rgb(137, 220, 235),            // sky
-            selection_bg_primary: Color::Rgb(137, 180, 250),   // blue
-            selection_bg_secondary: Color::Rgb(166, 227, 161), // green
+            selection_bg: Color::Rgb(60, 70, 110),             // muted indigo-blue
+            editing_bg: Color::Rgb(50, 85, 65),                 // muted green
         }
     }
 
     /// Style for a selected/highlighted list item.
-    pub fn selected_style(&self, bg: Color) -> Style {
+    pub fn selected_style(&self) -> Style {
         Style::default()
             .fg(self.text_on_selected)
-            .bg(bg)
+            .bg(self.selection_bg)
+            .add_modifier(Modifier::BOLD)
+    }
+
+    /// Style for an inline editing field.
+    pub fn editing_style(&self) -> Style {
+        Style::default()
+            .fg(self.text_on_selected)
+            .bg(self.editing_bg)
             .add_modifier(Modifier::BOLD)
     }
 
