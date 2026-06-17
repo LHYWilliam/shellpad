@@ -206,3 +206,70 @@ impl Drop for App {
         let _ = storage::save_app_data(&self.data);
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::models::{Command, CommandSet, Group};
+    use crate::test_utils::make_app;
+    use crate::ui::execution_screen::ExecutionScreenState;
+
+    #[test]
+    fn test_do_execute_with_launches_execution() {
+        let mut app = make_app();
+        let mut g = Group::new("G".to_string());
+        let mut set = CommandSet::new("S".to_string(), g.id);
+        set.commands.push(Command { position: 0, command: "echo ok".to_string() });
+        g.sets.push(set);
+        app.data = AppData { groups: vec![g] };
+
+        app.do_execute_with(0, 0, 0);
+
+        assert_eq!(app.mode, AppMode::Execution);
+        assert!(matches!(app.execution_state, ExecutionState::Running { .. }));
+        if let ExecutionState::Running { pending_set, .. } = &app.execution_state {
+            assert_eq!(*pending_set, (0, 0));
+        }
+    }
+
+    #[test]
+    fn test_do_execute_with_out_of_bounds_noop() {
+        let mut app = make_app();
+        app.do_execute_with(5, 5, 0);
+        assert_eq!(app.mode, AppMode::Main);
+        assert!(matches!(app.execution_state, ExecutionState::Idle { .. }));
+    }
+
+    #[test]
+    fn test_teardown_execution_keep_screen_false_transitions_to_idle() {
+        let mut app = make_app();
+        let cmds = vec![Command { position: 0, command: "echo ok".to_string() }];
+        app.execution_state = ExecutionState::Running {
+            screen: Box::new(ExecutionScreenState::new("t".to_string(), &cmds)),
+            manager: crate::app::execution::ExecutionManager::new(),
+            pending_set: (0, 0),
+        };
+        app.mode = AppMode::Execution;
+
+        app.teardown_execution(false, false);
+
+        assert!(matches!(app.execution_state, ExecutionState::Idle { pending_set: None }));
+    }
+
+    #[test]
+    fn test_teardown_execution_keep_screen_true_preserves() {
+        let mut app = make_app();
+        let cmds = vec![Command { position: 0, command: "echo ok".to_string() }];
+        app.execution_state = ExecutionState::Running {
+            screen: Box::new(ExecutionScreenState::new("t".to_string(), &cmds)),
+            manager: crate::app::execution::ExecutionManager::new(),
+            pending_set: (0, 0),
+        };
+        app.mode = AppMode::Execution;
+
+        app.teardown_execution(true, true);
+
+        // keep_screen=true means execution state stays Running (manager killed but state kept)
+        assert!(matches!(app.execution_state, ExecutionState::Running { .. }));
+    }
+}
