@@ -130,13 +130,28 @@ impl ExecutionScreenState {
             // Separator between commands
             if i + 1 < self.cmd_states.len() {
                 let sep_width = area.width.saturating_sub(6) as usize;
-                let separator = "─".repeat(sep_width);
-                items.push(ListItem::new(Line::from(Span::styled(
-                    separator,
-                    Style::default()
-                        .fg(theme.text_disabled)
-                        .add_modifier(Modifier::DIM),
-                ))));
+                let next_is_defer = self.cmd_states[i + 1].defer;
+                let current_is_normal = !state.defer;
+
+                if next_is_defer && current_is_normal {
+                    // Defer boundary: empty line + bold double separator
+                    items.push(ListItem::new(Line::from("")));
+                    let separator = "═".repeat(sep_width);
+                    items.push(ListItem::new(Line::from(Span::styled(
+                        separator,
+                        Style::default()
+                            .fg(theme.accent_info)
+                            .add_modifier(Modifier::BOLD),
+                    ))));
+                } else {
+                    let separator = "─".repeat(sep_width);
+                    items.push(ListItem::new(Line::from(Span::styled(
+                        separator,
+                        Style::default()
+                            .fg(theme.text_disabled)
+                            .add_modifier(Modifier::DIM),
+                    ))));
+                }
             }
         }
 
