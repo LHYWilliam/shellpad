@@ -1,7 +1,7 @@
 # ShellPad
 
 [![CI](https://github.com/LHYWilliam/shellpad/actions/workflows/test.yml/badge.svg)](https://github.com/LHYWilliam/shellpad/actions/workflows/test.yml)
-[![crates.io](https://img.shields.io/crates/v/shellpad.svg)](https://crates.io/crates/shellpad)
+[![crates.io](https://badgen.net/crates/v/shellpad)](https://crates.io/crates/shellpad)
 ![Rust](https://img.shields.io/badge/rust-1.85%2B-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
