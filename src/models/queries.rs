@@ -42,7 +42,24 @@ impl AppData {
     }
 
     /// Filter command sets whose name or commands fuzzy-match `query`.
+    /// Empty query returns all sets.
     pub fn filter_sets(&self, query: &str) -> Vec<FilterResult<'_>> {
+        if query.is_empty() {
+            return self
+                .groups
+                .iter()
+                .enumerate()
+                .flat_map(|(gi, g)| {
+                    g.sets.iter().enumerate().map(move |(si, s)| FilterResult {
+                        group_index: gi,
+                        set_index: si,
+                        set: s,
+                        name_matches: Vec::new(),
+                    })
+                })
+                .collect();
+        }
+
         let mut results = Vec::new();
         for (gi, group) in self.groups.iter().enumerate() {
             for (si, set) in group.sets.iter().enumerate() {

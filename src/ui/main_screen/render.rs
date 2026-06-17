@@ -173,7 +173,8 @@ impl MainScreenState {
                         spans.push(Span::styled(
                             &set.name[*match_start..*match_end],
                             Style::default()
-                                .fg(theme.accent_primary)
+                                .fg(theme.text_primary)
+                                .bg(theme.accent_primary)
                                 .add_modifier(Modifier::BOLD),
                         ));
                         last_end = *match_end;
