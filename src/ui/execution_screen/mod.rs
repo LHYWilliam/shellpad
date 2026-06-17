@@ -8,6 +8,9 @@ pub(crate) mod render;
 /// to prevent OOM during long-running or high-output commands.
 pub(crate) const MAX_OUTPUT_LINES: usize = 10_000;
 
+/// Number of lines to scroll per PageUp/PageDown.
+const PAGE_SIZE: usize = 20;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CmdStatus {
     Pending,
@@ -136,5 +139,14 @@ impl ExecutionScreenState {
             }
             _ => AppAction::None,
         }
+    }
+
+    /// Total rendered items including summary footer.
+    pub(crate) fn items_total(&self) -> usize {
+        let mut total = self.items_offset_for_command(self.cmd_states.len());
+        if self.completed {
+            total += 2; // blank line + summary line
+        }
+        total
     }
 }

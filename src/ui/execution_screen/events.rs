@@ -341,4 +341,20 @@ mod tests {
         assert_eq!(state.items_offset_for_command(0), 0);
         assert_eq!(state.items_offset_for_command(1), 2);
     }
+
+    #[test]
+    fn test_items_total_without_footer() {
+        let state = make_state(&["a", "b"]);
+        // completed=false (default): total = 3 items
+        assert_eq!(state.items_total(), 3);
+    }
+
+    #[test]
+    fn test_items_total_with_footer() {
+        let mut state = make_state(&["a"]);
+        state.cmd_states[0].status = CmdStatus::Success;
+        state.succeeded = 1;
+        state.completed = true;
+        assert_eq!(state.items_total(), 3);
+    }
 }
