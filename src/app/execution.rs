@@ -8,7 +8,8 @@ use std::thread;
 pub struct ExecutionManager {
     pub rx: Option<mpsc::Receiver<ExecutionEvent>>,
     pub handle: Option<thread::JoinHandle<()>>,
-    pub kill_signal: Arc<AtomicBool>,
+    pub kill_signal: Arc<AtomicBool>,  // Ctrl+C — abort normals
+    pub skip_signal: Arc<AtomicBool>,  // s/n — skip/pause
 }
 
 impl ExecutionManager {
@@ -17,6 +18,7 @@ impl ExecutionManager {
             rx: None,
             handle: None,
             kill_signal: Arc::new(AtomicBool::new(false)),
+            skip_signal: Arc::new(AtomicBool::new(false)),
         }
     }
 
@@ -33,6 +35,7 @@ impl ExecutionManager {
         working_dir: Option<String>,
     ) {
         self.kill_signal.store(false, Ordering::Relaxed);
+        self.skip_signal.store(false, Ordering::Relaxed);
         let (tx, rx) = mpsc::channel();
         let handle = execute_set(
             commands,
@@ -42,6 +45,7 @@ impl ExecutionManager {
             shell_cmd,
             tx,
             Arc::clone(&self.kill_signal),
+            Arc::clone(&self.skip_signal),
             index_offset,
             working_dir,
         );
@@ -49,14 +53,23 @@ impl ExecutionManager {
         self.handle = Some(handle);
     }
 
-    /// Signal the running execution to stop, but keep the channel and thread
-    /// alive so defer commands can still execute and stream output to the TUI.
-    pub fn interrupt(&self) {
+    /// Skip the current command and pause (s key).
+    pub fn skip_current(&self) {
+        self.skip_signal.store(true, Ordering::Relaxed);
+    }
+
+    /// Resume from pause (n key).
+    pub fn continue_next(&self) {
+        self.skip_signal.store(false, Ordering::Relaxed);
+    }
+
+    /// Abort all remaining normal commands, then run defers (Ctrl+C).
+    pub fn abort_all(&self) {
         self.kill_signal.store(true, Ordering::Relaxed);
+        self.skip_signal.store(false, Ordering::Relaxed);
     }
 
     /// Kill the running execution thread (drop channel, wait for exit).
-    /// Defer commands will not run.
     pub fn kill(&mut self) {
         self.kill_signal.store(true, Ordering::Relaxed);
         self.rx = None;
