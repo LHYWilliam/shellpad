@@ -168,16 +168,18 @@ impl ExecutionScreenState {
         }
 
         // Footer with key hints
-        let footer_text = match (self.focus_index, self.completed, self.continue_from) {
-            (Some(_), _, _) => "[←/→] Browse  [↑/↓] Scroll  [PgUp/PgDn] Page  [z] Follow  [q] Back",
-            (None, true, None) => {
+        let footer_text = match (self.focus_index, self.paused, self.completed) {
+            (Some(_), _, _) => {
+                "[←/→] Browse  [↑/↓] Scroll  [PgUp/PgDn] Page  [z] Follow  [q] Back"
+            }
+            (None, true, false) => {
+                "[n] Continue  [Ctrl+C] Abort  [←/→] Browse"
+            }
+            (None, false, false) => {
+                "[s] Skip  [Ctrl+C] Abort  [←/→] Browse  [z] Follow"
+            }
+            (None, _, true) => {
                 "[←/→] Browse  [↑/↓] Scroll  [PgUp/PgDn] Page  [r] Re-execute  [q] Back"
-            }
-            (None, true, Some(_)) => {
-                "[←/→] Browse  [↑/↓] Scroll  [PgUp/PgDn] Page  [n] Continue  [r] Re-execute  [q] Back"
-            }
-            (None, false, _) => {
-                "[←/→] Browse  [↑/↓] Scroll  [PgUp/PgDn] Page  [s] Skip  [z] Follow  [Ctrl+C] Kill  [q] Back"
             }
         };
 
