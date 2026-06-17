@@ -49,7 +49,14 @@ impl ExecutionManager {
         self.handle = Some(handle);
     }
 
-    /// Kill the running execution thread.
+    /// Signal the running execution to stop, but keep the channel and thread
+    /// alive so defer commands can still execute and stream output to the TUI.
+    pub fn interrupt(&self) {
+        self.kill_signal.store(true, Ordering::Relaxed);
+    }
+
+    /// Kill the running execution thread (drop channel, wait for exit).
+    /// Defer commands will not run.
     pub fn kill(&mut self) {
         self.kill_signal.store(true, Ordering::Relaxed);
         self.rx = None;

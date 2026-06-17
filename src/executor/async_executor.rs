@@ -81,7 +81,7 @@ pub fn execute_set(
             let actual_index = actual_index + index_offset;
 
             if kill_signal.load(Ordering::Relaxed) {
-                return;
+                break; // exit Phase 1, continue to defer commands
             }
 
             let resolved = {
