@@ -1,3 +1,52 @@
+/// Greedy sequential character matching: each char of `query` is searched
+/// in `target` in order. Returns byte-offset pairs for highlight rendering,
+/// or `None` if any query char is not found.
+///
+/// "dpl" fuzzy-matches "Deploy" → Some(vec![(0,1), (2,3), (3,4)])
+pub fn fuzzy_match(target: &str, query: &str) -> Option<Vec<(usize, usize)>> {
+    if query.is_empty() {
+        return None;
+    }
+
+    let target_chars: Vec<(usize, char)> = target.char_indices().collect();
+    let target_lower: Vec<char> = target
+        .chars()
+        .map(|c| c.to_lowercase().next().unwrap_or(c))
+        .collect();
+    let query_lower: Vec<char> = query
+        .chars()
+        .flat_map(|c| c.to_lowercase())
+        .collect();
+
+    let mut matches: Vec<(usize, usize)> = Vec::new();
+    let mut search_from: usize = 0;
+
+    for qc in &query_lower {
+        let mut found = false;
+        let mut i = search_from;
+        while i < target_lower.len() {
+            if &target_lower[i] == qc {
+                let byte_start = target_chars[i].0;
+                let byte_end = if i + 1 < target_chars.len() {
+                    target_chars[i + 1].0
+                } else {
+                    target.len()
+                };
+                matches.push((byte_start, byte_end));
+                search_from = i + 1;
+                found = true;
+                break;
+            }
+            i += 1;
+        }
+        if !found {
+            return None;
+        }
+    }
+
+    Some(matches)
+}
+
 /// Find case-insensitive matches of `query` in `text`, returning byte-offset pairs
 /// into `text` that are guaranteed valid for slicing.
 /// Uses character-level case folding to avoid to_lowercase() byte-length mismatch.
@@ -36,7 +85,7 @@ pub fn find_matches_case_insensitive(text: &str, query: &str) -> Vec<(usize, usi
 
 #[cfg(test)]
 mod tests {
-    use super::find_matches_case_insensitive;
+    use super::{find_matches_case_insensitive, fuzzy_match};
 
     #[test]
     fn test_find_matches_ascii() {
@@ -107,6 +156,66 @@ mod tests {
         for (start, end) in &m {
             // Every slice should be valid UTF-8 (will not panic)
             let _ = &text[*start..*end];
+        }
+    }
+
+    // ---- fuzzy_match tests ----
+
+    #[test]
+    fn test_fuzzy_match_exact() {
+        let m = fuzzy_match("deploy", "deploy");
+        assert!(m.is_some());
+        let m = m.unwrap();
+        assert_eq!(m.len(), 6);
+    }
+
+    #[test]
+    fn test_fuzzy_match_sparse_chars() {
+        // "dpl" should match "Deploy"
+        let m = fuzzy_match("Deploy", "dpl");
+        assert!(m.is_some());
+        let m = m.unwrap();
+        assert_eq!(m.len(), 3);
+        assert_eq!(&"Deploy"[m[0].0..m[0].1], "D");
+        assert_eq!(&"Deploy"[m[1].0..m[1].1], "p");
+        assert_eq!(&"Deploy"[m[2].0..m[2].1], "l");
+    }
+
+    #[test]
+    fn test_fuzzy_match_case_insensitive() {
+        let m = fuzzy_match("DEPLOY", "dpl");
+        assert!(m.is_some());
+    }
+
+    #[test]
+    fn test_fuzzy_match_no_match() {
+        let m = fuzzy_match("deploy", "xyz");
+        assert!(m.is_none());
+    }
+
+    #[test]
+    fn test_fuzzy_match_empty_query() {
+        let m = fuzzy_match("deploy", "");
+        assert!(m.is_none());
+    }
+
+    #[test]
+    fn test_fuzzy_match_partial() {
+        // "ploy" should match "deployment"
+        let m = fuzzy_match("deployment", "ploy");
+        assert!(m.is_some());
+    }
+
+    #[test]
+    fn test_fuzzy_match_unicode() {
+        // "caf" should match "Café"
+        let m = fuzzy_match("Café", "caf");
+        assert!(m.is_some());
+        let m = m.unwrap();
+        assert_eq!(m.len(), 3);
+        // Verify each slice is valid UTF-8
+        for (start, end) in &m {
+            let _ = &"Café"[*start..*end];
         }
     }
 }
