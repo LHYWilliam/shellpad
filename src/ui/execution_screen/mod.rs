@@ -26,6 +26,7 @@ pub(crate) struct CmdState {
     output_lines: VecDeque<String>,
     duration_ms: Option<u128>,
     pub(crate) truncated: bool,
+    pub(crate) exit_code: Option<i32>,
 }
 
 pub struct ExecutionScreenState {
@@ -55,6 +56,7 @@ impl ExecutionScreenState {
                 output_lines: VecDeque::new(),
                 duration_ms: None,
                 truncated: false,
+                exit_code: None,
             })
             .collect();
 

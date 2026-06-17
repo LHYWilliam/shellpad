@@ -93,6 +93,7 @@ impl ExecutionScreenState {
                     index,
                     success,
                     duration_ms,
+                    exit_code,
                 } => {
                     if index < self.cmd_states.len() {
                         self.cmd_states[index].status = if success {
@@ -103,6 +104,7 @@ impl ExecutionScreenState {
                             CmdStatus::Failure
                         };
                         self.cmd_states[index].duration_ms = Some(duration_ms);
+                        self.cmd_states[index].exit_code = exit_code;
                     }
                 }
                 ExecutionEvent::CompletedAll {
@@ -194,10 +196,12 @@ mod tests {
             index: 0,
             success: true,
             duration_ms: 100,
+            exit_code: Some(0),
         });
         state.process_events(&rx);
         assert_eq!(state.cmd_states[0].status, CmdStatus::Success);
         assert_eq!(state.succeeded, 1);
+        assert_eq!(state.cmd_states[0].exit_code, Some(0));
     }
 
     #[test]
@@ -212,6 +216,7 @@ mod tests {
             index: 0,
             success: false,
             duration_ms: 50,
+            exit_code: Some(1),
         });
         state.process_events(&rx);
         assert_eq!(state.cmd_states[0].status, CmdStatus::Failure);
