@@ -15,18 +15,19 @@ Inspired by task runners like `just` and `make`, but interactive.
 ## Features
 
 - **Command Sets** — Group shell commands into named groups and sets, edit inline
+- **Defer Commands** — Cleanup/teardown commands that run after normal commands, even on interrupt
+- **Fuzzy Search** — Character-level fuzzy matching across command sets and command text
+- **Import/Export** — CLI `export --all`/`--id` and `import --input` with pipe-friendly stdin/stdout
 - **Dual Execution Modes** — Stop on error or continue on error per command set
 - **Variables** — Template substitution with `{{var}}` syntax, configure per-execution
-- **Real-time Output** — Stream stdout/stderr with per-command status, auto-scroll, skip
+- **Real-time Output** — Stream stdout/stderr with per-command status timing, auto-scroll
 - **Working Directory** — Set a per-command-set working directory, defaults to shellpad CWD
-- **Search** — Filter command sets across all groups, with match highlighting
+- **Three-layer Tab Navigation** — Tab cycles Properties → Variables → Commands → Deferred, ↑/↓ navigates
 - **Reordering** — Ctrl+Up/Down reorder groups, sets, variables, and commands
 - **Delete Confirmation** — Modal confirmation dialog with Confirm/Cancel buttons
-- **Three-layer Tab Navigation** — Tab cycles Properties → Variables → Commands, ↑/↓ selects within region
-- **Option Picker** — Browse available Group/Shell/ExecMode choices in a side panel
 - **Atomic Persistence** — Crash-safe JSON save at `~/.config/shellpad/sets.json`
-- **CLI Mode** — Execute command sets or search with `--json` output from the terminal
-- **231 Tests** — Comprehensive unit, handler, and integration test coverage
+- **CLI Mode** — Execute, search, import/export command sets from the terminal
+- **260 Tests** — Comprehensive unit, handler, and integration test coverage
 - **Published on crates.io** — Install with `cargo install shellpad`
 
 ## Installation
@@ -88,12 +89,13 @@ shellpad
 | Key | Action |
 |-----|--------|
 | `←/→` | Browse output of other commands |
+| `↑/↓` / `j/k` / `PgUp`/`PgDn` | Scroll output |
 | `z` | Toggle auto-scroll / follow current |
-| `s` | Skip current command |
-| `Ctrl+C` | Interrupt running command |
-| `n` | Continue from next skipped command |
+| `s` | Skip current command and pause |
+| `n` | Continue from pause (next command) |
+| `Ctrl+C` | Abort all remaining normal commands, run defers |
 | `r` | Re-execute all from beginning |
-| `q` | Back to main |
+| `q` | Back to main (only when complete) |
 | `?` | Help overlay |
 
 ### CLI mode
@@ -119,6 +121,15 @@ shellpad search --group "infra"
 
 # Search with JSON output (for scripting/CI)
 shellpad search --set "deploy" --json
+
+# Export all command sets
+shellpad export --all
+
+# Export a single command set by UUID
+shellpad export --id <uuid> --output deploy.json
+
+# Import from file or stdin
+shellpad import --input deploy.json
 ```
 
 ## Storage
@@ -179,7 +190,7 @@ handler: confirm → do_execute()
 ```bash
 cargo build              # Build
 cargo run                # Run TUI (requires real terminal)
-cargo test               # Run all 231 tests
+cargo test               # Run all 260 tests
 cargo check              # Fast compilation check
 cargo clippy             # Lint
 ```
