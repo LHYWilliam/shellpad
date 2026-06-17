@@ -138,6 +138,7 @@ impl ExecutionScreenState {
                 self.focus_index = None;
                 self.auto_scroll = false;
                 self.scroll_offset = self.scroll_offset.saturating_add(1);
+                self.clamp_scroll_offset();
                 AppAction::None
             }
             KeyCode::PageUp => {
@@ -150,6 +151,7 @@ impl ExecutionScreenState {
                 self.focus_index = None;
                 self.auto_scroll = false;
                 self.scroll_offset = self.scroll_offset.saturating_add(PAGE_SIZE);
+                self.clamp_scroll_offset();
                 AppAction::None
             }
             KeyCode::Char('z') => {
@@ -162,6 +164,14 @@ impl ExecutionScreenState {
                 AppAction::None
             }
             _ => AppAction::None,
+        }
+    }
+
+    /// Clamp scroll_offset to valid range [0, items_total-1].
+    fn clamp_scroll_offset(&mut self) {
+        let max = self.items_total().saturating_sub(1);
+        if self.scroll_offset > max {
+            self.scroll_offset = max;
         }
     }
 
@@ -209,12 +219,13 @@ mod tests {
     }
 
     #[test]
-    fn test_scroll_down_increases_offset() {
+    fn test_scroll_down_is_clamped_to_content() {
         let mut state = make_test_state();
+        // 2 commands, 0 output → items_total = 3 → max scroll_offset = 2
         state.scroll_offset = 5;
 
         let _ = state.handle_key(make_key(crossterm::event::KeyCode::Down));
-        assert_eq!(state.scroll_offset, 6);
+        assert_eq!(state.scroll_offset, 2);
         assert!(!state.auto_scroll);
     }
 
@@ -227,7 +238,8 @@ mod tests {
         assert_eq!(state.scroll_offset, 30);
 
         let _ = state.handle_key(make_key(crossterm::event::KeyCode::PageDown));
-        assert_eq!(state.scroll_offset, 50);
+        // items_total = 3, max = 2
+        assert_eq!(state.scroll_offset, 2);
     }
 
     #[test]
@@ -236,9 +248,10 @@ mod tests {
         state.scroll_offset = 10;
 
         let _ = state.handle_key(make_key(crossterm::event::KeyCode::Char('j')));
-        assert_eq!(state.scroll_offset, 11);
+        // items_total = 3, max = 2
+        assert_eq!(state.scroll_offset, 2);
 
         let _ = state.handle_key(make_key(crossterm::event::KeyCode::Char('k')));
-        assert_eq!(state.scroll_offset, 10);
+        assert_eq!(state.scroll_offset, 1);
     }
 }
