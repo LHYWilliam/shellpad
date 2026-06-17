@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.2.4 (2026-06-17) — Free scroll & ring buffer
+
+### Features
+- Execution screen free scrolling: ↑/↓, PageUp/PageDown, j/k
+- Output ring buffer: auto-truncation at 10,000 lines per command
+- Toast notification when output is truncated
+- Scrollbar now tracks line position, not command position
+
+### Internal
+- Fix items_offset_for_command: account for truncation marker and trailing separator
+- Clamp scroll_offset to prevent overscrolling past content
+
 ## v0.2.3 (2026-06-17) — Fix
 
 ### Internal
