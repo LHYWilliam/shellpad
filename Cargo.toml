@@ -1,6 +1,6 @@
 [package]
 name = "shellpad"
-version = "0.2.4"
+version = "0.2.5"
 edition = "2024"
 description = "A Ratatui-based TUI for managing and executing collections of shell commands"
 repository = "https://github.com/LHYWilliam/shellpad"

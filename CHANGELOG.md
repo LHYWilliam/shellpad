@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.2.5 (2026-06-17) — Workflow test
+
+### Internal
+- Test GitHub Release automation
+
 ## v0.2.4 (2026-06-17) — Free scroll & ring buffer
 
 ### Features
