@@ -1,10 +1,10 @@
+use super::Panel;
 use crate::action::{AppAction, DeleteKind, ReorderKind};
 use crate::models::AppData;
 use crate::ui::main_screen::MainScreenState;
 use crate::ui::widget::TextInput;
 use crate::ui::widget::text_input::handle_text_input;
 use crossterm::event::KeyEvent;
-use super::Panel;
 
 impl MainScreenState {
     /// Handle a key event, returning an action.
@@ -71,7 +71,11 @@ impl MainScreenState {
         }
 
         match key.code {
-            KeyCode::Up if key.modifiers.contains(crossterm::event::KeyModifiers::CONTROL) => {
+            KeyCode::Up
+                if key
+                    .modifiers
+                    .contains(crossterm::event::KeyModifiers::CONTROL) =>
+            {
                 match self.active_panel {
                     Panel::Groups if let Some(gi) = self.selected_group_idx(data) => {
                         return AppAction::Reorder(ReorderKind::Group(gi), -1);
@@ -83,7 +87,11 @@ impl MainScreenState {
                 }
                 AppAction::None
             }
-            KeyCode::Down if key.modifiers.contains(crossterm::event::KeyModifiers::CONTROL) => {
+            KeyCode::Down
+                if key
+                    .modifiers
+                    .contains(crossterm::event::KeyModifiers::CONTROL) =>
+            {
                 match self.active_panel {
                     Panel::Groups if let Some(gi) = self.selected_group_idx(data) => {
                         return AppAction::Reorder(ReorderKind::Group(gi), 1);
@@ -110,9 +118,7 @@ impl MainScreenState {
             }
             KeyCode::Down | KeyCode::Char('j') | KeyCode::Char('J') => {
                 match self.active_panel {
-                    Panel::Groups => {
-                        self.group_list.select_next(data.groups.len())
-                    }
+                    Panel::Groups => self.group_list.select_next(data.groups.len()),
                     Panel::Sets => {
                         let n = self.visible_sets(data).len();
                         if n == 0 {
@@ -126,9 +132,7 @@ impl MainScreenState {
             }
             KeyCode::Left => {
                 match self.active_panel {
-                    Panel::Sets => {
-                        self.active_panel = Panel::Groups
-                    }
+                    Panel::Sets => self.active_panel = Panel::Groups,
                     Panel::Groups => { /* already on the leftmost panel */ }
                 }
                 AppAction::None
@@ -216,7 +220,9 @@ impl MainScreenState {
                 AppAction::None
             }
             KeyCode::Char('h') | KeyCode::Char('H')
-                if key.modifiers.contains(crossterm::event::KeyModifiers::CONTROL) =>
+                if key
+                    .modifiers
+                    .contains(crossterm::event::KeyModifiers::CONTROL) =>
             {
                 AppAction::Help
             }
@@ -289,13 +295,14 @@ mod tests {
         state.active_panel = Panel::Sets;
         let data = make_data();
         let action = state.handle_key(make_key(KeyCode::Char('d')), &data);
-        assert!(
-            matches!(action, AppAction::RequestDelete(DeleteKind::Set {
+        assert!(matches!(
+            action,
+            AppAction::RequestDelete(DeleteKind::Set {
                 group_index: 0,
                 set_index: 0,
                 ..
-            }))
-        );
+            })
+        ));
     }
 
     #[test]
@@ -313,12 +320,10 @@ mod tests {
         state.active_panel = Panel::Groups;
         let data = make_data();
         let action = state.handle_key(make_key(KeyCode::Char('D')), &data);
-        assert!(
-            matches!(action, AppAction::RequestDelete(DeleteKind::Group {
-                group_index: 0,
-                ..
-            }))
-        );
+        assert!(matches!(
+            action,
+            AppAction::RequestDelete(DeleteKind::Group { group_index: 0, .. })
+        ));
     }
 
     #[test]
@@ -364,7 +369,10 @@ mod tests {
         data.groups.push(Group::new("G2".to_string()));
         let ctrl_up = KeyEvent::new(KeyCode::Up, KeyModifiers::CONTROL);
         let action = state.handle_key(ctrl_up, &data);
-        assert!(matches!(action, AppAction::Reorder(ReorderKind::Group(1), -1)));
+        assert!(matches!(
+            action,
+            AppAction::Reorder(ReorderKind::Group(1), -1)
+        ));
     }
 
     #[test]
@@ -377,7 +385,10 @@ mod tests {
         data.groups[0].sets.push(set2);
         let ctrl_down = KeyEvent::new(KeyCode::Down, KeyModifiers::CONTROL);
         let action = state.handle_key(ctrl_down, &data);
-        assert!(matches!(action, AppAction::Reorder(ReorderKind::Set(0, 0), 1)));
+        assert!(matches!(
+            action,
+            AppAction::Reorder(ReorderKind::Set(0, 0), 1)
+        ));
     }
 
     #[test]

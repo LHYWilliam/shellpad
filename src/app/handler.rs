@@ -40,54 +40,60 @@ impl App {
                     self.handle_action(action);
                 }
             }
-            AppMode::ConfirmDelete { kind, prev, selected } => {
-                match key.code {
-                    KeyCode::Left => {
-                        if matches!(selected, ConfirmChoice::Cancel) {
-                            self.mode = AppMode::ConfirmDelete {
-                                kind: kind.clone(), prev: prev.clone(),
-                                selected: ConfirmChoice::Confirm,
-                            };
-                        }
-                    }
-                    KeyCode::Right => {
-                        if matches!(selected, ConfirmChoice::Confirm) {
-                            self.mode = AppMode::ConfirmDelete {
-                                kind: kind.clone(), prev: prev.clone(),
-                                selected: ConfirmChoice::Cancel,
-                            };
-                        }
-                    }
-                    KeyCode::Enter => {
-                        let action = if matches!(selected, ConfirmChoice::Confirm) {
-                            match kind {
-                                DeleteKind::Set { group_index, set_index, .. } => {
-                                    AppAction::DeleteSet(*group_index, *set_index)
-                                }
-                                DeleteKind::Group { group_index, .. } => {
-                                    AppAction::DeleteGroup(*group_index)
-                                }
-                                DeleteKind::Variable { var_index, .. } => {
-                                    AppAction::DeleteVariable(*var_index)
-                                }
-                                DeleteKind::Command { cmd_index, .. } => {
-                                    AppAction::DeleteCommand(*cmd_index)
-                                }
-                            }
-                        } else {
-                            AppAction::None
+            AppMode::ConfirmDelete {
+                kind,
+                prev,
+                selected,
+            } => match key.code {
+                KeyCode::Left => {
+                    if matches!(selected, ConfirmChoice::Cancel) {
+                        self.mode = AppMode::ConfirmDelete {
+                            kind: kind.clone(),
+                            prev: prev.clone(),
+                            selected: ConfirmChoice::Confirm,
                         };
-                        self.mode = (**prev).clone();
-                        if !matches!(action, AppAction::None) {
-                            self.handle_action(action);
-                        }
                     }
-                    KeyCode::Esc => {
-                        self.mode = (**prev).clone();
-                    }
-                    _ => {}
                 }
-            }
+                KeyCode::Right => {
+                    if matches!(selected, ConfirmChoice::Confirm) {
+                        self.mode = AppMode::ConfirmDelete {
+                            kind: kind.clone(),
+                            prev: prev.clone(),
+                            selected: ConfirmChoice::Cancel,
+                        };
+                    }
+                }
+                KeyCode::Enter => {
+                    let action = if matches!(selected, ConfirmChoice::Confirm) {
+                        match kind {
+                            DeleteKind::Set {
+                                group_index,
+                                set_index,
+                                ..
+                            } => AppAction::DeleteSet(*group_index, *set_index),
+                            DeleteKind::Group { group_index, .. } => {
+                                AppAction::DeleteGroup(*group_index)
+                            }
+                            DeleteKind::Variable { var_index, .. } => {
+                                AppAction::DeleteVariable(*var_index)
+                            }
+                            DeleteKind::Command { cmd_index, .. } => {
+                                AppAction::DeleteCommand(*cmd_index)
+                            }
+                        }
+                    } else {
+                        AppAction::None
+                    };
+                    self.mode = (**prev).clone();
+                    if !matches!(action, AppAction::None) {
+                        self.handle_action(action);
+                    }
+                }
+                KeyCode::Esc => {
+                    self.mode = (**prev).clone();
+                }
+                _ => {}
+            },
             AppMode::Help => {
                 self.mode = self.prev_mode.take().unwrap_or(AppMode::Main);
             }
@@ -114,7 +120,10 @@ impl App {
                     if !set.variables.is_empty() {
                         self.variable_screen.activate(set, gi, si);
                     } else {
-                        if let ExecutionState::Idle { ref mut pending_set } = self.execution_state {
+                        if let ExecutionState::Idle {
+                            ref mut pending_set,
+                        } = self.execution_state
+                        {
                             *pending_set = Some((gi, si));
                         }
                         self.do_execute();
@@ -213,7 +222,8 @@ impl App {
                             .set_list
                             .clamp_selected(self.data.groups[gi].sets.len());
                         // Insert at end of target group
-                        if let Some(ti) = self.data.groups.iter().position(|g| g.id == set.group_id) {
+                        if let Some(ti) = self.data.groups.iter().position(|g| g.id == set.group_id)
+                        {
                             let mut moved = set;
                             moved.updated_at = chrono::Utc::now();
                             self.data.groups[ti].sets.push(moved);
@@ -302,16 +312,21 @@ impl App {
                 self.mode = AppMode::Execution;
             }
             AppAction::ContinueFrom(start) => {
-                if let ExecutionState::Running { pending_set: (gi, si), .. } = self.execution_state {
+                if let ExecutionState::Running {
+                    pending_set: (gi, si),
+                    ..
+                } = self.execution_state
+                {
                     self.do_execute_with(gi, si, start);
                 }
             }
             AppAction::ReExec => {
-                let pending = if let ExecutionState::Running { pending_set, .. } = self.execution_state {
-                    Some(pending_set)
-                } else {
-                    None
-                };
+                let pending =
+                    if let ExecutionState::Running { pending_set, .. } = self.execution_state {
+                        Some(pending_set)
+                    } else {
+                        None
+                    };
                 self.teardown_execution(false, false);
                 if let Some((gi, si)) = pending {
                     self.do_execute_with(gi, si, 0);
@@ -332,7 +347,10 @@ impl App {
                 self.variable_screen = crate::ui::variable_screen::VariableScreenState::new();
                 self.auto_save();
                 self.toasts.add("Variables saved", ToastSeverity::Info);
-                if let ExecutionState::Idle { ref mut pending_set } = self.execution_state {
+                if let ExecutionState::Idle {
+                    ref mut pending_set,
+                } = self.execution_state
+                {
                     *pending_set = Some((gi, si));
                 }
                 self.do_execute();
@@ -340,7 +358,11 @@ impl App {
             AppAction::Reorder(kind, dir) => {
                 let new_idx = |i: usize, len: usize| -> Option<usize> {
                     let c = i as isize + dir;
-                    if c >= 0 && (c as usize) < len { Some(c as usize) } else { None }
+                    if c >= 0 && (c as usize) < len {
+                        Some(c as usize)
+                    } else {
+                        None
+                    }
                 };
                 match kind {
                     ReorderKind::Group(gi) => {
@@ -396,7 +418,10 @@ impl App {
 
             AppAction::CancelVariables => {
                 self.variable_screen = crate::ui::variable_screen::VariableScreenState::new();
-                if let ExecutionState::Idle { ref mut pending_set } = self.execution_state {
+                if let ExecutionState::Idle {
+                    ref mut pending_set,
+                } = self.execution_state
+                {
                     *pending_set = None;
                 }
             }
@@ -430,7 +455,12 @@ mod tests {
         app.handle_action(AppAction::NewGroup);
         assert_eq!(app.data.groups.len(), 1);
         assert_eq!(app.data.groups[0].name, "Group 1");
-        assert!(app.toasts.toasts.iter().any(|t| t.message.contains("Group created")));
+        assert!(
+            app.toasts
+                .toasts
+                .iter()
+                .any(|t| t.message.contains("Group created"))
+        );
     }
 
     // ---- RenameGroup ----
@@ -514,7 +544,9 @@ mod tests {
         let set = CommandSet::new("Prod".to_string(), g1.id);
         g1.sets.push(set);
         let g2 = Group::new("Infra".to_string());
-        app.data = AppData { groups: vec![g1, g2] };
+        app.data = AppData {
+            groups: vec![g1, g2],
+        };
         let set = app.data.groups[0].sets[0].clone();
         let groups = app.data.groups.clone();
         app.detail_screen = Some(DetailScreenState::new(set, groups));
@@ -613,13 +645,22 @@ mod tests {
 
     // ---- Data helper with variables and commands ----
     fn make_data_with_vars_and_cmds() -> AppData {
-        use crate::models::Variable;
         use crate::models::Command;
+        use crate::models::Variable;
         let mut g = Group::new("Deploy".to_string());
         let mut set = CommandSet::new("Prod".to_string(), g.id);
-        set.variables.push(Variable { name: "host".to_string(), default_value: "localhost".to_string() });
-        set.commands.push(Command { position: 0, command: "echo hi".to_string() });
-        set.commands.push(Command { position: 1, command: "echo bye".to_string() });
+        set.variables.push(Variable {
+            name: "host".to_string(),
+            default_value: "localhost".to_string(),
+        });
+        set.commands.push(Command {
+            position: 0,
+            command: "echo hi".to_string(),
+        });
+        set.commands.push(Command {
+            position: 1,
+            command: "echo bye".to_string(),
+        });
         g.sets.push(set);
         AppData { groups: vec![g] }
     }
@@ -658,12 +699,15 @@ mod tests {
 
     #[test]
     fn test_handler_delete_command_focus_migration() {
-        use crate::ui::detail_screen::DetailFocus;
         use crate::models::Command;
+        use crate::ui::detail_screen::DetailFocus;
         let mut app = make_app();
         let mut g = Group::new("G".to_string());
         let mut set = CommandSet::new("S".to_string(), g.id);
-        set.commands.push(Command { position: 0, command: "only".to_string() });
+        set.commands.push(Command {
+            position: 0,
+            command: "only".to_string(),
+        });
         g.sets.push(set);
         app.data = AppData { groups: vec![g] };
         let set_clone = app.data.groups[0].sets[0].clone();
@@ -683,18 +727,24 @@ mod tests {
         app.variable_screen.active = true;
         app.variable_screen.gi = 0;
         app.variable_screen.si = 0;
-        app.execution_state = ExecutionState::Idle { pending_set: Some((0, 0)) };
+        app.execution_state = ExecutionState::Idle {
+            pending_set: Some((0, 0)),
+        };
 
         app.handle_action(AppAction::CancelVariables);
         assert!(!app.variable_screen.active);
-        assert!(matches!(app.execution_state, ExecutionState::Idle { pending_set: None }));
+        assert!(matches!(
+            app.execution_state,
+            ExecutionState::Idle { pending_set: None }
+        ));
     }
 
     #[test]
     fn test_handler_confirm_variables() {
         let mut app = make_app();
         app.data = make_data_with_vars_and_cmds();
-        app.variable_screen.activate(&app.data.groups[0].sets[0], 0, 0);
+        app.variable_screen
+            .activate(&app.data.groups[0].sets[0], 0, 0);
         app.variable_screen.inputs[0].content = "prod.example.com".to_string();
 
         app.handle_action(AppAction::ConfirmVariables);
@@ -703,7 +753,10 @@ mod tests {
             "prod.example.com"
         );
         assert_eq!(app.mode, AppMode::Execution);
-        assert!(matches!(app.execution_state, ExecutionState::Running { .. }));
+        assert!(matches!(
+            app.execution_state,
+            ExecutionState::Running { .. }
+        ));
     }
 
     // ---- Execution actions ----
@@ -714,15 +767,21 @@ mod tests {
 
         app.handle_action(AppAction::ExecuteSet(0, 0));
         assert_eq!(app.mode, AppMode::Execution);
-        assert!(matches!(app.execution_state, ExecutionState::Running { .. }));
+        assert!(matches!(
+            app.execution_state,
+            ExecutionState::Running { .. }
+        ));
     }
 
     #[test]
     fn test_handler_back_to_main() {
-        use crate::ui::execution_screen::ExecutionScreenState;
         use crate::models::Command;
+        use crate::ui::execution_screen::ExecutionScreenState;
         let mut app = make_app();
-        let cmds = vec![Command { position: 0, command: "ok".to_string() }];
+        let cmds = vec![Command {
+            position: 0,
+            command: "ok".to_string(),
+        }];
         app.execution_state = ExecutionState::Running {
             screen: Box::new(ExecutionScreenState::new("test".to_string(), &cmds)),
             manager: ExecutionManager::new(),
@@ -737,10 +796,13 @@ mod tests {
 
     #[test]
     fn test_handler_skip_current() {
-        use crate::ui::execution_screen::ExecutionScreenState;
         use crate::models::Command;
+        use crate::ui::execution_screen::ExecutionScreenState;
         let mut app = make_app();
-        let cmds = vec![Command { position: 0, command: "a".to_string() }];
+        let cmds = vec![Command {
+            position: 0,
+            command: "a".to_string(),
+        }];
         app.execution_state = ExecutionState::Running {
             screen: Box::new(ExecutionScreenState::new("t".to_string(), &cmds)),
             manager: ExecutionManager::new(),
@@ -751,7 +813,10 @@ mod tests {
         app.handle_action(AppAction::SkipCurrent);
         // skip_current calls teardown_execution(true, true) → keeps screen + marks skipped
         assert_eq!(app.mode, AppMode::Execution);
-        assert!(matches!(app.execution_state, ExecutionState::Running { .. }));
+        assert!(matches!(
+            app.execution_state,
+            ExecutionState::Running { .. }
+        ));
         if let ExecutionState::Running { ref screen, .. } = app.execution_state {
             assert!(screen.completed);
             assert_eq!(screen.skipped, 1);
@@ -760,11 +825,14 @@ mod tests {
 
     #[test]
     fn test_handler_re_exec() {
-        use crate::ui::execution_screen::ExecutionScreenState;
         use crate::models::Command;
+        use crate::ui::execution_screen::ExecutionScreenState;
         let mut app = make_app();
         app.data = make_data_with_one_group();
-        let cmds = vec![Command { position: 0, command: "ok".to_string() }];
+        let cmds = vec![Command {
+            position: 0,
+            command: "ok".to_string(),
+        }];
         app.execution_state = ExecutionState::Running {
             screen: Box::new(ExecutionScreenState::new("t".to_string(), &cmds)),
             manager: ExecutionManager::new(),
@@ -774,7 +842,10 @@ mod tests {
 
         app.handle_action(AppAction::ReExec);
         assert_eq!(app.mode, AppMode::Execution);
-        assert!(matches!(app.execution_state, ExecutionState::Running { .. }));
+        assert!(matches!(
+            app.execution_state,
+            ExecutionState::Running { .. }
+        ));
     }
 
     #[test]
@@ -794,10 +865,13 @@ mod tests {
 
     #[test]
     fn test_help_from_execution_mode() {
-        use crate::ui::execution_screen::ExecutionScreenState;
         use crate::models::Command;
+        use crate::ui::execution_screen::ExecutionScreenState;
         let mut app = make_app();
-        let cmds = vec![Command { position: 0, command: "x".to_string() }];
+        let cmds = vec![Command {
+            position: 0,
+            command: "x".to_string(),
+        }];
         app.execution_state = ExecutionState::Running {
             screen: Box::new(ExecutionScreenState::new("t".to_string(), &cmds)),
             manager: ExecutionManager::new(),
@@ -809,7 +883,10 @@ mod tests {
         app.handle_key(key);
         assert_eq!(app.mode, AppMode::Help);
         // execution_state should NOT be cleaned up — Help is an overlay
-        assert!(matches!(app.execution_state, ExecutionState::Running { .. }));
+        assert!(matches!(
+            app.execution_state,
+            ExecutionState::Running { .. }
+        ));
         assert_eq!(app.prev_mode, Some(AppMode::Execution));
     }
 
@@ -817,7 +894,10 @@ mod tests {
     fn make_data_for_delete_test() -> AppData {
         let mut g = Group::new("Deploy".to_string());
         let mut set = CommandSet::new("Prod".to_string(), g.id);
-        set.commands.push(crate::models::Command { position: 0, command: "echo hi".to_string() });
+        set.commands.push(crate::models::Command {
+            position: 0,
+            command: "echo hi".to_string(),
+        });
         g.sets.push(set);
         AppData { groups: vec![g] }
     }
@@ -855,7 +935,10 @@ mod tests {
         let mut app = make_app();
         let mut g = Group::new("G".to_string());
         let mut set = CommandSet::new("S".to_string(), g.id);
-        set.variables.push(Variable { name: "host".to_string(), default_value: "".to_string() });
+        set.variables.push(Variable {
+            name: "host".to_string(),
+            default_value: "".to_string(),
+        });
         g.sets.push(set);
         app.data = AppData { groups: vec![g] };
         let set_clone = app.data.groups[0].sets[0].clone();
@@ -889,7 +972,9 @@ mod tests {
         let mut app = make_app();
         app.data = make_data_for_delete_test();
         app.handle_action(AppAction::RequestDelete(DeleteKind::Set {
-            group_index: 0, set_index: 0, set_name: "P".to_string(),
+            group_index: 0,
+            set_index: 0,
+            set_name: "P".to_string(),
         }));
         if let AppMode::ConfirmDelete { selected, .. } = &app.mode {
             assert!(matches!(selected, ConfirmChoice::Cancel));
@@ -903,7 +988,11 @@ mod tests {
         let mut app = make_app();
         app.data = make_data_for_delete_test();
         app.mode = AppMode::ConfirmDelete {
-            kind: DeleteKind::Set { group_index: 0, set_index: 0, set_name: "P".to_string() },
+            kind: DeleteKind::Set {
+                group_index: 0,
+                set_index: 0,
+                set_name: "P".to_string(),
+            },
             prev: Box::new(AppMode::Main),
             selected: ConfirmChoice::Cancel,
         };
@@ -918,7 +1007,11 @@ mod tests {
         let mut app = make_app();
         app.data = make_data_for_delete_test();
         app.mode = AppMode::ConfirmDelete {
-            kind: DeleteKind::Set { group_index: 0, set_index: 0, set_name: "P".to_string() },
+            kind: DeleteKind::Set {
+                group_index: 0,
+                set_index: 0,
+                set_name: "P".to_string(),
+            },
             prev: Box::new(AppMode::Main),
             selected: ConfirmChoice::Confirm,
         };
@@ -933,7 +1026,11 @@ mod tests {
         let mut app = make_app();
         app.data = make_data_for_delete_test();
         app.mode = AppMode::ConfirmDelete {
-            kind: DeleteKind::Set { group_index: 0, set_index: 0, set_name: "P".to_string() },
+            kind: DeleteKind::Set {
+                group_index: 0,
+                set_index: 0,
+                set_name: "P".to_string(),
+            },
             prev: Box::new(AppMode::Main),
             selected: ConfirmChoice::Confirm,
         };
@@ -947,7 +1044,11 @@ mod tests {
         let mut app = make_app();
         app.data = make_data_for_delete_test();
         app.mode = AppMode::ConfirmDelete {
-            kind: DeleteKind::Set { group_index: 0, set_index: 0, set_name: "P".to_string() },
+            kind: DeleteKind::Set {
+                group_index: 0,
+                set_index: 0,
+                set_name: "P".to_string(),
+            },
             prev: Box::new(AppMode::Main),
             selected: ConfirmChoice::Cancel,
         };
@@ -961,7 +1062,11 @@ mod tests {
         let mut app = make_app();
         app.data = make_data_for_delete_test();
         app.mode = AppMode::ConfirmDelete {
-            kind: DeleteKind::Set { group_index: 0, set_index: 0, set_name: "P".to_string() },
+            kind: DeleteKind::Set {
+                group_index: 0,
+                set_index: 0,
+                set_name: "P".to_string(),
+            },
             prev: Box::new(AppMode::Main),
             selected: ConfirmChoice::Cancel,
         };
@@ -975,7 +1080,11 @@ mod tests {
         let mut app = make_app();
         app.data = make_data_for_delete_test();
         app.mode = AppMode::ConfirmDelete {
-            kind: DeleteKind::Set { group_index: 0, set_index: 0, set_name: "P".to_string() },
+            kind: DeleteKind::Set {
+                group_index: 0,
+                set_index: 0,
+                set_name: "P".to_string(),
+            },
             prev: Box::new(AppMode::Main),
             selected: ConfirmChoice::Confirm,
         };
@@ -1041,7 +1150,10 @@ mod tests {
         let mut app = make_app();
         app.data = make_data_with_one_group();
         let mut set2 = CommandSet::new("set2".to_string(), app.data.groups[0].id);
-        set2.commands.push(crate::models::Command { position: 0, command: "cmd".to_string() });
+        set2.commands.push(crate::models::Command {
+            position: 0,
+            command: "cmd".to_string(),
+        });
         app.data.groups[0].sets.push(set2);
         app.handle_action(AppAction::Reorder(ReorderKind::Set(0, 1), -1));
         assert_eq!(app.data.groups[0].sets[0].name, "set2");
@@ -1063,8 +1175,14 @@ mod tests {
         let mut app = make_app();
         let mut g = Group::new("G".to_string());
         let mut set = CommandSet::new("S".to_string(), g.id);
-        set.variables.push(Variable { name: "a".to_string(), default_value: "".to_string() });
-        set.variables.push(Variable { name: "b".to_string(), default_value: "".to_string() });
+        set.variables.push(Variable {
+            name: "a".to_string(),
+            default_value: "".to_string(),
+        });
+        set.variables.push(Variable {
+            name: "b".to_string(),
+            default_value: "".to_string(),
+        });
         g.sets.push(set);
         app.data = AppData { groups: vec![g] };
         let set_clone = app.data.groups[0].sets[0].clone();
@@ -1084,7 +1202,10 @@ mod tests {
         let mut app = make_app();
         let mut g = Group::new("G".to_string());
         let mut set = CommandSet::new("S".to_string(), g.id);
-        set.variables.push(Variable { name: "a".to_string(), default_value: "".to_string() });
+        set.variables.push(Variable {
+            name: "a".to_string(),
+            default_value: "".to_string(),
+        });
         g.sets.push(set);
         app.data = AppData { groups: vec![g] };
         let set_clone = app.data.groups[0].sets[0].clone();
@@ -1103,8 +1224,14 @@ mod tests {
         let mut app = make_app();
         let mut g = Group::new("G".to_string());
         let mut set = CommandSet::new("S".to_string(), g.id);
-        set.commands.push(Command { position: 0, command: "echo first".to_string() });
-        set.commands.push(Command { position: 1, command: "echo second".to_string() });
+        set.commands.push(Command {
+            position: 0,
+            command: "echo first".to_string(),
+        });
+        set.commands.push(Command {
+            position: 1,
+            command: "echo second".to_string(),
+        });
         g.sets.push(set);
         app.data = AppData { groups: vec![g] };
         let set_clone = app.data.groups[0].sets[0].clone();
@@ -1126,8 +1253,14 @@ mod tests {
         let mut app = make_app();
         let mut g = Group::new("G".to_string());
         let mut set = CommandSet::new("S".to_string(), g.id);
-        set.commands.push(Command { position: 0, command: "a".to_string() });
-        set.commands.push(Command { position: 1, command: "b".to_string() });
+        set.commands.push(Command {
+            position: 0,
+            command: "a".to_string(),
+        });
+        set.commands.push(Command {
+            position: 1,
+            command: "b".to_string(),
+        });
         g.sets.push(set);
         app.data = AppData { groups: vec![g] };
         let set_clone = app.data.groups[0].sets[0].clone();
@@ -1149,7 +1282,10 @@ mod tests {
         let mut app = make_app();
         let mut g = Group::new("G".to_string());
         let mut set = CommandSet::new("S".to_string(), g.id);
-        set.commands.push(Command { position: 0, command: "only".to_string() });
+        set.commands.push(Command {
+            position: 0,
+            command: "only".to_string(),
+        });
         g.sets.push(set);
         app.data = AppData { groups: vec![g] };
         let set_clone = app.data.groups[0].sets[0].clone();

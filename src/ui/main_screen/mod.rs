@@ -99,8 +99,8 @@ impl MainScreenState {
         // Right panel: Search + Results (search mode) or command sets (normal)
         if self.search_mode {
             let search_layout = Layout::vertical([
-                Constraint::Length(3),  // Search block
-                Constraint::Min(1),     // Results block
+                Constraint::Length(3), // Search block
+                Constraint::Min(1),    // Results block
             ]);
             let [search_area, results_area] = search_layout.areas(right_area);
             let right_vis = results_area.height.saturating_sub(2) as usize;

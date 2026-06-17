@@ -66,20 +66,20 @@ impl Theme {
     /// Truecolor dark theme (Catppuccin Mocha-inspired palette).
     pub const fn default_dark() -> Self {
         Self {
-            background: Color::Rgb(30, 30, 46),                // mantle
-            surface: Color::Rgb(24, 24, 37),                   // base
-            surface_border: Color::Rgb(69, 71, 90),            // surface0
-            text_primary: Color::Rgb(205, 214, 244),           // text
-            text_secondary: Color::Rgb(147, 153, 178),         // subtext1
-            text_disabled: Color::Rgb(108, 112, 134),          // overlay1
-            text_on_selected: Color::Rgb(17, 17, 27),          // crust
-            accent_primary: Color::Rgb(137, 180, 250),         // blue
-            accent_success: Color::Rgb(166, 227, 161),         // green
-            accent_error: Color::Rgb(243, 139, 168),           // red
-            accent_warning: Color::Rgb(249, 226, 175),         // yellow
-            accent_info: Color::Rgb(137, 220, 235),            // sky
-            selection_bg: Color::Rgb(70, 82, 125),             // muted indigo-blue
-            editing_bg: Color::Rgb(60, 95, 75),                 // muted green
+            background: Color::Rgb(30, 30, 46),        // mantle
+            surface: Color::Rgb(24, 24, 37),           // base
+            surface_border: Color::Rgb(69, 71, 90),    // surface0
+            text_primary: Color::Rgb(205, 214, 244),   // text
+            text_secondary: Color::Rgb(147, 153, 178), // subtext1
+            text_disabled: Color::Rgb(108, 112, 134),  // overlay1
+            text_on_selected: Color::Rgb(17, 17, 27),  // crust
+            accent_primary: Color::Rgb(137, 180, 250), // blue
+            accent_success: Color::Rgb(166, 227, 161), // green
+            accent_error: Color::Rgb(243, 139, 168),   // red
+            accent_warning: Color::Rgb(249, 226, 175), // yellow
+            accent_info: Color::Rgb(137, 220, 235),    // sky
+            selection_bg: Color::Rgb(70, 82, 125),     // muted indigo-blue
+            editing_bg: Color::Rgb(60, 95, 75),        // muted green
         }
     }
 

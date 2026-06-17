@@ -9,15 +9,20 @@ use ratatui::widgets::{Clear, Paragraph};
 
 /// Render the delete confirmation overlay dialog.
 pub fn draw_confirm_dialog(
-    frame: &mut Frame, area: Rect, theme: &Theme,
-    kind: &DeleteKind, selected: ConfirmChoice,
+    frame: &mut Frame,
+    area: Rect,
+    theme: &Theme,
+    kind: &DeleteKind,
+    selected: ConfirmChoice,
 ) {
     let prompt = match kind {
         DeleteKind::Set { set_name, .. } => {
             format!("Delete set \"{}\"?", set_name)
         }
         DeleteKind::Group {
-            group_name, set_count, ..
+            group_name,
+            set_count,
+            ..
         } => {
             if *set_count > 0 {
                 format!(
@@ -32,7 +37,9 @@ pub fn draw_confirm_dialog(
             format!("Delete variable \"{}\"?", var_name)
         }
         DeleteKind::Command {
-            cmd_index, cmd_preview, ..
+            cmd_index,
+            cmd_preview,
+            ..
         } => {
             let preview = if cmd_preview.len() > 40 {
                 format!("{}...", &cmd_preview[..37])
@@ -78,12 +85,20 @@ pub fn draw_confirm_dialog(
     let buttons = Line::from(vec![
         Span::styled("    ", Style::default()),
         Span::styled(
-            if matches!(selected, ConfirmChoice::Confirm) { "[Confirm]" } else { " Confirm " },
+            if matches!(selected, ConfirmChoice::Confirm) {
+                "[Confirm]"
+            } else {
+                " Confirm "
+            },
             confirm_style,
         ),
         Span::styled("      ", Style::default()),
         Span::styled(
-            if matches!(selected, ConfirmChoice::Cancel) { "[Cancel]" } else { " Cancel " },
+            if matches!(selected, ConfirmChoice::Cancel) {
+                "[Cancel]"
+            } else {
+                " Cancel "
+            },
             cancel_style,
         ),
     ]);

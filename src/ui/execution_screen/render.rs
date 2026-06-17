@@ -1,3 +1,4 @@
+use super::{CmdStatus, ExecutionScreenState};
 use crate::ui::render::bordered_block_zone;
 use crate::ui::render::{empty_hint, list_scrollbar_areas, render_scrollbar, render_status_bar};
 use crate::ui::theme::Theme;
@@ -6,7 +7,6 @@ use ratatui::layout::{Constraint, Layout, Rect};
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Gauge, List, ListItem, Paragraph};
-use super::{CmdStatus, ExecutionScreenState};
 
 impl ExecutionScreenState {
     pub(crate) fn render(&self, frame: &mut Frame, area: Rect, theme: &Theme) {
@@ -156,8 +156,12 @@ impl ExecutionScreenState {
         let footer_text = match (self.focus_index, self.completed, self.continue_from) {
             (Some(_), _, _) => "[←/→] Browse  [z] Follow  [q] Back",
             (None, true, None) => " [←/→] Browse  [r] Re-execute  [q] Back",
-            (None, true, Some(_)) => " [←/→] Browse  [n] Continue from next  [r] Re-execute  [q] Back",
-            (None, false, _) => " [←/→] Browse  [s] Skip  [z] Auto-scroll  [Ctrl+C] Interrupt  [q] Back",
+            (None, true, Some(_)) => {
+                " [←/→] Browse  [n] Continue from next  [r] Re-execute  [q] Back"
+            }
+            (None, false, _) => {
+                " [←/→] Browse  [s] Skip  [z] Auto-scroll  [Ctrl+C] Interrupt  [q] Back"
+            }
         };
 
         let body_layout = Layout::vertical([Constraint::Min(1), Constraint::Length(2)]);

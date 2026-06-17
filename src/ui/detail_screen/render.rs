@@ -1,3 +1,4 @@
+use super::{DetailFocus, DetailScreenState};
 use crate::models::{ExecMode, ShellType};
 use crate::ui::render::bordered_block_zone;
 use crate::ui::render::{
@@ -11,7 +12,6 @@ use ratatui::layout::{Constraint, Layout, Rect};
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{List, ListItem, Paragraph};
-use super::{DetailFocus, DetailScreenState};
 
 /// Editor context bundle for `render_items_list`.
 pub(crate) struct ItemListEditCtx<'a> {
@@ -42,11 +42,21 @@ impl DetailScreenState {
             Constraint::Length(1),
             Constraint::Length(1),
         ]);
-        let [name_row, workdir_row, sep_row, group_row, shell_row, mode_row] = rows.areas(inner);
+        let [
+            name_row,
+            workdir_row,
+            sep_row,
+            group_row,
+            shell_row,
+            mode_row,
+        ] = rows.areas(inner);
 
         // Name
         self.render_editable_field(
-            frame, name_row, theme, "Name",
+            frame,
+            name_row,
+            theme,
+            "Name",
             self.focus == DetailFocus::Name,
             self.editing_name,
             &self.name_input,
@@ -56,19 +66,30 @@ impl DetailScreenState {
 
         // WorkDir
         self.render_editable_field(
-            frame, workdir_row, theme, "WorkDir",
+            frame,
+            workdir_row,
+            theme,
+            "WorkDir",
             self.focus == DetailFocus::WorkDir,
             self.workdir_editing,
             &self.workdir_input,
-            self.set.working_dir.as_deref().unwrap_or("(default — shellpad CWD)"),
+            self.set
+                .working_dir
+                .as_deref()
+                .unwrap_or("(default — shellpad CWD)"),
             self.set.working_dir.is_none(),
         );
 
         // Separator — full width
         frame.render_widget(
             Paragraph::new(Line::from(Span::styled(
-                format!(" ── Options {} ", "─".repeat(sep_row.width.saturating_sub(12) as usize)),
-                Style::default().fg(theme.text_disabled).add_modifier(Modifier::DIM),
+                format!(
+                    " ── Options {} ",
+                    "─".repeat(sep_row.width.saturating_sub(12) as usize)
+                ),
+                Style::default()
+                    .fg(theme.text_disabled)
+                    .add_modifier(Modifier::DIM),
             ))),
             sep_row,
         );
@@ -128,6 +149,7 @@ impl DetailScreenState {
         );
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn render_editable_field(
         &self,
         frame: &mut Frame,
@@ -170,7 +192,8 @@ impl DetailScreenState {
         frame.render_widget(Paragraph::new(line), row);
 
         if editing {
-            let prefix_width = unicode_width::UnicodeWidthStr::width(format!(" {}: ", label).as_str());
+            let prefix_width =
+                unicode_width::UnicodeWidthStr::width(format!(" {}: ", label).as_str());
             set_cursor_after_prefix(
                 frame,
                 &input.content,
@@ -218,9 +241,11 @@ impl DetailScreenState {
                 let mut names = Vec::new();
                 let mut selected_idx = None;
                 for (i, v) in variants.iter().enumerate() {
-                    let selected = std::mem::discriminant(&self.set.shell)
-                        == std::mem::discriminant(v);
-                    if selected { selected_idx = Some(i); }
+                    let selected =
+                        std::mem::discriminant(&self.set.shell) == std::mem::discriminant(v);
+                    if selected {
+                        selected_idx = Some(i);
+                    }
                     names.push(match v {
                         ShellType::SystemDefault => "System Default".to_string(),
                         ShellType::Custom(_) => unreachable!(),
@@ -293,7 +318,9 @@ impl DetailScreenState {
                 items.push(center_label(&names[i], style, inner.width));
             } else {
                 items.push(styled_list_item(
-                    String::new(), theme.normal_style(), inner.width,
+                    String::new(),
+                    theme.normal_style(),
+                    inner.width,
                 ));
                 if offset == 0 {
                     sel_visual = Some(items.len() - 1);
@@ -306,9 +333,7 @@ impl DetailScreenState {
             list_state.select(sel_visual);
         }
         frame.render_stateful_widget(
-            List::new(items).highlight_style(
-                Style::default().bg(theme.surface_border),
-            ),
+            List::new(items).highlight_style(Style::default().bg(theme.surface_border)),
             inner,
             &mut list_state,
         );
@@ -317,6 +342,7 @@ impl DetailScreenState {
     /// Shared list renderer for Variables and Commands.
     /// `item_fn(index, is_editing) -> (label, style)` provides per-item content.
     /// Returns `list_area` for cursor positioning.
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn render_items_list<F>(
         &self,
         frame: &mut Frame,
@@ -387,7 +413,10 @@ impl DetailScreenState {
             ItemListEditCtx {
                 editing_item: self.var_edit.editing,
                 insert_at: self.var_edit.insert_at,
-                preview_label: self.var_edit.insert_at.is_some()
+                preview_label: self
+                    .var_edit
+                    .insert_at
+                    .is_some()
                     .then(|| format!("  ▶ {}", self.var_edit.edit_input.content)),
                 empty_text: " (empty — press a to add a variable) ",
             },
@@ -407,7 +436,13 @@ impl DetailScreenState {
             },
         );
 
-        self.render_edit_cursor(frame, list_area, &self.var_edit, &self.variable_list, "  ▶ ");
+        self.render_edit_cursor(
+            frame,
+            list_area,
+            &self.var_edit,
+            &self.variable_list,
+            "  ▶ ",
+        );
     }
 
     pub(crate) fn render_commands(&self, frame: &mut Frame, area: Rect, theme: &Theme) {
@@ -455,8 +490,13 @@ impl DetailScreenState {
 
         if let Some(idx) = self.cmd_edit.editing {
             let pos = self.cmd_edit.insert_at.unwrap_or(idx);
-            self.render_edit_cursor(frame, list_area, &self.cmd_edit, &self.command_list,
-                &format!("  #{}▶ ", pos));
+            self.render_edit_cursor(
+                frame,
+                list_area,
+                &self.cmd_edit,
+                &self.command_list,
+                &format!("  #{}▶ ", pos),
+            );
         }
     }
 
@@ -464,10 +504,18 @@ impl DetailScreenState {
         let is_editing = self.var_edit.is_editing() || self.cmd_edit.is_editing();
         let text = match (is_editing, self.focus) {
             (true, _) => "[Enter] Confirm  [Esc] Cancel",
-            (false, DetailFocus::Name) => "[Enter] Edit  [↑/↓] Navigate  [Tab] Next  |  [Ctrl+S] Save",
-            (false, DetailFocus::Group) => "[←/→] Change  [↑/↓] Navigate  [Tab] Next  |  [Ctrl+S] Save",
-            (false, DetailFocus::Shell) => "[←/→] Change  [↑/↓] Navigate  [Tab] Next  |  [Ctrl+S] Save",
-            (false, DetailFocus::ExecMode) => "[←/→] Change  [↑/↓] Navigate  [Tab] Next  |  [Ctrl+S] Save",
+            (false, DetailFocus::Name) => {
+                "[Enter] Edit  [↑/↓] Navigate  [Tab] Next  |  [Ctrl+S] Save"
+            }
+            (false, DetailFocus::Group) => {
+                "[←/→] Change  [↑/↓] Navigate  [Tab] Next  |  [Ctrl+S] Save"
+            }
+            (false, DetailFocus::Shell) => {
+                "[←/→] Change  [↑/↓] Navigate  [Tab] Next  |  [Ctrl+S] Save"
+            }
+            (false, DetailFocus::ExecMode) => {
+                "[←/→] Change  [↑/↓] Navigate  [Tab] Next  |  [Ctrl+S] Save"
+            }
             (false, DetailFocus::WorkDir) => {
                 "[Enter] Edit  [↑/↓] Navigate  [Tab] Next  |  [Ctrl+S] Save"
             }

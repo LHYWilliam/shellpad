@@ -106,7 +106,8 @@ impl App {
             // Drain execution events on each tick
             if let ExecutionState::Running {
                 ref mut screen,
-                ref manager, ..
+                ref manager,
+                ..
             } = self.execution_state
                 && let Some(ref rx) = manager.rx
             {
@@ -219,14 +220,20 @@ mod tests {
         let mut app = make_app();
         let mut g = Group::new("G".to_string());
         let mut set = CommandSet::new("S".to_string(), g.id);
-        set.commands.push(Command { position: 0, command: "echo ok".to_string() });
+        set.commands.push(Command {
+            position: 0,
+            command: "echo ok".to_string(),
+        });
         g.sets.push(set);
         app.data = AppData { groups: vec![g] };
 
         app.do_execute_with(0, 0, 0);
 
         assert_eq!(app.mode, AppMode::Execution);
-        assert!(matches!(app.execution_state, ExecutionState::Running { .. }));
+        assert!(matches!(
+            app.execution_state,
+            ExecutionState::Running { .. }
+        ));
         if let ExecutionState::Running { pending_set, .. } = &app.execution_state {
             assert_eq!(*pending_set, (0, 0));
         }
@@ -243,7 +250,10 @@ mod tests {
     #[test]
     fn test_teardown_execution_keep_screen_false_transitions_to_idle() {
         let mut app = make_app();
-        let cmds = vec![Command { position: 0, command: "echo ok".to_string() }];
+        let cmds = vec![Command {
+            position: 0,
+            command: "echo ok".to_string(),
+        }];
         app.execution_state = ExecutionState::Running {
             screen: Box::new(ExecutionScreenState::new("t".to_string(), &cmds)),
             manager: crate::app::execution::ExecutionManager::new(),
@@ -253,13 +263,19 @@ mod tests {
 
         app.teardown_execution(false, false);
 
-        assert!(matches!(app.execution_state, ExecutionState::Idle { pending_set: None }));
+        assert!(matches!(
+            app.execution_state,
+            ExecutionState::Idle { pending_set: None }
+        ));
     }
 
     #[test]
     fn test_teardown_execution_keep_screen_true_preserves() {
         let mut app = make_app();
-        let cmds = vec![Command { position: 0, command: "echo ok".to_string() }];
+        let cmds = vec![Command {
+            position: 0,
+            command: "echo ok".to_string(),
+        }];
         app.execution_state = ExecutionState::Running {
             screen: Box::new(ExecutionScreenState::new("t".to_string(), &cmds)),
             manager: crate::app::execution::ExecutionManager::new(),
@@ -270,6 +286,9 @@ mod tests {
         app.teardown_execution(true, true);
 
         // keep_screen=true means execution state stays Running (manager killed but state kept)
-        assert!(matches!(app.execution_state, ExecutionState::Running { .. }));
+        assert!(matches!(
+            app.execution_state,
+            ExecutionState::Running { .. }
+        ));
     }
 }

@@ -1,17 +1,24 @@
+use super::editor::{handle_command_edit, handle_variable_edit};
+use super::{DetailFocus, DetailScreenState};
 use crate::action::{AppAction, DeleteKind, ReorderKind};
 use crate::ui::widget::text_input::handle_text_input;
 use crate::ui::widget::{InlineEdit, ScrollableList, TextInput};
 use crossterm::event::KeyEvent;
-use super::{DetailFocus, DetailScreenState};
-use super::editor::{handle_command_edit, handle_variable_edit};
 
-enum DetailRegion { Properties, Variables, Commands }
+enum DetailRegion {
+    Properties,
+    Variables,
+    Commands,
+}
 
 impl DetailScreenState {
     fn region(&self) -> DetailRegion {
         match self.focus {
-            DetailFocus::Name | DetailFocus::WorkDir | DetailFocus::Group
-            | DetailFocus::Shell | DetailFocus::ExecMode => DetailRegion::Properties,
+            DetailFocus::Name
+            | DetailFocus::WorkDir
+            | DetailFocus::Group
+            | DetailFocus::Shell
+            | DetailFocus::ExecMode => DetailRegion::Properties,
             DetailFocus::Variables => DetailRegion::Variables,
             DetailFocus::Commands => DetailRegion::Commands,
         }
@@ -84,7 +91,11 @@ impl DetailScreenState {
             KeyCode::BackTab => {
                 self.prev_region();
             }
-            KeyCode::Up if key.modifiers.contains(crossterm::event::KeyModifiers::CONTROL) => {
+            KeyCode::Up
+                if key
+                    .modifiers
+                    .contains(crossterm::event::KeyModifiers::CONTROL) =>
+            {
                 match self.focus {
                     DetailFocus::Variables if !self.set.variables.is_empty() => {
                         let idx = self
@@ -103,29 +114,31 @@ impl DetailScreenState {
                     _ => {}
                 }
             }
-            KeyCode::Up => {
-                match self.region() {
-                    DetailRegion::Properties => {
-                        self.commit_name_edit();
-                        self.commit_workdir_edit();
-                        self.focus = match self.focus {
-                            DetailFocus::Name => DetailFocus::Name,
-                            DetailFocus::WorkDir => DetailFocus::Name,
-                            DetailFocus::Group => DetailFocus::WorkDir,
-                            DetailFocus::Shell => DetailFocus::Group,
-                            DetailFocus::ExecMode => DetailFocus::Shell,
-                            _ => self.focus,
-                        };
-                    }
-                    DetailRegion::Variables => {
-                        self.variable_list.select_previous();
-                    }
-                    DetailRegion::Commands => {
-                        self.command_list.select_previous();
-                    }
+            KeyCode::Up => match self.region() {
+                DetailRegion::Properties => {
+                    self.commit_name_edit();
+                    self.commit_workdir_edit();
+                    self.focus = match self.focus {
+                        DetailFocus::Name => DetailFocus::Name,
+                        DetailFocus::WorkDir => DetailFocus::Name,
+                        DetailFocus::Group => DetailFocus::WorkDir,
+                        DetailFocus::Shell => DetailFocus::Group,
+                        DetailFocus::ExecMode => DetailFocus::Shell,
+                        _ => self.focus,
+                    };
                 }
-            }
-            KeyCode::Down if key.modifiers.contains(crossterm::event::KeyModifiers::CONTROL) => {
+                DetailRegion::Variables => {
+                    self.variable_list.select_previous();
+                }
+                DetailRegion::Commands => {
+                    self.command_list.select_previous();
+                }
+            },
+            KeyCode::Down
+                if key
+                    .modifiers
+                    .contains(crossterm::event::KeyModifiers::CONTROL) =>
+            {
                 match self.focus {
                     DetailFocus::Variables if !self.set.variables.is_empty() => {
                         let idx = self
@@ -144,28 +157,26 @@ impl DetailScreenState {
                     _ => {}
                 }
             }
-            KeyCode::Down => {
-                match self.region() {
-                    DetailRegion::Properties => {
-                        self.commit_name_edit();
-                        self.commit_workdir_edit();
-                        self.focus = match self.focus {
-                            DetailFocus::Name => DetailFocus::WorkDir,
-                            DetailFocus::WorkDir => DetailFocus::Group,
-                            DetailFocus::Group => DetailFocus::Shell,
-                            DetailFocus::Shell => DetailFocus::ExecMode,
-                            DetailFocus::ExecMode => DetailFocus::ExecMode,
-                            _ => self.focus,
-                        };
-                    }
-                    DetailRegion::Variables => {
-                        self.variable_list.select_next(self.set.variables.len());
-                    }
-                    DetailRegion::Commands => {
-                        self.command_list.select_next(self.set.commands.len());
-                    }
+            KeyCode::Down => match self.region() {
+                DetailRegion::Properties => {
+                    self.commit_name_edit();
+                    self.commit_workdir_edit();
+                    self.focus = match self.focus {
+                        DetailFocus::Name => DetailFocus::WorkDir,
+                        DetailFocus::WorkDir => DetailFocus::Group,
+                        DetailFocus::Group => DetailFocus::Shell,
+                        DetailFocus::Shell => DetailFocus::ExecMode,
+                        DetailFocus::ExecMode => DetailFocus::ExecMode,
+                        _ => self.focus,
+                    };
                 }
-            }
+                DetailRegion::Variables => {
+                    self.variable_list.select_next(self.set.variables.len());
+                }
+                DetailRegion::Commands => {
+                    self.command_list.select_next(self.set.commands.len());
+                }
+            },
             KeyCode::Left => match self.focus {
                 DetailFocus::Group => {
                     self.cycle_group(-1);
@@ -446,12 +457,10 @@ mod tests {
         });
         state.focus = DetailFocus::Variables;
         let action = state.handle_key(make_key(KeyCode::Char('d')));
-        assert!(
-            matches!(action, AppAction::RequestDelete(DeleteKind::Variable {
-                var_index: 0,
-                ..
-            }))
-        );
+        assert!(matches!(
+            action,
+            AppAction::RequestDelete(DeleteKind::Variable { var_index: 0, .. })
+        ));
     }
 
     #[test]
@@ -463,12 +472,10 @@ mod tests {
         });
         state.focus = DetailFocus::Commands;
         let action = state.handle_key(make_key(KeyCode::Char('d')));
-        assert!(
-            matches!(action, AppAction::RequestDelete(DeleteKind::Command {
-                cmd_index: 0,
-                ..
-            }))
-        );
+        assert!(matches!(
+            action,
+            AppAction::RequestDelete(DeleteKind::Command { cmd_index: 0, .. })
+        ));
     }
 
     #[test]
@@ -501,7 +508,10 @@ mod tests {
         state.variable_list.selected = 1;
         let ctrl_up = KeyEvent::new(KeyCode::Up, KeyModifiers::CONTROL);
         let action = state.handle_key(ctrl_up);
-        assert!(matches!(action, AppAction::Reorder(ReorderKind::Variable(1), -1)));
+        assert!(matches!(
+            action,
+            AppAction::Reorder(ReorderKind::Variable(1), -1)
+        ));
     }
 
     #[test]
@@ -519,7 +529,10 @@ mod tests {
         state.command_list.selected = 0;
         let ctrl_down = KeyEvent::new(KeyCode::Down, KeyModifiers::CONTROL);
         let action = state.handle_key(ctrl_down);
-        assert!(matches!(action, AppAction::Reorder(ReorderKind::Command(0), 1)));
+        assert!(matches!(
+            action,
+            AppAction::Reorder(ReorderKind::Command(0), 1)
+        ));
     }
 
     #[test]

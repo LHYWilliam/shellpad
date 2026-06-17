@@ -60,13 +60,17 @@ pub(crate) fn load_app_data_from(path: &Path) -> Result<AppData, StorageError> {
     }
 }
 
-pub(crate) fn save_app_data_to(data: &AppData, path: &Path, tmp: &Path) -> Result<(), StorageError> {
+pub(crate) fn save_app_data_to(
+    data: &AppData,
+    path: &Path,
+    tmp: &Path,
+) -> Result<(), StorageError> {
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent)?;
     }
 
-    let json = serde_json::to_string_pretty(data)
-        .map_err(|e| StorageError::Serde(e.to_string()))?;
+    let json =
+        serde_json::to_string_pretty(data).map_err(|e| StorageError::Serde(e.to_string()))?;
 
     // Write to temp file and fsync (ensure data reaches disk before rename)
     let mut file = fs::File::create(tmp)?;

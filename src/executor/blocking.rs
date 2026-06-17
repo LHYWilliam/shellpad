@@ -5,7 +5,10 @@ use std::process::{Command, Stdio};
 
 /// Substitute variables from a pre-resolved HashMap.
 pub fn substitute_variables_from_map(template: &str, vars: &HashMap<String, String>) -> String {
-    crate::executor::substitute_variables_core(template, vars.iter().map(|(k, v)| (k.as_str(), v.as_str())))
+    crate::executor::substitute_variables_core(
+        template,
+        vars.iter().map(|(k, v)| (k.as_str(), v.as_str())),
+    )
 }
 
 /// Result of a blocking command set execution.
@@ -41,19 +44,15 @@ pub fn execute_set_blocking(
         if let Some(dir) = working_dir {
             cmd_builder.current_dir(dir);
         }
-        let mut child = cmd_builder
-            .spawn()
-            .map_err(|e| ExecuteError::SpawnFailed {
-                idx: idx + 1,
-                detail: e.to_string(),
-            })?;
+        let mut child = cmd_builder.spawn().map_err(|e| ExecuteError::SpawnFailed {
+            idx: idx + 1,
+            detail: e.to_string(),
+        })?;
 
-        let status = child
-            .wait()
-            .map_err(|e| ExecuteError::CommandFailed {
-                idx: idx + 1,
-                code: e.raw_os_error(),
-            })?;
+        let status = child.wait().map_err(|e| ExecuteError::CommandFailed {
+            idx: idx + 1,
+            code: e.raw_os_error(),
+        })?;
 
         if status.success() {
             succeeded += 1;

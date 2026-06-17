@@ -33,17 +33,35 @@ pub fn handle_variable_edit(
     variables: &mut Vec<Variable>,
     list: &mut ScrollableList,
 ) -> AppAction {
-    dispatch_inline_edit(edit, key,
+    dispatch_inline_edit(
+        edit,
+        key,
         // on_commit: parse "name=value" or name-only
         |e| {
             let input = e.edit_input.content.clone();
             if let Some(eq_pos) = input.find('=') {
                 let name = input[..eq_pos].trim().to_string();
                 let value = input[eq_pos + 1..].trim().to_string();
-                e.commit(idx, variables, Variable { name, default_value: value }, list);
+                e.commit(
+                    idx,
+                    variables,
+                    Variable {
+                        name,
+                        default_value: value,
+                    },
+                    list,
+                );
                 AppAction::VariableSaved
             } else if !input.is_empty() {
-                e.commit(idx, variables, Variable { name: input.trim().to_string(), default_value: String::new() }, list);
+                e.commit(
+                    idx,
+                    variables,
+                    Variable {
+                        name: input.trim().to_string(),
+                        default_value: String::new(),
+                    },
+                    list,
+                );
                 AppAction::VariableSaved
             } else {
                 AppAction::None
@@ -64,11 +82,21 @@ pub fn handle_command_edit(
     commands: &mut Vec<Command>,
     list: &mut ScrollableList,
 ) -> AppAction {
-    dispatch_inline_edit(edit, key,
+    dispatch_inline_edit(
+        edit,
+        key,
         // on_commit: build Command from text, commit, renumber positions
         |e| {
             let cmd = e.edit_input.content.clone();
-            e.commit(idx, commands, Command { position: idx, command: cmd }, list);
+            e.commit(
+                idx,
+                commands,
+                Command {
+                    position: idx,
+                    command: cmd,
+                },
+                list,
+            );
             for (i, c) in commands.iter_mut().enumerate() {
                 c.position = i;
             }

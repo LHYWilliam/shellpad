@@ -1,6 +1,6 @@
+use super::{CmdStatus, ExecutionScreenState};
 use crate::executor::ExecutionEvent;
 use std::sync::mpsc;
-use super::{CmdStatus, ExecutionScreenState};
 
 impl ExecutionScreenState {
     /// Calculate the flat items Vec index for a given command index.

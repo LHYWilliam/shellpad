@@ -274,7 +274,12 @@ pub(crate) fn resolve_variables(
 
 // ---- Search ----
 
-fn handle_search(data: &AppData, set_query: Option<String>, group_query: Option<String>, json: bool) {
+fn handle_search(
+    data: &AppData,
+    set_query: Option<String>,
+    group_query: Option<String>,
+    json: bool,
+) {
     if json {
         let (query, results): (String, Vec<SearchItem>) = if let Some(q) = set_query {
             let items = data
@@ -289,7 +294,9 @@ fn handle_search(data: &AppData, set_query: Option<String>, group_query: Option<
                         shell: s.shell.label(),
                         exec_mode: match s.exec_mode {
                             crate::models::ExecMode::StopOnError => "stop_on_error".to_string(),
-                            crate::models::ExecMode::ContinueOnError => "continue_on_error".to_string(),
+                            crate::models::ExecMode::ContinueOnError => {
+                                "continue_on_error".to_string()
+                            }
                         },
                         command_count: s.commands.len(),
                     })
@@ -511,7 +518,10 @@ mod tests {
                 })
             })
             .collect();
-        let output = SearchOutput { query: "P".to_string(), results: items };
+        let output = SearchOutput {
+            query: "P".to_string(),
+            results: items,
+        };
         let json = serde_json::to_string_pretty(&output).unwrap();
         let parsed: serde_json::Value = serde_json::from_str(&json).unwrap();
         assert_eq!(parsed["query"], "P");
@@ -536,7 +546,10 @@ mod tests {
                 })
             })
             .collect();
-        let output = SearchOutput { query: "d".to_string(), results: items };
+        let output = SearchOutput {
+            query: "d".to_string(),
+            results: items,
+        };
         let json = serde_json::to_string_pretty(&output).unwrap();
         let parsed: serde_json::Value = serde_json::from_str(&json).unwrap();
         assert_eq!(parsed["results"].as_array().unwrap().len(), 1);
@@ -544,8 +557,11 @@ mod tests {
 
     #[test]
     fn test_search_no_results_json_empty_list() {
-        let data = AppData::empty();
-        let output = SearchOutput { query: "none".to_string(), results: vec![] };
+        let _data = AppData::empty();
+        let output = SearchOutput {
+            query: "none".to_string(),
+            results: vec![],
+        };
         let json = serde_json::to_string_pretty(&output).unwrap();
         let parsed: serde_json::Value = serde_json::from_str(&json).unwrap();
         assert!(parsed["results"].as_array().unwrap().is_empty());

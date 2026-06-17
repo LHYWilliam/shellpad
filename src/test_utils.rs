@@ -2,11 +2,11 @@
 //!
 //! This module is `#[cfg(test)]` — only compiled during `cargo test`.
 
-use crate::app::toast::ToastManager;
-use crate::models::{AppData, CommandSet, Group};
-use crate::app::ExecutionState;
 use crate::app::App;
+use crate::app::ExecutionState;
+use crate::app::toast::ToastManager;
 use crate::mode::AppMode;
+use crate::models::{AppData, CommandSet, Group};
 use crate::ui::main_screen::MainScreenState;
 use crate::ui::theme::Theme;
 use crate::ui::variable_screen::VariableScreenState;

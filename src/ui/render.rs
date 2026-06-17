@@ -186,12 +186,7 @@ pub fn bordered_block_zone(
 }
 
 /// Render a bordered info block onto the frame, then return the inner Rect.
-pub fn bordered_block_info_zone(
-    frame: &mut Frame,
-    area: Rect,
-    theme: &Theme,
-    title: &str,
-) -> Rect {
+pub fn bordered_block_info_zone(frame: &mut Frame, area: Rect, theme: &Theme, title: &str) -> Rect {
     let block = bordered_block_info(theme, title);
     let inner = block.inner(area);
     frame.render_widget(&block, area);

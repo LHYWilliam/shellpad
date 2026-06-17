@@ -62,15 +62,25 @@ mod tests {
     use crate::models::{Command, ExecMode, ShellCommand};
 
     fn test_shell_cmd() -> ShellCommand {
-        ShellCommand { program: "echo".to_string(), flag: "-n".to_string() }
+        ShellCommand {
+            program: "echo".to_string(),
+            flag: "-n".to_string(),
+        }
     }
 
     #[test]
     fn test_execution_manager_start_sets_channel_and_handle() {
         let mut mgr = ExecutionManager::new();
         mgr.start(
-            vec![Command { position: 0, command: "ok".to_string() }],
-            ExecMode::StopOnError, vec![], test_shell_cmd(), 0, None,
+            vec![Command {
+                position: 0,
+                command: "ok".to_string(),
+            }],
+            ExecMode::StopOnError,
+            vec![],
+            test_shell_cmd(),
+            0,
+            None,
         );
 
         assert!(mgr.rx.is_some());
@@ -82,8 +92,15 @@ mod tests {
     fn test_execution_manager_kill_flips_signal_and_nulls_rx() {
         let mut mgr = ExecutionManager::new();
         mgr.start(
-            vec![Command { position: 0, command: "echo ok".to_string() }],
-            ExecMode::StopOnError, vec![], test_shell_cmd(), 0, None,
+            vec![Command {
+                position: 0,
+                command: "echo ok".to_string(),
+            }],
+            ExecMode::StopOnError,
+            vec![],
+            test_shell_cmd(),
+            0,
+            None,
         );
 
         mgr.kill();
@@ -96,8 +113,15 @@ mod tests {
     fn test_execution_manager_kill_twice_is_safe() {
         let mut mgr = ExecutionManager::new();
         mgr.start(
-            vec![Command { position: 0, command: "echo ok".to_string() }],
-            ExecMode::StopOnError, vec![], test_shell_cmd(), 0, None,
+            vec![Command {
+                position: 0,
+                command: "echo ok".to_string(),
+            }],
+            ExecMode::StopOnError,
+            vec![],
+            test_shell_cmd(),
+            0,
+            None,
         );
 
         mgr.kill();

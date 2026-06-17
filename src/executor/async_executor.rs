@@ -1,18 +1,21 @@
 use crate::executor::events::ExecutionEvent;
 use crate::models::{Command, CommandSet, ExecMode, ShellCommand, Variable};
 use std::io::{BufRead, BufReader, Read};
-use std::time::Duration;
 use std::process::{Child, Command as StdCommand, Stdio};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, mpsc};
 use std::thread;
+use std::time::Duration;
 
 /// Polling interval for child process status (milliseconds).
 const POLL_MS: u64 = 50;
 
 /// Substitute `{{var}}` placeholders in `template` with values from the command set.
 pub fn substitute_variables(template: &str, set: &CommandSet) -> String {
-    let vars = set.variables.iter().map(|v| (v.name.as_str(), v.default_value.as_str()));
+    let vars = set
+        .variables
+        .iter()
+        .map(|v| (v.name.as_str(), v.default_value.as_str()));
     crate::executor::substitute_variables_core(template, vars)
 }
 
@@ -56,6 +59,7 @@ fn pipe_reader<R: Read + Send + 'static>(
 ///
 /// Events are sent through the `mpsc::Receiver` for the TUI to poll.
 /// `index_offset` is added to event indices (used when continuing from a skip).
+#[allow(clippy::too_many_arguments, clippy::needless_return)]
 pub fn execute_set(
     commands: Vec<Command>,
     exec_mode: ExecMode,
@@ -80,7 +84,9 @@ pub fn execute_set(
             }
 
             let resolved = {
-                let vars = variables.iter().map(|v| (v.name.as_str(), v.default_value.as_str()));
+                let vars = variables
+                    .iter()
+                    .map(|v| (v.name.as_str(), v.default_value.as_str()));
                 crate::executor::substitute_variables_core(&cmd.command, vars)
             };
 
@@ -96,18 +102,29 @@ pub fn execute_set(
 
             let cmd_start = std::time::Instant::now();
 
-            let mut child = match spawn_shell_command(&shell_cmd, &resolved, working_dir.as_deref()) {
+            let mut child = match spawn_shell_command(&shell_cmd, &resolved, working_dir.as_deref())
+            {
                 Ok(c) => c,
                 Err(e) => {
-                    if tx.send(ExecutionEvent::StderrLine {
-                        index: actual_index,
-                        line: format!("Failed to spawn command: {}", e),
-                    }).is_err() { return; }
-                    if tx.send(ExecutionEvent::Finished {
-                        index: actual_index,
-                        success: false,
-                        duration_ms: cmd_start.elapsed().as_millis(),
-                    }).is_err() { return; }
+                    if tx
+                        .send(ExecutionEvent::StderrLine {
+                            index: actual_index,
+                            line: format!("Failed to spawn command: {}", e),
+                        })
+                        .is_err()
+                    {
+                        return;
+                    }
+                    if tx
+                        .send(ExecutionEvent::Finished {
+                            index: actual_index,
+                            success: false,
+                            duration_ms: cmd_start.elapsed().as_millis(),
+                        })
+                        .is_err()
+                    {
+                        return;
+                    }
                     failed += 1;
                     if matches!(exec_mode, ExecMode::StopOnError) {
                         break;
@@ -161,11 +178,16 @@ pub fn execute_set(
             }
         }
 
-        if tx.send(ExecutionEvent::CompletedAll {
-            total,
-            succeeded,
-            failed,
-            total_duration_ms: start.elapsed().as_millis(),
-        }).is_err() { return; }
+        if tx
+            .send(ExecutionEvent::CompletedAll {
+                total,
+                succeeded,
+                failed,
+                total_duration_ms: start.elapsed().as_millis(),
+            })
+            .is_err()
+        {
+            return;
+        }
     })
 }

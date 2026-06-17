@@ -1,7 +1,7 @@
-use crate::ui::render::bordered_block_zone;
 use crate::models::AppData;
 use crate::ui::main_screen::search::find_matches_case_insensitive;
 use crate::ui::main_screen::{MainScreenState, Panel};
+use crate::ui::render::bordered_block_zone;
 use crate::ui::render::{
     empty_hint, fill_row, list_scrollbar_areas, render_inline_cursor, render_scrollbar,
     render_status_bar, set_cursor_after_prefix, styled_list_item,
@@ -26,7 +26,7 @@ impl MainScreenState {
             area,
             theme,
             " Groups ",
-            self.active_panel == Panel::Groups
+            self.active_panel == Panel::Groups,
         );
 
         // Split inner area into list + scrollbar
@@ -75,8 +75,7 @@ impl MainScreenState {
         } else {
             theme.selected_style()
         };
-        let list =
-            List::new(items).highlight_style(list_highlight);
+        let list = List::new(items).highlight_style(list_highlight);
         frame.render_stateful_widget(list, list_area, &mut list_state);
 
         // Render scrollbar
@@ -101,12 +100,7 @@ impl MainScreenState {
         }
     }
 
-    pub(crate) fn render_search_block(
-        &self,
-        frame: &mut Frame,
-        area: Rect,
-        theme: &Theme,
-    ) {
+    pub(crate) fn render_search_block(&self, frame: &mut Frame, area: Rect, theme: &Theme) {
         let inner = bordered_block_zone(frame, area, theme, " Search ", self.search_mode);
         frame.render_widget(
             Paragraph::new(Line::from(Span::styled(
@@ -237,8 +231,7 @@ impl MainScreenState {
             None
         };
         let mut list_state = ratatui::widgets::ListState::default().with_selected(selected);
-        let list =
-            List::new(items).highlight_style(theme.selected_style());
+        let list = List::new(items).highlight_style(theme.selected_style());
         frame.render_stateful_widget(list, list_area, &mut list_state);
 
         // Render scrollbar

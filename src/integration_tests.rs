@@ -166,7 +166,9 @@ mod tests {
         let mut group = Group::new("Test".to_string());
         let set = CommandSet::new("target-set".to_string(), group.id);
         group.sets.push(set);
-        app.data = AppData { groups: vec![group] };
+        app.data = AppData {
+            groups: vec![group],
+        };
 
         // Step 1: Request delete via action
         app.handle_action(AppAction::RequestDelete(DeleteKind::Set {
@@ -209,8 +211,14 @@ mod tests {
         let mut app = make_app();
         let mut g = Group::new("G".to_string());
         let mut set = CommandSet::new("S".to_string(), g.id);
-        set.commands.push(crate::models::Command { position: 0, command: "first".to_string() });
-        set.commands.push(crate::models::Command { position: 1, command: "second".to_string() });
+        set.commands.push(crate::models::Command {
+            position: 0,
+            command: "first".to_string(),
+        });
+        set.commands.push(crate::models::Command {
+            position: 1,
+            command: "second".to_string(),
+        });
         g.sets.push(set);
         app.data = AppData { groups: vec![g] };
         let set_clone = app.data.groups[0].sets[0].clone();
@@ -271,7 +279,9 @@ mod tests {
         let set = CommandSet::new("Prod".to_string(), g1.id);
         g1.sets.push(set);
         let g2 = Group::new("Infra".to_string());
-        app.data = AppData { groups: vec![g1, g2] };
+        app.data = AppData {
+            groups: vec![g1, g2],
+        };
         let set = app.data.groups[0].sets[0].clone();
         let groups = app.data.groups.clone();
         app.detail_screen = Some(DetailScreenState::new(set, groups));
@@ -315,7 +325,10 @@ mod tests {
         let mut app = make_app();
         let mut g = Group::new("G".to_string());
         let mut set = CommandSet::new("S".to_string(), g.id);
-        set.variables.push(Variable { name: "host".to_string(), default_value: "".to_string() });
+        set.variables.push(Variable {
+            name: "host".to_string(),
+            default_value: "".to_string(),
+        });
         g.sets.push(set);
         app.data = AppData { groups: vec![g] };
         let set = app.data.groups[0].sets[0].clone();
@@ -323,7 +336,10 @@ mod tests {
         app.mode = AppMode::Detail;
 
         let mut saved = app.data.groups[0].sets[0].clone();
-        saved.variables.push(Variable { name: "port".to_string(), default_value: "8080".to_string() });
+        saved.variables.push(Variable {
+            name: "port".to_string(),
+            default_value: "8080".to_string(),
+        });
         app.handle_action(AppAction::SaveSet(saved));
 
         assert_eq!(app.data.groups[0].sets[0].variables.len(), 2);
@@ -338,8 +354,14 @@ mod tests {
         let mut app = make_app();
         let mut g = Group::new("G".to_string());
         let mut set = CommandSet::new("S".to_string(), g.id);
-        set.variables.push(Variable { name: "a".to_string(), default_value: "".to_string() });
-        set.variables.push(Variable { name: "b".to_string(), default_value: "".to_string() });
+        set.variables.push(Variable {
+            name: "a".to_string(),
+            default_value: "".to_string(),
+        });
+        set.variables.push(Variable {
+            name: "b".to_string(),
+            default_value: "".to_string(),
+        });
         g.sets.push(set);
         app.data = AppData { groups: vec![g] };
         let set = app.data.groups[0].sets[0].clone();
@@ -363,7 +385,10 @@ mod tests {
         let mut app = make_app();
         let mut g = Group::new("G".to_string());
         let mut set = CommandSet::new("S".to_string(), g.id);
-        set.commands.push(Command { position: 0, command: "echo hi".to_string() });
+        set.commands.push(Command {
+            position: 0,
+            command: "echo hi".to_string(),
+        });
         g.sets.push(set);
         app.data = AppData { groups: vec![g] };
         let set = app.data.groups[0].sets[0].clone();
@@ -371,7 +396,10 @@ mod tests {
         app.mode = AppMode::Detail;
 
         let mut saved = app.data.groups[0].sets[0].clone();
-        saved.commands.push(Command { position: 1, command: "echo bye".to_string() });
+        saved.commands.push(Command {
+            position: 1,
+            command: "echo bye".to_string(),
+        });
         app.handle_action(AppAction::SaveSet(saved));
 
         assert_eq!(app.data.groups[0].sets[0].commands.len(), 2);
@@ -387,8 +415,14 @@ mod tests {
         let mut app = make_app();
         let mut g = Group::new("G".to_string());
         let mut set = CommandSet::new("S".to_string(), g.id);
-        set.commands.push(Command { position: 0, command: "a".to_string() });
-        set.commands.push(Command { position: 1, command: "b".to_string() });
+        set.commands.push(Command {
+            position: 0,
+            command: "a".to_string(),
+        });
+        set.commands.push(Command {
+            position: 1,
+            command: "b".to_string(),
+        });
         g.sets.push(set);
         app.data = AppData { groups: vec![g] };
         let set = app.data.groups[0].sets[0].clone();

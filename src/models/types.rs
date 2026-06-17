@@ -104,7 +104,10 @@ impl ShellType {
                 // 用 ends_with 替代 contains，避免误配中间子串（如 /usr/bin/mycmd）
                 let flag = if lower.ends_with("cmd") || lower.ends_with("cmd.exe") {
                     "/C"
-                } else if lower.ends_with("powershell") || lower.ends_with("pwsh") || lower.ends_with("powershell.exe") {
+                } else if lower.ends_with("powershell")
+                    || lower.ends_with("pwsh")
+                    || lower.ends_with("powershell.exe")
+                {
                     "-Command"
                 } else {
                     "-c"

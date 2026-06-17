@@ -90,10 +90,7 @@ impl DetailScreenState {
             DetailFocus::Group | DetailFocus::Shell | DetailFocus::ExecMode
         );
         if show_picker {
-            let split = Layout::horizontal([
-                Constraint::Ratio(1, 2),
-                Constraint::Ratio(1, 2),
-            ]);
+            let split = Layout::horizontal([Constraint::Ratio(1, 2), Constraint::Ratio(1, 2)]);
             let [props_area, picker_area] = split.areas(meta_area);
             self.render_metadata(frame, props_area, theme);
             self.render_picker(frame, picker_area, theme);
@@ -137,7 +134,7 @@ impl DetailScreenState {
                 .unwrap_or(0) as isize,
         };
         let candidate = current + delta;
-        if candidate < 0 || candidate >= 6 {
+        if !(0..6).contains(&candidate) {
             return;
         }
         let next = candidate as usize;

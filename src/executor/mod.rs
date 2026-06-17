@@ -9,11 +9,9 @@ mod async_executor;
 mod blocking;
 pub mod events;
 
-pub use async_executor::{execute_set, substitute_variables};
-pub use blocking::{
-    ExecuteResult, execute_set_blocking, substitute_variables_from_map,
-};
 pub use crate::error::ExecuteError;
+pub use async_executor::{execute_set, substitute_variables};
+pub use blocking::{ExecuteResult, execute_set_blocking, substitute_variables_from_map};
 pub use events::ExecutionEvent;
 
 /// Core variable substitution: replace `{{name}}` placeholders with values.
