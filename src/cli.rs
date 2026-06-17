@@ -413,8 +413,54 @@ fn truncate(s: &str, max: usize) -> String {
 
 // ---- Export ----
 
-fn handle_export(_data: &AppData, _id: Option<String>, _all: bool, _output: Option<String>) {
-    eprintln!("export: not yet implemented");
+fn handle_export(data: &AppData, id: Option<String>, all: bool, output: Option<String>) {
+    let export_data = if all {
+        data.clone()
+    } else if let Some(id_str) = id {
+        let uuid = match Uuid::parse_str(&id_str) {
+            Ok(u) => u,
+            Err(_) => {
+                eprintln!("Invalid UUID: {}", id_str);
+                return;
+            }
+        };
+        let (gi, si) = match data.find_set_by_id(uuid) {
+            Some(idx) => idx,
+            None => {
+                eprintln!("No command set with UUID {}", uuid);
+                return;
+            }
+        };
+        let group = &data.groups[gi];
+        let set = &group.sets[si];
+        crate::models::AppData {
+            groups: vec![crate::models::Group {
+                id: group.id,
+                name: group.name.clone(),
+                sets: vec![set.clone()],
+            }],
+        }
+    } else {
+        eprintln!("Specify --id <uuid> or --all");
+        return;
+    };
+
+    let json = match serde_json::to_string_pretty(&export_data) {
+        Ok(j) => j,
+        Err(e) => {
+            eprintln!("Failed to serialize: {}", e);
+            return;
+        }
+    };
+
+    if let Some(path) = &output {
+        match std::fs::write(path, json) {
+            Ok(_) => eprintln!("Exported to {}", path),
+            Err(e) => eprintln!("{}", CliError::ExportWriteFailed(e.to_string())),
+        }
+    } else {
+        println!("{}", json);
+    }
 }
 
 // ---- Import ----
@@ -606,5 +652,57 @@ mod tests {
         let json = serde_json::to_string_pretty(&output).unwrap();
         let parsed: serde_json::Value = serde_json::from_str(&json).unwrap();
         assert!(parsed["results"].as_array().unwrap().is_empty());
+    }
+
+    // ---- Export tests ----
+
+    #[test]
+    fn test_export_all_creates_valid_json() {
+        let mut g = Group::new("Deploy".to_string());
+        let set = CommandSet::new("Prod".to_string(), g.id);
+        g.sets.push(set);
+        let data = AppData { groups: vec![g] };
+
+        let export_data = data.clone();
+        let json = serde_json::to_string_pretty(&export_data).unwrap();
+        let deserialized: AppData = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized.groups.len(), 1);
+        assert_eq!(deserialized.groups[0].name, "Deploy");
+        assert_eq!(deserialized.groups[0].sets.len(), 1);
+        assert_eq!(deserialized.groups[0].sets[0].name, "Prod");
+    }
+
+    #[test]
+    fn test_export_single_set_minimal_appdata() {
+        let mut g = Group::new("Deploy".to_string());
+        let set = CommandSet::new("Prod".to_string(), g.id);
+        let set_id = set.id;
+        g.sets.push(set);
+        let data = AppData { groups: vec![g] };
+
+        let (gi, si) = data.find_set_by_id(set_id).unwrap();
+        let group = &data.groups[gi];
+        let set = &group.sets[si];
+        let export_data = AppData {
+            groups: vec![Group {
+                id: group.id,
+                name: group.name.clone(),
+                sets: vec![set.clone()],
+            }],
+        };
+
+        let json = serde_json::to_string_pretty(&export_data).unwrap();
+        let deserialized: AppData = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized.groups.len(), 1);
+        assert_eq!(deserialized.groups[0].sets.len(), 1);
+        assert_eq!(deserialized.groups[0].sets[0].id, set_id);
+    }
+
+    #[test]
+    fn test_export_nonexistent_id_returns_none() {
+        let data = AppData::empty();
+        let random_id = Uuid::new_v4();
+        let found = data.find_set_by_id(random_id);
+        assert!(found.is_none());
     }
 }
