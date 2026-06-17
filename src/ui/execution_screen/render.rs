@@ -9,7 +9,7 @@ use ratatui::text::{Line, Span};
 use ratatui::widgets::{Gauge, List, ListItem, Paragraph};
 
 impl ExecutionScreenState {
-    pub(crate) fn render(&self, frame: &mut Frame, area: Rect, theme: &Theme) {
+    pub(crate) fn render(&mut self, frame: &mut Frame, area: Rect, theme: &Theme) {
         let vertical = Layout::vertical([
             Constraint::Length(1),
             Constraint::Length(1),
@@ -167,13 +167,15 @@ impl ExecutionScreenState {
 
         // Footer with key hints
         let footer_text = match (self.focus_index, self.completed, self.continue_from) {
-            (Some(_), _, _) => "[←/→] Browse  [z] Follow  [q] Back",
-            (None, true, None) => " [←/→] Browse  [r] Re-execute  [q] Back",
+            (Some(_), _, _) => "[←/→] Browse  [↑/↓] Scroll  [PgUp/PgDn] Page  [z] Follow  [q] Back",
+            (None, true, None) => {
+                "[←/→] Browse  [↑/↓] Scroll  [PgUp/PgDn] Page  [r] Re-execute  [q] Back"
+            }
             (None, true, Some(_)) => {
-                " [←/→] Browse  [n] Continue from next  [r] Re-execute  [q] Back"
+                "[←/→] Browse  [↑/↓] Scroll  [PgUp/PgDn] Page  [n] Continue  [r] Re-execute  [q] Back"
             }
             (None, false, _) => {
-                " [←/→] Browse  [s] Skip  [z] Auto-scroll  [Ctrl+C] Interrupt  [q] Back"
+                "[←/→] Browse  [↑/↓] Scroll  [PgUp/PgDn] Page  [s] Skip  [z] Follow  [Ctrl+C] Kill  [q] Back"
             }
         };
 
@@ -187,11 +189,10 @@ impl ExecutionScreenState {
 
         // Scroll to focused command, or use auto-scroll offset
         let target_cmd = self.focus_index.unwrap_or(self.current_index);
-        let scroll_offset = if self.focus_index.is_some() || self.auto_scroll {
-            self.items_offset_for_command(target_cmd)
-        } else {
-            self.scroll_offset
-        };
+        if self.focus_index.is_some() || self.auto_scroll {
+            self.scroll_offset = self.items_offset_for_command(target_cmd);
+        }
+        let scroll_offset = self.scroll_offset;
         let mut list_state = ratatui::widgets::ListState::default().with_offset(scroll_offset);
         frame.render_stateful_widget(List::new(items), content_area, &mut list_state);
 
@@ -200,8 +201,8 @@ impl ExecutionScreenState {
             frame,
             scrollbar_area,
             theme,
-            self.cmd_states.len(),
-            target_cmd,
+            self.items_total(),
+            scroll_offset,
         );
 
         render_status_bar(frame, footer_area, theme, footer_text);

@@ -62,7 +62,7 @@ impl App {
                 }
             }
             AppMode::Execution => {
-                if let ExecutionState::Running { ref screen, .. } = self.execution_state {
+                if let ExecutionState::Running { ref mut screen, .. } = self.execution_state {
                     screen.render(frame, content_area, &self.theme);
                 }
             }
@@ -74,7 +74,8 @@ impl App {
                         }
                     }
                     Some(AppMode::Execution) => {
-                        if let ExecutionState::Running { ref screen, .. } = self.execution_state {
+                        if let ExecutionState::Running { ref mut screen, .. } = self.execution_state
+                        {
                             screen.render(frame, content_area, &self.theme);
                         }
                     }
@@ -98,7 +99,8 @@ impl App {
                         }
                     }
                     AppMode::Execution => {
-                        if let ExecutionState::Running { ref screen, .. } = self.execution_state {
+                        if let ExecutionState::Running { ref mut screen, .. } = self.execution_state
+                        {
                             screen.render(frame, content_area, &self.theme);
                         }
                     }
