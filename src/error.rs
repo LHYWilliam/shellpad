@@ -41,6 +41,12 @@ pub enum CliError {
     InvalidVar(String),
     #[error("Missing argument: specify --id or --group --set")]
     MissingArgs,
+    #[error("Failed to read import input: {0}")]
+    ImportReadFailed(String),
+    #[error("Invalid import JSON: {0}")]
+    ImportParseFailed(String),
+    #[error("Failed to write export output: {0}")]
+    ExportWriteFailed(String),
     #[error(transparent)]
     Storage(#[from] StorageError),
     #[error(transparent)]
