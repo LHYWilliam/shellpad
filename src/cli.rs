@@ -42,8 +42,46 @@ enum Commands {
         /// Search groups by name
         #[arg(long, conflicts_with = "set")]
         group: Option<String>,
+
+        /// Output in JSON format
+        #[arg(long)]
+        json: bool,
     },
 }
+
+// ---- JSON output structs ----
+
+#[derive(serde::Serialize)]
+struct SearchOutput {
+    query: String,
+    results: Vec<SearchItem>,
+}
+
+#[derive(serde::Serialize)]
+#[serde(tag = "type")]
+enum SearchItem {
+    Set(SetInfo),
+    Group(GroupInfo),
+}
+
+#[derive(serde::Serialize)]
+struct SetInfo {
+    id: String,
+    name: String,
+    group_name: String,
+    shell: String,
+    exec_mode: String,
+    command_count: usize,
+}
+
+#[derive(serde::Serialize)]
+struct GroupInfo {
+    id: String,
+    name: String,
+    set_count: usize,
+}
+
+// ---- Entry point ----
 
 /// Entry point for CLI mode. Returns `Some(exit_code)` if a CLI subcommand was
 /// given and handled. Returns `None` if no subcommand was given (fall through to TUI).
@@ -68,8 +106,8 @@ pub fn run_cli() -> Option<i32> {
             set,
             var,
         } => Some(handle_run(&data, id, group, set, var)),
-        Commands::Search { set, group } => {
-            handle_search(&data, set, group);
+        Commands::Search { set, group, json } => {
+            handle_search(&data, set, group, json);
             Some(0)
         }
     }
@@ -236,7 +274,50 @@ pub(crate) fn resolve_variables(
 
 // ---- Search ----
 
-fn handle_search(data: &AppData, set_query: Option<String>, group_query: Option<String>) {
+fn handle_search(data: &AppData, set_query: Option<String>, group_query: Option<String>, json: bool) {
+    if json {
+        let (query, results): (String, Vec<SearchItem>) = if let Some(q) = set_query {
+            let items = data
+                .filter_sets(&q)
+                .iter()
+                .map(|&(gi, _si, s)| {
+                    let gname = &data.groups[gi].name;
+                    SearchItem::Set(SetInfo {
+                        id: s.id.to_string(),
+                        name: s.name.clone(),
+                        group_name: gname.clone(),
+                        shell: s.shell.label(),
+                        exec_mode: match s.exec_mode {
+                            crate::models::ExecMode::StopOnError => "stop_on_error".to_string(),
+                            crate::models::ExecMode::ContinueOnError => "continue_on_error".to_string(),
+                        },
+                        command_count: s.commands.len(),
+                    })
+                })
+                .collect();
+            (q, items)
+        } else if let Some(q) = group_query {
+            let items = data
+                .groups
+                .iter()
+                .filter(|g| g.name.to_lowercase().contains(&q.to_lowercase()))
+                .map(|g| {
+                    SearchItem::Group(GroupInfo {
+                        id: g.id.to_string(),
+                        name: g.name.clone(),
+                        set_count: g.sets.len(),
+                    })
+                })
+                .collect();
+            (q, items)
+        } else {
+            return;
+        };
+        let output = SearchOutput { query, results };
+        println!("{}", serde_json::to_string_pretty(&output).unwrap());
+        return;
+    }
+
     if let Some(query) = set_query {
         let results = data.filter_sets(&query);
         if results.is_empty() {
@@ -408,5 +489,65 @@ mod tests {
         }
         assert_eq!(overrides_map.len(), 2);
         assert_eq!(overrides_map.get("key").unwrap(), "value");
+    }
+
+    #[test]
+    fn test_search_set_json_returns_valid_object() {
+        let mut g = Group::new("Deploy".to_string());
+        g.sets.push(CommandSet::new("Prod".to_string(), g.id));
+        let data = AppData { groups: vec![g] };
+
+        let items: Vec<SearchItem> = data
+            .filter_sets("P")
+            .iter()
+            .map(|&(gi, _si, s)| {
+                SearchItem::Set(SetInfo {
+                    id: s.id.to_string(),
+                    name: s.name.clone(),
+                    group_name: data.groups[gi].name.clone(),
+                    shell: s.shell.label(),
+                    exec_mode: "stop_on_error".to_string(),
+                    command_count: s.commands.len(),
+                })
+            })
+            .collect();
+        let output = SearchOutput { query: "P".to_string(), results: items };
+        let json = serde_json::to_string_pretty(&output).unwrap();
+        let parsed: serde_json::Value = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed["query"], "P");
+        assert_eq!(parsed["results"].as_array().unwrap().len(), 1);
+    }
+
+    #[test]
+    fn test_search_group_json_returns_valid_object() {
+        let mut g = Group::new("Dev".to_string());
+        g.sets.push(CommandSet::new("S".to_string(), g.id));
+        let data = AppData { groups: vec![g] };
+
+        let items: Vec<SearchItem> = data
+            .groups
+            .iter()
+            .filter(|grp| grp.name.to_lowercase().contains("d"))
+            .map(|grp| {
+                SearchItem::Group(GroupInfo {
+                    id: grp.id.to_string(),
+                    name: grp.name.clone(),
+                    set_count: grp.sets.len(),
+                })
+            })
+            .collect();
+        let output = SearchOutput { query: "d".to_string(), results: items };
+        let json = serde_json::to_string_pretty(&output).unwrap();
+        let parsed: serde_json::Value = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed["results"].as_array().unwrap().len(), 1);
+    }
+
+    #[test]
+    fn test_search_no_results_json_empty_list() {
+        let data = AppData::empty();
+        let output = SearchOutput { query: "none".to_string(), results: vec![] };
+        let json = serde_json::to_string_pretty(&output).unwrap();
+        let parsed: serde_json::Value = serde_json::from_str(&json).unwrap();
+        assert!(parsed["results"].as_array().unwrap().is_empty());
     }
 }
