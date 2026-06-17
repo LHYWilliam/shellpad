@@ -54,7 +54,7 @@ impl MainScreenState {
                 let pad = avail.saturating_sub(name_width + count.len());
                 let label = format!("{}{:>pad$}{}", name, "", count, pad = pad);
                 let style = if i == self.group_list.selected {
-                    theme.selected_style(theme.selection_bg_primary)
+                    theme.selected_style()
                 } else {
                     theme.normal_style()
                 };
@@ -69,7 +69,7 @@ impl MainScreenState {
         let mut list_state = ratatui::widgets::ListState::default()
             .with_selected(self.group_list.selected_or_none(data.groups.len()));
         let list =
-            List::new(items).highlight_style(theme.selected_style(theme.selection_bg_primary));
+            List::new(items).highlight_style(theme.selected_style());
         frame.render_stateful_widget(list, list_area, &mut list_state);
 
         // Render scrollbar
@@ -153,7 +153,7 @@ impl MainScreenState {
                 let cmd_count = set.commands.len();
                 let is_selected = i == self.set_list.selected && self.active_panel == Panel::Sets;
                 let text_style = if is_selected {
-                    theme.selected_style(theme.selection_bg_secondary)
+                    theme.selected_style()
                 } else {
                     theme.normal_style()
                 };
@@ -231,7 +231,7 @@ impl MainScreenState {
         };
         let mut list_state = ratatui::widgets::ListState::default().with_selected(selected);
         let list =
-            List::new(items).highlight_style(theme.selected_style(theme.selection_bg_secondary));
+            List::new(items).highlight_style(theme.selected_style());
         frame.render_stateful_widget(list, list_area, &mut list_state);
 
         // Render scrollbar

@@ -101,7 +101,7 @@ impl VariableScreenState {
         for i in 0..count {
             let focused = i == self.focus;
             let row_style = if focused {
-                theme.selected_style(theme.selection_bg_primary)
+                theme.selected_style()
             } else {
                 theme.normal_style()
             };

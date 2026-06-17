@@ -163,12 +163,9 @@ pub fn fill_row(line: Line<'_>, fill_style: Style, target_width: u16) -> Line<'_
 /// Determine the style for a list item based on its editing/selection state.
 pub fn list_item_style(is_editing: bool, is_selected: bool, theme: &Theme) -> Style {
     if is_editing {
-        Style::default()
-            .fg(theme.text_on_selected)
-            .bg(theme.accent_primary)
-            .add_modifier(Modifier::BOLD)
+        theme.editing_style()
     } else if is_selected {
-        theme.selected_style(theme.selection_bg_secondary)
+        theme.selected_style()
     } else {
         theme.normal_style()
     }

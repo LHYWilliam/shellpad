@@ -81,7 +81,7 @@ impl DetailScreenState {
             .map(|g| g.name.as_str())
             .unwrap_or("(unknown)");
         let group_style = if self.focus == DetailFocus::Group {
-            Style::default().fg(theme.accent_primary)
+            theme.selected_style()
         } else {
             theme.normal_style()
         };
@@ -97,7 +97,7 @@ impl DetailScreenState {
 
         // Shell
         let shell_style = if self.focus == DetailFocus::Shell {
-            Style::default().fg(theme.accent_primary)
+            theme.selected_style()
         } else {
             theme.normal_style()
         };
@@ -113,7 +113,7 @@ impl DetailScreenState {
 
         // Exec mode
         let mode_style = if self.focus == DetailFocus::ExecMode {
-            Style::default().fg(theme.accent_primary)
+            theme.selected_style()
         } else {
             theme.normal_style()
         };
@@ -140,20 +140,15 @@ impl DetailScreenState {
         display: &str,
         dim: bool,
     ) {
-        let style = if focused {
-            if editing {
-                Style::default()
-                    .fg(theme.text_on_selected)
-                    .bg(theme.accent_primary)
-                    .add_modifier(Modifier::BOLD)
-            } else {
-                Style::default().fg(theme.accent_primary)
-            }
+        let style = if editing {
+            theme.editing_style()
+        } else if focused {
+            theme.selected_style()
         } else {
             theme.normal_style()
         };
 
-        let display_style = if dim && !focused {
+        let display_style = if dim && !focused && !editing {
             Style::default()
                 .fg(theme.text_disabled)
                 .add_modifier(Modifier::DIM)
