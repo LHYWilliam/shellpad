@@ -13,7 +13,7 @@
 - Per-command-set working directory support
 - Search with match highlighting and standalone Search block
 - Toast notification stack with bordered blocks, bottom-right
-- CLI mode: `launcher run`, `launcher search --json`
+- CLI mode: `shellpad run`, `shellpad search --json`
 - 231 tests across handler, executor, widget, integration, CLI
 
 ### Visual

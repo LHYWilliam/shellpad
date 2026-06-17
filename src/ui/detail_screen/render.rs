@@ -60,7 +60,7 @@ impl DetailScreenState {
             self.focus == DetailFocus::WorkDir,
             self.workdir_editing,
             &self.workdir_input,
-            self.set.working_dir.as_deref().unwrap_or("(default — launcher CWD)"),
+            self.set.working_dir.as_deref().unwrap_or("(default — shellpad CWD)"),
             self.set.working_dir.is_none(),
         );
 

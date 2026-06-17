@@ -5,9 +5,9 @@ use std::collections::HashMap;
 use std::io::{self, Write};
 use uuid::Uuid;
 
-/// Launcher — command set manager and executor
+/// shellpad — command set manager and executor
 #[derive(Parser)]
-#[command(name = "launcher", version, about)]
+#[command(name = "shellpad", version, about)]
 struct Cli {
     #[command(subcommand)]
     command: Option<Commands>,
