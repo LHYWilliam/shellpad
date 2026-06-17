@@ -1,96 +1,179 @@
 # Launcher
 
-A Ratatui-based TUI for managing and executing collections of shell commands.
+[![CI](https://github.com/LHYLiuWilliam/launcher/actions/workflows/test.yml/badge.svg)](https://github.com/LHYLiuWilliam/launcher/actions/workflows/test.yml)
+![Rust](https://img.shields.io/badge/rust-1.85%2B-blue)
+![License](https://img.shields.io/badge/license-MIT-green)
+
+A Ratatui-based TUI for organising and executing collections of shell commands.
+Inspired by task runners like `just` and `make`, but interactive.
 
 ![screenshot](docs/screenshot.png)
 
 ## Features
 
-- **Command Sets** — Organize shell commands into named groups and sets
-- **Dual Execution Modes** — Stop on error or continue on error
-- **Variables** — Template substitution with `{{var}}` syntax
-- **Real-time Output** — Stream command output in the TUI execution screen
-- **CLI Mode** — Execute command sets directly from the terminal (`launcher run --id <uuid>`)
-- **Search** — Filter command sets by name across all groups
-- **Atomic Persistence** — Crash-safe JSON save with `.tmp` → `rename` pattern
+- **Command Sets** — Group shell commands into named groups and sets, edit inline
+- **Dual Execution Modes** — Stop on error or continue on error per command set
+- **Variables** — Template substitution with `{{var}}` syntax, configure per-execution
+- **Real-time Output** — Stream stdout/stderr with per-command status, auto-scroll, skip
+- **Working Directory** — Set a per-command-set working directory, defaults to launcher CWD
+- **Search** — Filter command sets across all groups, with match highlighting
+- **Reordering** — Ctrl+Up/Down reorder groups, sets, variables, and commands
+- **Delete Confirmation** — Modal confirmation dialog with Confirm/Cancel buttons
+- **Three-layer Tab Navigation** — Tab cycles Properties → Variables → Commands, ↑/↓ selects within region
+- **Option Picker** — Browse available Group/Shell/ExecMode choices in a side panel
+- **Atomic Persistence** — Crash-safe JSON save at `~/.config/launcher/sets.json`
+- **CLI Mode** — Execute command sets directly from the terminal with variable overrides
+- **228 Tests** — Comprehensive unit, handler, and integration test coverage
 
 ## Installation
 
 ```bash
-git clone <repo-url>
+# From source
+git clone https://github.com/LHYLiuWilliam/launcher
 cd launcher
-cargo build --release
+cargo install --path .
 ```
 
-The binary will be at `target/release/launcher`.
+The binary is `launcher`. It requires a terminal ≥ 80×24.
 
 ## Usage
 
 ### TUI mode
 
-Run without arguments to start the interactive TUI:
-
 ```bash
 launcher
 ```
 
-**Keyboard shortcuts:**
+**Main Screen:**
 
 | Key | Action |
 |-----|--------|
-| `↑/↓` / `j/k` | Navigate lists |
-| `←/→` | Switch panel (Groups / Sets) |
-| `Enter` | Execute a command set |
-| `e` | Edit a command set |
+| `↑/↓` / `j/k` | Navigate list |
+| `←/→` | Switch between Groups / Sets panel |
+| `Ctrl+↑/↓` | Reorder group or set |
+| `Enter` | Execute selected command set |
+| `e` | Edit selected command set |
 | `n` | New command set |
-| `d` | Delete command set |
-| `Shift+D` | Delete group |
+| `d` | Delete (with confirmation dialog) |
+| `D` | Delete group (with confirmation dialog) |
 | `g` | New group |
 | `R` | Rename group |
 | `/` | Search command sets |
-| `?` / `Ctrl+H` | Help overlay |
-| `Tab` | Next focus (edit screen) |
-| `Ctrl+S` | Save (edit screen) |
-| `Esc` | Cancel / Back |
 | `q` | Quit |
+| `?` | Help overlay |
+
+**Detail/Edit Screen:**
+
+| Key | Action |
+|-----|--------|
+| `Tab` / `Shift+Tab` | Cycle between Properties / Variables / Commands |
+| `↑/↓` | Within Properties: cycle fields. Within lists: navigate items |
+| `←/→` | Change group, shell, or execution mode |
+| `Ctrl+↑/↓` | Reorder variable or command |
+| `Enter` | Edit focused field / item |
+| `a` | Add new variable or command |
+| `d` | Delete (with confirmation dialog) |
+| `Ctrl+S` | Save and return to main screen |
+| `Esc` | Cancel and return to main screen |
+
+**Execution Screen:**
+
+| Key | Action |
+|-----|--------|
+| `←/→` | Browse output of other commands |
+| `z` | Toggle auto-scroll / follow current |
+| `s` | Skip current command |
+| `Ctrl+C` | Interrupt running command |
+| `n` | Continue from next skipped command |
+| `r` | Re-execute all from beginning |
+| `q` | Back to main |
+| `?` | Help overlay |
 
 ### CLI mode
 
 ```bash
-# Run a command set by UUID
+# Execute a command set by UUID
 launcher run --id <uuid>
 
-# Run a command set by group and set name
-launcher run --group "My Group" --set "My Set"
+# Execute by group and set name
+launcher run --group "Deploy" --set "Prod"
 
-# Use variable defaults without prompting
-launcher run --group G --set S --var default
+# Use variable defaults (skip prompting)
+launcher run --group Deploy --set Prod --var default
 
-# Override variables
-launcher run --group G --set S --var host=prod
+# Override variable values
+launcher run --group Deploy --set Prod --var host=prod.example.com
 
 # Search command sets
 launcher search --set "deploy"
 
 # Search groups
-launcher search --group "dev"
+launcher search --group "infra"
 ```
 
-## Data
+## Storage
 
-Command sets are stored at `~/.config/launcher/sets.json`. The file is atomically written (write to `.tmp` → `fsync` → `rename`). If the file becomes corrupted, it is automatically backed up to `sets.json.bak`.
+Data is stored at `~/.config/launcher/sets.json`. The file is atomically updated
+(write to `.tmp` → `fsync` → `rename`). Corrupted files are backed up to
+`sets.json.bak` on read.
 
 ## Architecture
 
-See [docs/architecture.md](docs/architecture.md) for a detailed architecture overview.
+```
+src/
+├── app/                    # App state machine
+│   ├── handler.rs          # Action dispatch (50 handler tests)
+│   ├── render.rs           # Main frame render
+│   ├── execution.rs        # ExecutionManager (thread lifecycle)
+│   └── toast.rs            # Toast notifications
+├── executor/               # Background thread execution
+│   ├── async_executor.rs   # TUI mode, mpsc streaming
+│   ├── blocking.rs         # CLI mode, synchronous
+│   └── events.rs           # Execution event types
+├── ui/                     # Terminal UI
+│   ├── main_screen/        # Dual-panel list (groups + sets), search
+│   ├── detail_screen/      # Full-screen form editor, option picker
+│   ├── execution_screen/   # Real-time command output
+│   ├── help_screen.rs      # Keyboard shortcuts overlay
+│   ├── variable_screen.rs  # Variable prompt dialog
+│   ├── confirm_dialog.rs   # Delete confirmation dialog
+│   ├── theme.rs            # Centralised colour palette
+│   ├── render.rs           # Shared rendering helpers
+│   └── widget/             # Reusable widgets (TextInput, List, etc.)
+├── models/                 # Data model (serde-serialised)
+├── cli.rs                  # Clap argument parsing
+├── storage.rs              # Atomic JSON persistence
+└── error.rs                # Error types (thiserror)
+```
 
-## Dependencies
+Data flow:
 
-- [Ratatui](https://ratatui.rs/) — TUI framework
-- [Crossterm](https://github.com/crossterm-rs/crossterm) — Terminal backend
-- [Clap](https://docs.rs/clap/) — CLI argument parsing
-- [Serde](https://serde.rs/) — JSON serialization
-- [UUID](https://docs.rs/uuid/) — Unique identifiers
-- [Chrono](https://docs.rs/chrono/) — Timestamps
-- [Directories](https://docs.rs/directories/) — XDG config paths
-- [unicode-width](https://docs.rs/unicode-width/) — Unicode-safe cursor positioning
+```
+User keypress → screen.handle_key() → AppAction
+  → app/handler.rs:handle_action() → mutate self.data
+  → auto_save() → frame redraw → screen.render()
+```
+
+Execution runs on a background `std::thread` with `mpsc` channel streaming:
+
+```
+handler: confirm → do_execute()
+  → ExecutionManager::start() → executor::execute_set()
+  → spawn shell commands → pipe stdout/stderr
+  → send ExecutionEvent via mpsc → event loop polls each tick
+  → screen.process_events() updates command states
+```
+
+## Development
+
+```bash
+cargo build              # Build
+cargo run                # Run TUI (requires real terminal)
+cargo test               # Run all 228 tests
+cargo check              # Fast compilation check
+cargo clippy             # Lint
+```
+
+## License
+
+MIT
