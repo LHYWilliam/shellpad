@@ -39,6 +39,7 @@ pub struct ExecutionScreenState {
     pub failed: usize,
     pub skipped: usize,
     pub completed: bool,
+    pub paused: bool,
     pub continue_from: Option<usize>,
     pub total_duration_ms: Option<u128>,
     pub auto_scroll: bool,
@@ -71,6 +72,7 @@ impl ExecutionScreenState {
             failed: 0,
             skipped: 0,
             completed: false,
+            paused: false,
             continue_from: None,
             total_duration_ms: None,
             auto_scroll: true,
@@ -103,17 +105,15 @@ impl ExecutionScreenState {
 
         match key.code {
             KeyCode::Char('q') => AppAction::BackToMain,
+            KeyCode::Char('s') if !self.completed && !self.paused => AppAction::Pause,
+            KeyCode::Char('n') if self.paused && !self.completed => AppAction::Continue,
             KeyCode::Char('c')
                 if key
                     .modifiers
-                    .contains(crossterm::event::KeyModifiers::CONTROL) =>
+                    .contains(crossterm::event::KeyModifiers::CONTROL)
+                    && !self.completed =>
             {
-                AppAction::SkipCurrent
-            }
-            KeyCode::Char('s') if !self.completed => AppAction::SkipCurrent,
-            KeyCode::Char('n') if self.completed && self.continue_from.is_some() => {
-                let start = self.continue_from.unwrap_or(0);
-                AppAction::ContinueFrom(start)
+                AppAction::Abort
             }
             KeyCode::Char('r') if self.completed => AppAction::ReExec,
             KeyCode::Left => {

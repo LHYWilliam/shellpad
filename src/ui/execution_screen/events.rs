@@ -23,7 +23,6 @@ impl ExecutionScreenState {
     /// Mark all remaining Pending commands as Skipped.
     /// Called after the execution thread is stopped (Skip or Interrupt).
     pub(crate) fn mark_remaining_as_skipped(&mut self) {
-        self.completed = true;
         for (i, state) in self.cmd_states.iter_mut().enumerate() {
             if state.status == CmdStatus::Pending {
                 state.status = CmdStatus::Skipped;
@@ -94,15 +93,20 @@ impl ExecutionScreenState {
                     success,
                     duration_ms,
                     exit_code,
+                    skipped,
                 } => {
                     if index < self.cmd_states.len() {
-                        self.cmd_states[index].status = if success {
+                        if skipped {
+                            self.cmd_states[index].status = CmdStatus::Skipped;
+                            self.skipped += 1;
+                            self.continue_from = Some(index);
+                        } else if success {
+                            self.cmd_states[index].status = CmdStatus::Success;
                             self.succeeded += 1;
-                            CmdStatus::Success
                         } else {
+                            self.cmd_states[index].status = CmdStatus::Failure;
                             self.failed += 1;
-                            CmdStatus::Failure
-                        };
+                        }
                         self.cmd_states[index].duration_ms = Some(duration_ms);
                         self.cmd_states[index].exit_code = exit_code;
                     }
