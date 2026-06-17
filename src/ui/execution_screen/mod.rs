@@ -40,6 +40,7 @@ pub struct ExecutionScreenState {
     pub skipped: usize,
     pub completed: bool,
     pub paused: bool,
+    pub deferring: bool,
     pub continue_from: Option<usize>,
     pub total_duration_ms: Option<u128>,
     pub auto_scroll: bool,
@@ -73,6 +74,7 @@ impl ExecutionScreenState {
             skipped: 0,
             completed: false,
             paused: false,
+            deferring: false,
             continue_from: None,
             total_duration_ms: None,
             auto_scroll: true,
@@ -105,13 +107,18 @@ impl ExecutionScreenState {
 
         match key.code {
             KeyCode::Char('q') => AppAction::BackToMain,
-            KeyCode::Char('s') if !self.completed && !self.paused => AppAction::Pause,
-            KeyCode::Char('n') if self.paused && !self.completed => AppAction::Continue,
+            KeyCode::Char('s') if !self.completed && !self.paused && !self.deferring => {
+                AppAction::Pause
+            }
+            KeyCode::Char('n') if self.paused && !self.completed && !self.deferring => {
+                AppAction::Continue
+            }
             KeyCode::Char('c')
                 if key
                     .modifiers
                     .contains(crossterm::event::KeyModifiers::CONTROL)
-                    && !self.completed =>
+                    && !self.completed
+                    && !self.deferring =>
             {
                 AppAction::Abort
             }

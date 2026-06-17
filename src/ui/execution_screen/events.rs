@@ -56,6 +56,9 @@ impl ExecutionScreenState {
                         self.cmd_states[index].status = CmdStatus::Running;
                         self.cmd_states[index].command = command;
                         self.current_index = index;
+                        if self.cmd_states[index].defer {
+                            self.deferring = true;
+                        }
                         if self.auto_scroll {
                             self.scroll_offset = self.items_offset_for_command(index);
                             self.focus_index = None;
