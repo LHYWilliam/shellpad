@@ -258,4 +258,146 @@ mod tests {
         app.handle_action(AppAction::SaveSet(saved_set));
         assert_eq!(app.data.groups[0].sets[0].working_dir, None);
     }
+
+    // ------------------------------------------------------------------
+    // 5.9 SaveSet with group change moves to target
+    // ------------------------------------------------------------------
+    #[test]
+    fn test_save_set_with_group_change_moves_to_target() {
+        let mut app = make_app();
+        let mut g1 = Group::new("Deploy".to_string());
+        let set = CommandSet::new("Prod".to_string(), g1.id);
+        g1.sets.push(set);
+        let g2 = Group::new("Infra".to_string());
+        app.data = AppData { groups: vec![g1, g2] };
+        let set = app.data.groups[0].sets[0].clone();
+        let groups = app.data.groups.clone();
+        app.detail_screen = Some(DetailScreenState::new(set, groups));
+        app.mode = AppMode::Detail;
+
+        let mut saved = app.data.groups[0].sets[0].clone();
+        saved.group_id = app.data.groups[1].id;
+        app.handle_action(AppAction::SaveSet(saved));
+
+        assert_eq!(app.mode, AppMode::Main);
+        assert!(app.data.groups[0].sets.is_empty());
+        assert_eq!(app.data.groups[1].sets.len(), 1);
+        assert_eq!(app.data.groups[1].sets[0].group_id, app.data.groups[1].id);
+    }
+
+    // ------------------------------------------------------------------
+    // 5.10 SaveSet with name change persists
+    // ------------------------------------------------------------------
+    #[test]
+    fn test_save_set_with_name_change_persists() {
+        let mut app = make_app();
+        let mut g = Group::new("G".to_string());
+        g.sets.push(CommandSet::new("Old".to_string(), g.id));
+        app.data = AppData { groups: vec![g] };
+        let set = app.data.groups[0].sets[0].clone();
+        app.detail_screen = Some(DetailScreenState::new(set, app.data.groups.clone()));
+        app.mode = AppMode::Detail;
+
+        let mut saved = app.data.groups[0].sets[0].clone();
+        saved.name = "New Name".to_string();
+        app.handle_action(AppAction::SaveSet(saved));
+
+        assert_eq!(app.data.groups[0].sets[0].name, "New Name");
+    }
+
+    // ------------------------------------------------------------------
+    // 5.11 Add variable + Save persists
+    // ------------------------------------------------------------------
+    #[test]
+    fn test_add_variable_then_save_persists() {
+        let mut app = make_app();
+        let mut g = Group::new("G".to_string());
+        let mut set = CommandSet::new("S".to_string(), g.id);
+        set.variables.push(Variable { name: "host".to_string(), default_value: "".to_string() });
+        g.sets.push(set);
+        app.data = AppData { groups: vec![g] };
+        let set = app.data.groups[0].sets[0].clone();
+        app.detail_screen = Some(DetailScreenState::new(set, app.data.groups.clone()));
+        app.mode = AppMode::Detail;
+
+        let mut saved = app.data.groups[0].sets[0].clone();
+        saved.variables.push(Variable { name: "port".to_string(), default_value: "8080".to_string() });
+        app.handle_action(AppAction::SaveSet(saved));
+
+        assert_eq!(app.data.groups[0].sets[0].variables.len(), 2);
+        assert_eq!(app.data.groups[0].sets[0].variables[1].name, "port");
+    }
+
+    // ------------------------------------------------------------------
+    // 5.12 Delete variable + Save persists
+    // ------------------------------------------------------------------
+    #[test]
+    fn test_delete_variable_then_save_persists() {
+        let mut app = make_app();
+        let mut g = Group::new("G".to_string());
+        let mut set = CommandSet::new("S".to_string(), g.id);
+        set.variables.push(Variable { name: "a".to_string(), default_value: "".to_string() });
+        set.variables.push(Variable { name: "b".to_string(), default_value: "".to_string() });
+        g.sets.push(set);
+        app.data = AppData { groups: vec![g] };
+        let set = app.data.groups[0].sets[0].clone();
+        app.detail_screen = Some(DetailScreenState::new(set, app.data.groups.clone()));
+        app.mode = AppMode::Detail;
+
+        let mut saved = app.data.groups[0].sets[0].clone();
+        saved.variables.remove(0);
+        app.handle_action(AppAction::SaveSet(saved));
+
+        assert_eq!(app.data.groups[0].sets[0].variables.len(), 1);
+        assert_eq!(app.data.groups[0].sets[0].variables[0].name, "b");
+    }
+
+    // ------------------------------------------------------------------
+    // 5.13 Add command + Save persists
+    // ------------------------------------------------------------------
+    #[test]
+    fn test_add_command_then_save_persists() {
+        use crate::models::Command;
+        let mut app = make_app();
+        let mut g = Group::new("G".to_string());
+        let mut set = CommandSet::new("S".to_string(), g.id);
+        set.commands.push(Command { position: 0, command: "echo hi".to_string() });
+        g.sets.push(set);
+        app.data = AppData { groups: vec![g] };
+        let set = app.data.groups[0].sets[0].clone();
+        app.detail_screen = Some(DetailScreenState::new(set, app.data.groups.clone()));
+        app.mode = AppMode::Detail;
+
+        let mut saved = app.data.groups[0].sets[0].clone();
+        saved.commands.push(Command { position: 1, command: "echo bye".to_string() });
+        app.handle_action(AppAction::SaveSet(saved));
+
+        assert_eq!(app.data.groups[0].sets[0].commands.len(), 2);
+        assert_eq!(app.data.groups[0].sets[0].commands[1].command, "echo bye");
+    }
+
+    // ------------------------------------------------------------------
+    // 5.14 Delete command + Save persists
+    // ------------------------------------------------------------------
+    #[test]
+    fn test_delete_command_then_save_persists() {
+        use crate::models::Command;
+        let mut app = make_app();
+        let mut g = Group::new("G".to_string());
+        let mut set = CommandSet::new("S".to_string(), g.id);
+        set.commands.push(Command { position: 0, command: "a".to_string() });
+        set.commands.push(Command { position: 1, command: "b".to_string() });
+        g.sets.push(set);
+        app.data = AppData { groups: vec![g] };
+        let set = app.data.groups[0].sets[0].clone();
+        app.detail_screen = Some(DetailScreenState::new(set, app.data.groups.clone()));
+        app.mode = AppMode::Detail;
+
+        let mut saved = app.data.groups[0].sets[0].clone();
+        saved.commands.remove(0);
+        app.handle_action(AppAction::SaveSet(saved));
+
+        assert_eq!(app.data.groups[0].sets[0].commands.len(), 1);
+        assert_eq!(app.data.groups[0].sets[0].commands[0].command, "b");
+    }
 }
