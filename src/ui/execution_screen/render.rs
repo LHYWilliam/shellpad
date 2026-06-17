@@ -66,6 +66,7 @@ impl ExecutionScreenState {
         for (i, state) in self.cmd_states.iter().enumerate() {
             // Command header
             let status_symbol = match (&state.status, state.exit_code) {
+                (CmdStatus::Pending, _) if state.defer => "▽".to_string(),
                 (CmdStatus::Pending, _) => "○".to_string(),
                 (CmdStatus::Running, _) => "▶".to_string(),
                 (CmdStatus::Success, _) => "✓".to_string(),

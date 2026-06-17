@@ -27,6 +27,7 @@ pub(crate) struct CmdState {
     duration_ms: Option<u128>,
     pub(crate) truncated: bool,
     pub(crate) exit_code: Option<i32>,
+    pub(crate) defer: bool,
 }
 
 pub struct ExecutionScreenState {
@@ -57,6 +58,7 @@ impl ExecutionScreenState {
                 duration_ms: None,
                 truncated: false,
                 exit_code: None,
+                defer: false,
             })
             .collect();
 
