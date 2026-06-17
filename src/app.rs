@@ -15,6 +15,7 @@ use crate::ui::detail_screen::DetailScreenState;
 use crate::ui::execution_screen::ExecutionScreenState;
 use crate::ui::main_screen::MainScreenState;
 use crate::ui::theme::Theme;
+use crate::ui::toast::ToastSeverity;
 use crate::ui::variable_screen::VariableScreenState;
 use crossterm::event::{self, Event, KeyEventKind};
 use std::io;
@@ -112,6 +113,10 @@ impl App {
                 && let Some(ref rx) = manager.rx
             {
                 screen.process_events(rx);
+                if screen.output_truncated {
+                    screen.output_truncated = false;
+                    self.toasts.add("Output truncated", ToastSeverity::Info);
+                }
             }
         }
         Ok(())
