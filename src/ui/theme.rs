@@ -96,31 +96,10 @@ impl Theme {
         Style::default().fg(self.text_primary)
     }
 
-    /// Style for a focused (but not editing) label.
-    pub fn focused_style(&self) -> Style {
-        Style::default().fg(self.accent_primary)
-    }
-
-    /// Style for disabled/empty-state text.
-    pub fn disabled_style(&self) -> Style {
-        Style::default()
-            .fg(self.text_disabled)
-            .add_modifier(Modifier::ITALIC)
-    }
-
     /// Style for status bar / dim hints.
     pub fn dim_style(&self) -> Style {
         Style::default()
             .fg(self.text_secondary)
             .add_modifier(Modifier::DIM)
-    }
-
-    /// Style for a block border that optionally highlights on focus.
-    pub fn border_style(&self, focused: bool) -> Style {
-        Style::default().fg(if focused {
-            self.accent_primary
-        } else {
-            self.surface_border
-        })
     }
 }
