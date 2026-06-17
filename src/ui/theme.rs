@@ -78,15 +78,15 @@ impl Theme {
             accent_error: Color::Rgb(243, 139, 168),           // red
             accent_warning: Color::Rgb(249, 226, 175),         // yellow
             accent_info: Color::Rgb(137, 220, 235),            // sky
-            selection_bg: Color::Rgb(60, 70, 110),             // muted indigo-blue
-            editing_bg: Color::Rgb(50, 85, 65),                 // muted green
+            selection_bg: Color::Rgb(70, 82, 125),             // muted indigo-blue
+            editing_bg: Color::Rgb(60, 95, 75),                 // muted green
         }
     }
 
     /// Style for a selected/highlighted list item.
     pub fn selected_style(&self) -> Style {
         Style::default()
-            .fg(self.text_on_selected)
+            .fg(self.text_primary)
             .bg(self.selection_bg)
             .add_modifier(Modifier::BOLD)
     }
@@ -94,7 +94,7 @@ impl Theme {
     /// Style for an inline editing field.
     pub fn editing_style(&self) -> Style {
         Style::default()
-            .fg(self.text_on_selected)
+            .fg(self.text_primary)
             .bg(self.editing_bg)
             .add_modifier(Modifier::BOLD)
     }
