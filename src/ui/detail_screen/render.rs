@@ -356,10 +356,7 @@ impl DetailScreenState {
             && insert_at.is_some()
             && let Some(label) = &preview_label
         {
-            let style = Style::default()
-                .fg(theme.text_on_selected)
-                .bg(theme.accent_primary)
-                .add_modifier(Modifier::BOLD);
+            let style = theme.editing_style();
             let preview = styled_list_item(label.clone(), style, list_area.width);
             let pos = insert_at.unwrap_or(idx.min(items.len()));
             items.insert(pos, preview);
