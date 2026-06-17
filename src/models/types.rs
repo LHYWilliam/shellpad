@@ -184,6 +184,10 @@ pub struct CommandSet {
     pub exec_mode: ExecMode,
     pub variables: Vec<Variable>,
     pub commands: Vec<Command>,
+    /// Commands that run after all normal commands complete, regardless of
+    /// success/failure/interrupt. Previous data deserializes with an empty vec.
+    #[serde(default)]
+    pub defer_commands: Vec<Command>,
     pub working_dir: Option<String>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
@@ -200,6 +204,7 @@ impl CommandSet {
             exec_mode: ExecMode::StopOnError,
             variables: Vec::new(),
             commands: Vec::new(),
+            defer_commands: Vec::new(),
             working_dir: None,
             created_at: now,
             updated_at: now,
@@ -334,5 +339,19 @@ mod tests {
         let group_id = Uuid::new_v4();
         let set = CommandSet::new("Test".to_string(), group_id);
         assert_eq!(set.working_dir, None);
+    }
+
+    #[test]
+    fn test_command_set_defer_commands_defaults_empty() {
+        let group_id = Uuid::new_v4();
+        let set = CommandSet::new("Test".to_string(), group_id);
+        assert!(set.defer_commands.is_empty());
+    }
+
+    #[test]
+    fn test_command_set_defer_commands_serde_backwards_compat() {
+        let json = r#"{"id":"00000000-0000-0000-0000-000000000001","name":"S","group_id":"00000000-0000-0000-0000-000000000002","shell":"bash","exec_mode":"stop_on_error","variables":[],"commands":[],"working_dir":null,"created_at":"2025-01-01T00:00:00Z","updated_at":"2025-01-01T00:00:00Z"}"#;
+        let set: CommandSet = serde_json::from_str(json).unwrap();
+        assert!(set.defer_commands.is_empty());
     }
 }
