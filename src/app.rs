@@ -197,14 +197,7 @@ impl App {
             ..
         } = self.execution_state
         {
-            if keep_screen {
-                // Interrupt normal commands, but keep channel alive so defer
-                // commands can stream output. Thread will exit naturally after
-                // Phase 2 completes (or second Ctrl+C during defer).
-                manager.interrupt();
-            } else {
-                manager.kill();
-            }
+            manager.kill();
             if mark_skipped {
                 screen.mark_remaining_as_skipped();
             }

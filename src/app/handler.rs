@@ -319,17 +319,29 @@ impl App {
                 self.teardown_execution(false, false);
                 self.mode = AppMode::Main;
             }
-            AppAction::SkipCurrent => {
-                self.teardown_execution(true, true);
-                self.mode = AppMode::Execution;
-            }
-            AppAction::ContinueFrom(start) => {
-                if let ExecutionState::Running {
-                    pending_set: (gi, si),
-                    ..
-                } = self.execution_state
+            AppAction::Pause => {
+                if let ExecutionState::Running { ref mut screen, ref manager, .. } =
+                    self.execution_state
                 {
-                    self.do_execute_with(gi, si, start);
+                    manager.skip_current();
+                    screen.paused = true;
+                }
+            }
+            AppAction::Continue => {
+                if let ExecutionState::Running { ref mut screen, ref manager, .. } =
+                    self.execution_state
+                {
+                    manager.continue_next();
+                    screen.paused = false;
+                }
+            }
+            AppAction::Abort => {
+                if let ExecutionState::Running { ref mut screen, ref manager, .. } =
+                    self.execution_state
+                {
+                    manager.abort_all();
+                    screen.paused = false;
+                    screen.mark_remaining_as_skipped();
                 }
             }
             AppAction::ReExec => {
@@ -832,16 +844,17 @@ mod tests {
         };
         app.mode = AppMode::Execution;
 
-        app.handle_action(AppAction::SkipCurrent);
-        // skip_current calls teardown_execution(true, true) → keeps screen + marks skipped
+        app.handle_action(AppAction::Abort);
+        // Abort marks remaining as Skipped, keeps screen
         assert_eq!(app.mode, AppMode::Execution);
         assert!(matches!(
             app.execution_state,
             ExecutionState::Running { .. }
         ));
         if let ExecutionState::Running { ref screen, .. } = app.execution_state {
-            assert!(screen.completed);
+            assert!(!screen.completed); // completed only set by CompletedAll event
             assert_eq!(screen.skipped, 1);
+            assert!(!screen.paused);
         }
     }
 
