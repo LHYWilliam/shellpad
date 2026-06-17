@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.2.2 (2026-06-17) — Housekeeping
+
+### Internal
+- Fix GitHub repository URL (LHYLiuWilliam → LHYWilliam)
+- Add publish workflow for crates.io Trusted Publisher
+
 ## v0.2.1 (2026-06-17) — CI Polish
 
 ### Internal
