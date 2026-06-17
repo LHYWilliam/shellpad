@@ -240,4 +240,86 @@ mod tests {
         assert_eq!(state.skipped, 3);
         assert_eq!(state.continue_from, Some(0));
     }
+
+    #[test]
+    fn test_output_truncation_drops_oldest_lines() {
+        const LIMIT: usize = super::super::MAX_OUTPUT_LINES;
+        let mut state = make_state(&["flood"]);
+        let (tx, rx) = mpsc::channel();
+
+        // Send exactly LIMIT lines
+        for i in 0..LIMIT {
+            let _ = tx.send(ExecutionEvent::StdoutLine {
+                index: 0,
+                line: format!("line_{}", i),
+            });
+        }
+        state.process_events(&rx);
+        assert_eq!(state.cmd_states[0].output_lines.len(), LIMIT);
+        assert!(!state.cmd_states[0].truncated);
+        assert!(!state.output_truncated);
+
+        // Send 1 more — oldest line dropped
+        let _ = tx.send(ExecutionEvent::StdoutLine {
+            index: 0,
+            line: "overflow".to_string(),
+        });
+        state.process_events(&rx);
+        assert_eq!(state.cmd_states[0].output_lines.len(), LIMIT);
+        // "line_0" was the oldest, should be gone
+        let front = state.cmd_states[0].output_lines.front().unwrap();
+        assert_eq!(front, "line_1");
+        assert!(state.cmd_states[0].truncated);
+        assert!(state.output_truncated);
+    }
+
+    #[test]
+    fn test_output_truncation_output_truncated_flag_resets() {
+        let mut state = make_state(&["flood"]);
+        let (tx, rx) = mpsc::channel();
+
+        // Trigger truncation once
+        let _ = tx.send(ExecutionEvent::StdoutLine {
+            index: 0,
+            line: "first".to_string(),
+        });
+        state.process_events(&rx);
+        // Clear the flag (simulates app.rs consuming it)
+        state.output_truncated = false;
+
+        // Send enough to cross limit — flag should be set again
+        const LIMIT: usize = super::super::MAX_OUTPUT_LINES;
+        for i in 0..LIMIT {
+            let _ = tx.send(ExecutionEvent::StdoutLine {
+                index: 0,
+                line: format!("l{}", i),
+            });
+        }
+        state.process_events(&rx);
+        assert!(state.cmd_states[0].truncated);
+        assert!(state.output_truncated);
+    }
+
+    #[test]
+    fn test_items_offset_works_with_vecdeque_output_lines() {
+        let mut state = make_state(&["a", "b"]);
+        let (tx, rx) = mpsc::channel();
+        let _ = tx.send(ExecutionEvent::StdoutLine {
+            index: 0,
+            line: "hello".to_string(),
+        });
+        let _ = tx.send(ExecutionEvent::StdoutLine {
+            index: 0,
+            line: "world".to_string(),
+        });
+        let _ = tx.send(ExecutionEvent::StdoutLine {
+            index: 1,
+            line: "foo".to_string(),
+        });
+        state.process_events(&rx);
+
+        // cmd 0: 1 header + 2 outputs + 1 separator = 4
+        assert_eq!(state.items_offset_for_command(1), 4);
+        assert_eq!(state.items_offset_for_command(0), 0);
+    }
 }
