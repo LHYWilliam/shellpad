@@ -179,13 +179,13 @@ mod tests {
             "Should enter ConfirmDelete mode"
         );
 
-        // Step 2: Press 'n' to cancel — set should remain
-        let n_key = KeyEvent::new(KeyCode::Char('n'), KeyModifiers::empty());
-        app.handle_key(n_key);
+        // Step 2: Press Esc to cancel — set should remain
+        let esc_key = KeyEvent::new(KeyCode::Esc, KeyModifiers::empty());
+        app.handle_key(esc_key);
         assert_eq!(app.mode, AppMode::Main);
         assert_eq!(app.data.groups[0].sets.len(), 1);
 
-        // Step 3: Request delete again, this time confirm with 'y'
+        // Step 3: Request delete again, this time move Left to Confirm, then Enter
         app.handle_action(AppAction::RequestDelete(DeleteKind::Set {
             group_index: 0,
             set_index: 0,
@@ -193,8 +193,10 @@ mod tests {
         }));
         assert!(matches!(app.mode, AppMode::ConfirmDelete { .. }));
 
-        let y_key = KeyEvent::new(KeyCode::Char('y'), KeyModifiers::empty());
-        app.handle_key(y_key);
+        let left_key = KeyEvent::new(KeyCode::Left, KeyModifiers::empty());
+        app.handle_key(left_key); // Cancel → Confirm
+        let enter_key = KeyEvent::new(KeyCode::Enter, KeyModifiers::empty());
+        app.handle_key(enter_key);
         assert_eq!(app.mode, AppMode::Main);
         assert!(app.data.groups[0].sets.is_empty());
     }

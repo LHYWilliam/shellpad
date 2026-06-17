@@ -1,4 +1,4 @@
-use crate::action::DeleteKind;
+use crate::action::{ConfirmChoice, DeleteKind};
 use crate::ui::render::{bordered_block_error, centered_rect};
 use crate::ui::theme::Theme;
 use ratatui::Frame;
@@ -8,7 +8,10 @@ use ratatui::text::{Line, Span};
 use ratatui::widgets::{Clear, Paragraph};
 
 /// Render the delete confirmation overlay dialog.
-pub fn draw_confirm_dialog(frame: &mut Frame, area: Rect, theme: &Theme, kind: &DeleteKind) {
+pub fn draw_confirm_dialog(
+    frame: &mut Frame, area: Rect, theme: &Theme,
+    kind: &DeleteKind, selected: ConfirmChoice,
+) {
     let prompt = match kind {
         DeleteKind::Set { set_name, .. } => {
             format!("Delete set \"{}\"?", set_name)
@@ -40,8 +43,6 @@ pub fn draw_confirm_dialog(frame: &mut Frame, area: Rect, theme: &Theme, kind: &
         }
     };
 
-    let hint = " y — confirm    n / Esc — cancel ";
-
     let dialog_width = area.width.saturating_sub(8).min(50);
     let dialog_height = 7;
     let dialog_area = centered_rect(area, dialog_width, dialog_height);
@@ -52,16 +53,47 @@ pub fn draw_confirm_dialog(frame: &mut Frame, area: Rect, theme: &Theme, kind: &
     let inner = block.inner(dialog_area);
     frame.render_widget(&block, dialog_area);
 
-    // Vertical layout: empty, prompt, empty, hint, empty
-    let inner_center_y = inner.y + 1;
+    // Prompt
     frame.render_widget(
         Paragraph::new(Line::from(Span::styled(
             &prompt,
             Style::default().fg(theme.text_primary),
         )))
         .alignment(Alignment::Center),
-        Rect::new(inner.x, inner_center_y, inner.width, 1),
+        Rect::new(inner.x, inner.y + 1, inner.width, 1),
     );
+
+    // Button row
+    let confirm_style = if matches!(selected, ConfirmChoice::Confirm) {
+        theme.selected_style()
+    } else {
+        theme.normal_style()
+    };
+    let cancel_style = if matches!(selected, ConfirmChoice::Cancel) {
+        theme.selected_style()
+    } else {
+        theme.normal_style()
+    };
+
+    let buttons = Line::from(vec![
+        Span::styled("    ", Style::default()),
+        Span::styled(
+            if matches!(selected, ConfirmChoice::Confirm) { "[Confirm]" } else { " Confirm " },
+            confirm_style,
+        ),
+        Span::styled("      ", Style::default()),
+        Span::styled(
+            if matches!(selected, ConfirmChoice::Cancel) { "[Cancel]" } else { " Cancel " },
+            cancel_style,
+        ),
+    ]);
+    frame.render_widget(
+        Paragraph::new(buttons).alignment(Alignment::Center),
+        Rect::new(inner.x, inner.y + 3, inner.width, 1),
+    );
+
+    // Hint
+    let hint = " ←/→ Select      Enter — Confirm ";
     frame.render_widget(
         Paragraph::new(Line::from(Span::styled(
             hint,
@@ -70,6 +102,6 @@ pub fn draw_confirm_dialog(frame: &mut Frame, area: Rect, theme: &Theme, kind: &
                 .add_modifier(Modifier::DIM),
         )))
         .alignment(Alignment::Center),
-        Rect::new(inner.x, inner_center_y + 2, inner.width, 1),
+        Rect::new(inner.x, inner.y + 5, inner.width, 1),
     );
 }

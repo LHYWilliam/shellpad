@@ -86,7 +86,7 @@ impl App {
                 }
                 draw_help(frame, content_area, &self.theme);
             }
-            AppMode::ConfirmDelete { kind, prev, .. } => {
+            AppMode::ConfirmDelete { kind, prev, selected } => {
                 // Render underlying screen based on the stored prev mode
                 match prev.as_ref() {
                     AppMode::Detail => {
@@ -105,7 +105,7 @@ impl App {
                     }
                 }
                 crate::ui::confirm_dialog::draw_confirm_dialog(
-                    frame, content_area, &self.theme, kind,
+                    frame, content_area, &self.theme, kind, *selected,
                 );
             }
         }
