@@ -1,10 +1,20 @@
 use std::time::Instant;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ToastSeverity {
     Success,
     Error,
     Info,
+}
+
+impl ToastSeverity {
+    pub fn icon(self) -> &'static str {
+        match self {
+            Self::Success => "✓",
+            Self::Error => "✗",
+            Self::Info => "●",
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
