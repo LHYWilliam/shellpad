@@ -388,17 +388,10 @@ mod tests {
     use crate::app::execution::ExecutionManager;
     use crate::mode::AppMode;
     use crate::models::{AppData, CommandSet, Group};
-    use crate::test_utils::{make_app, make_key};
+    use crate::test_utils::{make_app, make_data_with_one_group, make_key};
     use crate::ui::detail_screen::DetailScreenState;
     use crate::ui::main_screen::Panel;
     use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
-
-    fn make_data_with_one_group() -> AppData {
-        let mut g = Group::new("Deploy".to_string());
-        let set = CommandSet::new("Prod".to_string(), g.id);
-        g.sets.push(set);
-        AppData { groups: vec![g] }
-    }
 
     // ---- NewGroup ----
     #[test]
