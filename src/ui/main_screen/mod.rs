@@ -63,10 +63,7 @@ impl MainScreenState {
     }
 
     /// Get all sets visible in current view (accounting for search).
-    pub fn visible_sets<'a>(
-        &'a self,
-        data: &'a AppData,
-    ) -> Vec<crate::models::FilterResult<'a>> {
+    pub fn visible_sets<'a>(&'a self, data: &'a AppData) -> Vec<crate::models::FilterResult<'a>> {
         if self.search_mode {
             data.filter_sets(&self.search_input.content)
         } else if let Some(gi) = self.selected_group_idx(data) {

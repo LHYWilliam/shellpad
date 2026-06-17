@@ -163,32 +163,28 @@ impl MainScreenState {
                 let suffix = format!("  [{}] ({} cmd)", shell_label, cmd_count);
 
                 // Build name part with fuzzy match highlighting
-                let name_part: Vec<Span> =
-                    if !result.name_matches.is_empty() && !is_selected {
-                        let mut spans: Vec<Span> = Vec::new();
-                        let mut last_end = 0usize;
-                        for (match_start, match_end) in &result.name_matches {
-                            if *match_start > last_end {
-                                spans.push(Span::styled(
-                                    &set.name[last_end..*match_start],
-                                    text_style,
-                                ));
-                            }
-                            spans.push(Span::styled(
-                                &set.name[*match_start..*match_end],
-                                Style::default()
-                                    .fg(theme.accent_primary)
-                                    .add_modifier(Modifier::BOLD),
-                            ));
-                            last_end = *match_end;
+                let name_part: Vec<Span> = if !result.name_matches.is_empty() && !is_selected {
+                    let mut spans: Vec<Span> = Vec::new();
+                    let mut last_end = 0usize;
+                    for (match_start, match_end) in &result.name_matches {
+                        if *match_start > last_end {
+                            spans.push(Span::styled(&set.name[last_end..*match_start], text_style));
                         }
-                        if last_end < set.name.len() {
-                            spans.push(Span::styled(&set.name[last_end..], text_style));
-                        }
-                        spans
-                    } else {
-                        vec![Span::styled(set.name.clone(), text_style)]
-                    };
+                        spans.push(Span::styled(
+                            &set.name[*match_start..*match_end],
+                            Style::default()
+                                .fg(theme.accent_primary)
+                                .add_modifier(Modifier::BOLD),
+                        ));
+                        last_end = *match_end;
+                    }
+                    if last_end < set.name.len() {
+                        spans.push(Span::styled(&set.name[last_end..], text_style));
+                    }
+                    spans
+                } else {
+                    vec![Span::styled(set.name.clone(), text_style)]
+                };
 
                 let mut parts = vec![Span::styled(prefix, text_style)];
                 parts.extend(name_part);
@@ -196,7 +192,11 @@ impl MainScreenState {
 
                 // Right-aligned group name in search mode
                 if self.search_mode {
-                    let gname = data.groups.get(result.group_index).map(|g| g.name.as_str()).unwrap_or("?");
+                    let gname = data
+                        .groups
+                        .get(result.group_index)
+                        .map(|g| g.name.as_str())
+                        .unwrap_or("?");
                     let text_width: usize = parts
                         .iter()
                         .map(|s| unicode_width::UnicodeWidthStr::width(s.content.as_ref()))

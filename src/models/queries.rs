@@ -57,9 +57,10 @@ impl AppData {
                     continue;
                 }
                 // Fall back: search in command text
-                let cmd_match = set.commands.iter().any(|cmd| {
-                    fuzzy_match(&cmd.command, query).is_some()
-                });
+                let cmd_match = set
+                    .commands
+                    .iter()
+                    .any(|cmd| fuzzy_match(&cmd.command, query).is_some());
                 if cmd_match {
                     results.push(FilterResult {
                         group_index: gi,
