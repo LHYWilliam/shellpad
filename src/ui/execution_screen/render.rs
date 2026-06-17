@@ -44,13 +44,13 @@ impl ExecutionScreenState {
         // Gauge progress bar
         let completed_count = self.succeeded + self.failed + self.skipped;
         let progress = if self.total > 0 {
-            completed_count as f64 / self.total as f64
+            (completed_count as f64 / self.total as f64).clamp(0.0, 1.0)
         } else {
             0.0
         };
         let gauge_label = format!(
             "  {}/{}  {:.0}%  ",
-            completed_count,
+            completed_count.min(self.total),
             self.total,
             progress * 100.0
         );
