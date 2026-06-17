@@ -24,6 +24,7 @@ impl ExecutionManager {
     pub fn start(
         &mut self,
         commands: Vec<crate::models::Command>,
+        defer_commands: Vec<crate::models::Command>,
         exec_mode: crate::models::ExecMode,
         variables: Vec<crate::models::Variable>,
         shell_cmd: crate::models::ShellCommand,
@@ -34,6 +35,7 @@ impl ExecutionManager {
         let (tx, rx) = mpsc::channel();
         let handle = execute_set(
             commands,
+            defer_commands,
             exec_mode,
             variables,
             shell_cmd,
@@ -76,6 +78,7 @@ mod tests {
                 position: 0,
                 command: "ok".to_string(),
             }],
+            vec![],
             ExecMode::StopOnError,
             vec![],
             test_shell_cmd(),
@@ -96,6 +99,7 @@ mod tests {
                 position: 0,
                 command: "echo ok".to_string(),
             }],
+            vec![],
             ExecMode::StopOnError,
             vec![],
             test_shell_cmd(),
@@ -117,6 +121,7 @@ mod tests {
                 position: 0,
                 command: "echo ok".to_string(),
             }],
+            vec![],
             ExecMode::StopOnError,
             vec![],
             test_shell_cmd(),

@@ -140,12 +140,18 @@ impl App {
         let shell_cmd = set.shell.resolve_command();
 
         if start_from == 0 {
-            let cmds = set.commands.clone();
-            let screen = ExecutionScreenState::new(set.name.clone(), &cmds);
+            let mut cmds = set.commands.clone();
+            let normal_count = cmds.len();
+            cmds.extend(set.defer_commands.clone());
+            let mut screen = ExecutionScreenState::new(set.name.clone(), &cmds);
+            for i in normal_count..cmds.len() {
+                screen.cmd_states[i].defer = true;
+            }
             let working_dir = set.working_dir.clone();
             let mut manager = ExecutionManager::new();
             manager.start(
-                cmds,
+                set.commands.clone(),
+                set.defer_commands.clone(),
                 set.exec_mode,
                 set.variables.clone(),
                 shell_cmd,
@@ -173,6 +179,7 @@ impl App {
             let working_dir = set.working_dir.clone();
             manager.start(
                 cmds,
+                vec![],
                 set.exec_mode,
                 set.variables.clone(),
                 shell_cmd,

@@ -68,6 +68,38 @@ pub fn execute_set_blocking(
         }
     }
 
+    // Phase 2: defer commands
+    for (di, cmd) in set.defer_commands.iter().enumerate() {
+        let resolved = substitute_variables_from_map(&cmd.command, vars);
+        let label = total + di + 1;
+        eprintln!("[{}/{}] $ {}", label, total + set.defer_commands.len(), resolved);
+
+        let mut cmd_builder = Command::new(&shell_cmd.program);
+        cmd_builder
+            .arg(&shell_cmd.flag)
+            .arg(&resolved)
+            .stdout(Stdio::inherit())
+            .stderr(Stdio::inherit());
+        if let Some(dir) = working_dir {
+            cmd_builder.current_dir(dir);
+        }
+        let mut child = cmd_builder.spawn().map_err(|e| ExecuteError::SpawnFailed {
+            idx: label,
+            detail: e.to_string(),
+        })?;
+        let status = child.wait().map_err(|e| ExecuteError::CommandFailed {
+            idx: label,
+            code: e.raw_os_error(),
+        })?;
+
+        if status.success() {
+            succeeded += 1;
+        } else {
+            failed += 1;
+        }
+    }
+
+    let total = total + set.defer_commands.len();
     Ok(ExecuteResult {
         total,
         succeeded,

@@ -113,6 +113,7 @@ fn test_execute_echo() {
 
     let handle = execute_set(
         set.commands.clone(),
+        vec![],
         set.exec_mode,
         set.variables.clone(),
         test_shell_cmd(),
@@ -165,6 +166,7 @@ fn test_execute_failure_continue_on_error() {
 
     let handle = execute_set(
         set.commands.clone(),
+        vec![],
         set.exec_mode,
         set.variables.clone(),
         test_shell_cmd(),
@@ -212,6 +214,7 @@ fn test_execute_failure_stop_on_error() {
 
     let handle = execute_set(
         set.commands.clone(),
+        vec![],
         set.exec_mode,
         set.variables.clone(),
         test_shell_cmd(),
