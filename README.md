@@ -1,6 +1,7 @@
 # ShellPad
 
 [![CI](https://github.com/LHYLiuWilliam/shellpad/actions/workflows/test.yml/badge.svg)](https://github.com/LHYLiuWilliam/shellpad/actions/workflows/test.yml)
+[![crates.io](https://img.shields.io/crates/v/shellpad.svg)](https://crates.io/crates/shellpad)
 ![Rust](https://img.shields.io/badge/rust-1.85%2B-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
@@ -22,7 +23,7 @@ Inspired by task runners like `just` and `make`, but interactive.
 - **Three-layer Tab Navigation** — Tab cycles Properties → Variables → Commands, ↑/↓ selects within region
 - **Option Picker** — Browse available Group/Shell/ExecMode choices in a side panel
 - **Atomic Persistence** — Crash-safe JSON save at `~/.config/shellpad/sets.json`
-- **CLI Mode** — Execute command sets directly from the terminal with variable overrides
+- **CLI Mode** — Execute command sets or search with `--json` output from the terminal
 - **231 Tests** — Comprehensive unit, handler, and integration test coverage
 - **Published on crates.io** — Install with `cargo install shellpad`
 
@@ -113,6 +114,9 @@ shellpad search --set "deploy"
 
 # Search groups
 shellpad search --group "infra"
+
+# Search with JSON output (for scripting/CI)
+shellpad search --set "deploy" --json
 ```
 
 ## Storage
