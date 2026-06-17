@@ -172,12 +172,41 @@ impl App {
             // ---- Detail screen ----
             AppAction::SaveSet(set) => {
                 let sid = set.id;
-                for group in &mut self.data.groups {
-                    if let Some(existing) = group.sets.iter_mut().find(|s| s.id == sid) {
-                        *existing = set;
-                        existing.updated_at = chrono::Utc::now();
+                let mut old_gi = None;
+                let mut old_pos = None;
+                for (gi, group) in self.data.groups.iter().enumerate() {
+                    if let Some(pos) = group.sets.iter().position(|s| s.id == sid) {
+                        old_gi = Some(gi);
+                        old_pos = Some(pos);
                         break;
                     }
+                }
+                let mut target_gi = None;
+                let mut new_si = None;
+                if let (Some(gi), Some(pos)) = (old_gi, old_pos) {
+                    if set.group_id != self.data.groups[gi].id {
+                        // Group changed — remove from old group
+                        self.data.groups[gi].sets.remove(pos);
+                        self.main_screen
+                            .set_list
+                            .clamp_selected(self.data.groups[gi].sets.len());
+                        // Insert at end of target group
+                        if let Some(ti) = self.data.groups.iter().position(|g| g.id == set.group_id) {
+                            let mut moved = set;
+                            moved.updated_at = chrono::Utc::now();
+                            self.data.groups[ti].sets.push(moved);
+                            target_gi = Some(ti);
+                            new_si = Some(self.data.groups[ti].sets.len().saturating_sub(1));
+                        }
+                    } else {
+                        // Same group — replace in place
+                        self.data.groups[gi].sets[pos] = set;
+                        self.data.groups[gi].sets[pos].updated_at = chrono::Utc::now();
+                    }
+                }
+                if let (Some(tgi), Some(si)) = (target_gi, new_si) {
+                    self.main_screen.group_list.selected = tgi;
+                    self.main_screen.set_list.selected = si;
                 }
                 self.detail_screen = None;
                 self.mode = AppMode::Main;
@@ -453,6 +482,32 @@ mod tests {
         assert!(app.detail_screen.is_none());
         assert_eq!(app.mode, AppMode::Main);
         assert_eq!(app.data.groups[0].sets[0].name, "Updated");
+    }
+
+    #[test]
+    fn test_handler_save_set_moves_to_new_group() {
+        let mut app = make_app();
+        let mut g1 = Group::new("Deploy".to_string());
+        let set = CommandSet::new("Prod".to_string(), g1.id);
+        g1.sets.push(set);
+        let g2 = Group::new("Infra".to_string());
+        app.data = AppData { groups: vec![g1, g2] };
+        let set = app.data.groups[0].sets[0].clone();
+        let groups = app.data.groups.clone();
+        app.detail_screen = Some(DetailScreenState::new(set, groups));
+        app.mode = AppMode::Detail;
+
+        let mut saved = app.data.groups[0].sets[0].clone();
+        saved.group_id = app.data.groups[1].id;
+        saved.name = "Prod (moved)".to_string();
+        app.handle_action(AppAction::SaveSet(saved));
+
+        assert!(app.detail_screen.is_none());
+        assert_eq!(app.mode, AppMode::Main);
+        assert!(app.data.groups[0].sets.is_empty());
+        assert_eq!(app.data.groups[1].sets.len(), 1);
+        assert_eq!(app.data.groups[1].sets[0].name, "Prod (moved)");
+        assert_eq!(app.data.groups[1].sets[0].group_id, app.data.groups[1].id);
     }
 
     // ---- CancelEdit ----
