@@ -11,11 +11,10 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      id-token: write
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
-      - run: cargo publish --registry crates-io
+      - run: cargo publish
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
 
@@ -29,16 +28,9 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - run: cargo build --release
 
-      - name: Upload binary
-        uses: actions/upload-artifact@v4
-        with:
-          name: shellpad-${{ github.ref_name }}-linux
-          path: target/release/shellpad
-
       - name: Extract changelog entry
         run: |
-          sed -n '/^## ${{ github.ref_name }}/,/^## v/p' CHANGELOG.md | \
-            sed '${/^## v/d}' > release_body.md
+          awk '/^## ${{ github.ref_name }}/{flag=1; next} /^## /{flag=0} flag' CHANGELOG.md > release_body.md
           echo "Release body preview:"
           cat release_body.md
 
