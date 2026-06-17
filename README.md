@@ -8,7 +8,9 @@
 A Ratatui-based TUI for organising and executing collections of shell commands.
 Inspired by task runners like `just` and `make`, but interactive.
 
-![screenshot](docs/screenshot.png)
+![Main Screen](assets/main.png)
+
+![Execution](assets/exec.png)
 
 ## Features
 

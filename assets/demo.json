@@ -1,0 +1,136 @@
+{
+  "groups": [
+    {
+      "id": "11111111-1111-1111-1111-111111111111",
+      "name": "Dev",
+      "sets": [
+        {
+          "id": "11111111-1111-1111-1111-a11111111111",
+          "name": "build",
+          "group_id": "11111111-1111-1111-1111-111111111111",
+          "shell": "system_default",
+          "exec_mode": "stop_on_error",
+          "variables": [],
+          "commands": [
+            { "position": 0, "command": "cargo build --release" }
+          ],
+          "working_dir": "/home/user/project",
+          "created_at": "2026-06-17T10:00:00Z",
+          "updated_at": "2026-06-17T10:00:00Z"
+        },
+        {
+          "id": "11111111-1111-1111-1111-a22222222222",
+          "name": "test",
+          "group_id": "11111111-1111-1111-1111-111111111111",
+          "shell": "system_default",
+          "exec_mode": "stop_on_error",
+          "variables": [],
+          "commands": [
+            { "position": 0, "command": "cargo test" },
+            { "position": 1, "command": "cargo clippy -- -D warnings" }
+          ],
+          "working_dir": "/home/user/project",
+          "created_at": "2026-06-17T10:00:00Z",
+          "updated_at": "2026-06-17T10:00:00Z"
+        },
+        {
+          "id": "11111111-1111-1111-1111-a33333333333",
+          "name": "lint",
+          "group_id": "11111111-1111-1111-1111-111111111111",
+          "shell": "system_default",
+          "exec_mode": "continue_on_error",
+          "variables": [],
+          "commands": [
+            { "position": 0, "command": "cargo fmt --check" },
+            { "position": 1, "command": "cargo clippy -- -D warnings" }
+          ],
+          "working_dir": "/home/user/project",
+          "created_at": "2026-06-17T10:00:00Z",
+          "updated_at": "2026-06-17T10:00:00Z"
+        }
+      ]
+    },
+    {
+      "id": "22222222-2222-2222-2222-222222222222",
+      "name": "Deploy",
+      "sets": [
+        {
+          "id": "22222222-2222-2222-2222-b11111111111",
+          "name": "staging",
+          "group_id": "22222222-2222-2222-2222-222222222222",
+          "shell": "bash",
+          "exec_mode": "stop_on_error",
+          "variables": [
+            { "name": "host", "default_value": "user@staging.example.com" },
+            { "name": "path", "default_value": "/var/www/app" }
+          ],
+          "commands": [
+            { "position": 0, "command": "cargo build --release" },
+            { "position": 1, "command": "rsync -avz target/release/ {{host}}:{{path}}/" },
+            { "position": 2, "command": "ssh {{host}} 'systemctl restart myapp'" }
+          ],
+          "working_dir": "/home/user/project",
+          "created_at": "2026-06-17T10:00:00Z",
+          "updated_at": "2026-06-17T10:00:00Z"
+        },
+        {
+          "id": "22222222-2222-2222-2222-b22222222222",
+          "name": "production",
+          "group_id": "22222222-2222-2222-2222-222222222222",
+          "shell": "bash",
+          "exec_mode": "stop_on_error",
+          "variables": [
+            { "name": "host", "default_value": "user@prod.example.com" },
+            { "name": "tag", "default_value": "latest" }
+          ],
+          "commands": [
+            { "position": 0, "command": "docker build -t myapp:{{tag}} ." },
+            { "position": 1, "command": "docker push myapp:{{tag}}" },
+            { "position": 2, "command": "ssh {{host}} 'docker pull myapp:{{tag}} && docker compose up -d'" }
+          ],
+          "working_dir": "/home/user/project",
+          "created_at": "2026-06-17T10:00:00Z",
+          "updated_at": "2026-06-17T10:00:00Z"
+        }
+      ]
+    },
+    {
+      "id": "33333333-3333-3333-3333-333333333333",
+      "name": "Infra",
+      "sets": [
+        {
+          "id": "33333333-3333-3333-3333-c11111111111",
+          "name": "db-migrate",
+          "group_id": "33333333-3333-3333-3333-333333333333",
+          "shell": "system_default",
+          "exec_mode": "stop_on_error",
+          "variables": [
+            { "name": "DATABASE_URL", "default_value": "postgres://localhost/app_dev" }
+          ],
+          "commands": [
+            { "position": 0, "command": "diesel migration run" },
+            { "position": 1, "command": "diesel migration redo" }
+          ],
+          "working_dir": "/home/user/project",
+          "created_at": "2026-06-17T10:00:00Z",
+          "updated_at": "2026-06-17T10:00:00Z"
+        },
+        {
+          "id": "33333333-3333-3333-3333-c22222222222",
+          "name": "docker-cleanup",
+          "group_id": "33333333-3333-3333-3333-333333333333",
+          "shell": "bash",
+          "exec_mode": "continue_on_error",
+          "variables": [],
+          "commands": [
+            { "position": 0, "command": "docker system prune -f" },
+            { "position": 1, "command": "docker volume prune -f" }
+          ],
+          "working_dir": null,
+          "created_at": "2026-06-17T10:00:00Z",
+          "updated_at": "2026-06-17T10:00:00Z"
+        }
+      ]
+    }
+  ]
+}
