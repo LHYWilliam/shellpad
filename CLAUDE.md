@@ -33,7 +33,7 @@ The app uses a 4-mode state machine, one screen visible at a time:
 | `src/action.rs` | Unified `AppAction` enum returned by all screen `handle_key()` methods |
 | `src/app.rs` + `src/app/` | App state machine with `ExecutionState` enum (Idle/Running), event loop (100ms tick), mode dispatch; sub-modules: `handler.rs` (action dispatch + 24 tests), `render.rs` (main frame render), `execution.rs` (thread/kill_signal management), `toast.rs` (notification manager) |
 | `src/models/` | Data model: `Group`, `CommandSet`, `Command`, `Variable`, `ShellType`, `ExecMode`, `AppData` (types.rs); query/filter helpers (queries.rs). All serde-serialized. |
-| `src/storage.rs` | JSON persistence at `~/.config/launcher/sets.json`. Atomic save: write `.tmp` → `fsync` → `rename`. EXDEV fallback to copy+remove. |
+| `src/storage.rs` | JSON persistence at `~/.config/shellpad/sets.json`. Atomic save: write `.tmp` → `fsync` → `rename`. EXDEV fallback to copy+remove. |
 | `src/error.rs` | All error types via thiserror: `StorageError` (IO/corruption), `CliError` (parsing/resolution), `ExecuteError` (spawn/fail) |
 | `src/executor/` | Background execution: `mod.rs` (re-exports + `substitute_variables_core`), `async_executor.rs` (TUI mode, mpsc streaming), `blocking.rs` (CLI mode, synchronous), `events.rs` (event types) |
 | `src/cli.rs` | CLI argument parsing with Clap (`run`, `search` subcommands) |

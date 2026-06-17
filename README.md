@@ -15,15 +15,15 @@ Inspired by task runners like `just` and `make`, but interactive.
 - **Dual Execution Modes** — Stop on error or continue on error per command set
 - **Variables** — Template substitution with `{{var}}` syntax, configure per-execution
 - **Real-time Output** — Stream stdout/stderr with per-command status, auto-scroll, skip
-- **Working Directory** — Set a per-command-set working directory, defaults to launcher CWD
+- **Working Directory** — Set a per-command-set working directory, defaults to shellpad CWD
 - **Search** — Filter command sets across all groups, with match highlighting
 - **Reordering** — Ctrl+Up/Down reorder groups, sets, variables, and commands
 - **Delete Confirmation** — Modal confirmation dialog with Confirm/Cancel buttons
 - **Three-layer Tab Navigation** — Tab cycles Properties → Variables → Commands, ↑/↓ selects within region
 - **Option Picker** — Browse available Group/Shell/ExecMode choices in a side panel
-- **Atomic Persistence** — Crash-safe JSON save at `~/.config/launcher/sets.json`
+- **Atomic Persistence** — Crash-safe JSON save at `~/.config/shellpad/sets.json`
 - **CLI Mode** — Execute command sets directly from the terminal with variable overrides
-- **228 Tests** — Comprehensive unit, handler, and integration test coverage
+- **231 Tests** — Comprehensive unit, handler, and integration test coverage
 
 ## Installation
 
@@ -34,14 +34,14 @@ cd launcher
 cargo install --path .
 ```
 
-The binary is `launcher`. It requires a terminal ≥ 80×24.
+The binary is `shellpad`. It requires a terminal ≥ 80×24.
 
 ## Usage
 
 ### TUI mode
 
 ```bash
-launcher
+shellpad
 ```
 
 **Main Screen:**
@@ -93,27 +93,27 @@ launcher
 
 ```bash
 # Execute a command set by UUID
-launcher run --id <uuid>
+shellpad run --id <uuid>
 
 # Execute by group and set name
-launcher run --group "Deploy" --set "Prod"
+shellpad run --group "Deploy" --set "Prod"
 
 # Use variable defaults (skip prompting)
-launcher run --group Deploy --set Prod --var default
+shellpad run --group Deploy --set Prod --var default
 
 # Override variable values
-launcher run --group Deploy --set Prod --var host=prod.example.com
+shellpad run --group Deploy --set Prod --var host=prod.example.com
 
 # Search command sets
-launcher search --set "deploy"
+shellpad search --set "deploy"
 
 # Search groups
-launcher search --group "infra"
+shellpad search --group "infra"
 ```
 
 ## Storage
 
-Data is stored at `~/.config/launcher/sets.json`. The file is atomically updated
+Data is stored at `~/.config/shellpad/sets.json`. The file is atomically updated
 (write to `.tmp` → `fsync` → `rename`). Corrupted files are backed up to
 `sets.json.bak` on read.
 
