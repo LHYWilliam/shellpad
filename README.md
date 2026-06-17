@@ -24,10 +24,14 @@ Inspired by task runners like `just` and `make`, but interactive.
 - **Atomic Persistence** — Crash-safe JSON save at `~/.config/shellpad/sets.json`
 - **CLI Mode** — Execute command sets directly from the terminal with variable overrides
 - **231 Tests** — Comprehensive unit, handler, and integration test coverage
+- **Published on crates.io** — Install with `cargo install shellpad`
 
 ## Installation
 
 ```bash
+# From crates.io (recommended)
+cargo install shellpad
+
 # From source
 git clone https://github.com/LHYLiuWilliam/shellpad
 cd shellpad
@@ -122,7 +126,7 @@ Data is stored at `~/.config/shellpad/sets.json`. The file is atomically updated
 ```
 src/
 ├── app/                    # App state machine
-│   ├── handler.rs          # Action dispatch (50 handler tests)
+│   ├── handler.rs          # Action dispatch
 │   ├── render.rs           # Main frame render
 │   ├── execution.rs        # ExecutionManager (thread lifecycle)
 │   └── toast.rs            # Toast notifications
@@ -169,7 +173,7 @@ handler: confirm → do_execute()
 ```bash
 cargo build              # Build
 cargo run                # Run TUI (requires real terminal)
-cargo test               # Run all 228 tests
+cargo test               # Run all 231 tests
 cargo check              # Fast compilation check
 cargo clippy             # Lint
 ```
