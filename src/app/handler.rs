@@ -263,19 +263,31 @@ impl App {
                 }
             }
             AppAction::DeleteCommand(idx) => {
-                if let Some(ref mut ds) = self.detail_screen
-                    && idx < ds.set.commands.len()
-                {
-                    ds.set.commands.remove(idx);
-                    for (i, c) in ds.set.commands.iter_mut().enumerate() {
-                        c.position = i;
+                if let Some(ref mut ds) = self.detail_screen {
+                    let is_deferred =
+                        ds.focus == crate::ui::detail_screen::DetailFocus::DeferredCommands;
+                    if is_deferred && idx < ds.set.defer_commands.len() {
+                        ds.set.defer_commands.remove(idx);
+                        ds.deferred_command_list
+                            .clamp_selected(ds.set.defer_commands.len());
+                        if ds.set.defer_commands.is_empty() {
+                            ds.focus = crate::ui::detail_screen::DetailFocus::Commands;
+                        }
+                        self.auto_save();
+                        self.toasts
+                            .add("Deferred command deleted", ToastSeverity::Info);
+                    } else if idx < ds.set.commands.len() {
+                        ds.set.commands.remove(idx);
+                        for (i, c) in ds.set.commands.iter_mut().enumerate() {
+                            c.position = i;
+                        }
+                        ds.command_list.clamp_selected(ds.set.commands.len());
+                        if ds.set.commands.is_empty() {
+                            ds.focus = crate::ui::detail_screen::DetailFocus::Name;
+                        }
+                        self.auto_save();
+                        self.toasts.add("Command deleted", ToastSeverity::Info);
                     }
-                    ds.command_list.clamp_selected(ds.set.commands.len());
-                    if ds.set.commands.is_empty() {
-                        ds.focus = crate::ui::detail_screen::DetailFocus::Name;
-                    }
-                    self.auto_save();
-                    self.toasts.add("Command deleted", ToastSeverity::Info);
                 }
             }
             AppAction::VariableSaved => {
@@ -394,16 +406,28 @@ impl App {
                         }
                     }
                     ReorderKind::Command(idx) => {
-                        if let Some(ref mut ds) = self.detail_screen
-                            && let Some(ni) = new_idx(idx, ds.set.commands.len())
-                        {
-                            ds.set.commands.swap(idx, ni);
-                            for (i, c) in ds.set.commands.iter_mut().enumerate() {
-                                c.position = i;
+                        if let Some(ref mut ds) = self.detail_screen {
+                            let is_deferred =
+                                ds.focus == crate::ui::detail_screen::DetailFocus::DeferredCommands;
+                            if is_deferred {
+                                if let Some(ni) =
+                                    new_idx(idx, ds.set.defer_commands.len())
+                                {
+                                    ds.set.defer_commands.swap(idx, ni);
+                                    ds.deferred_command_list.selected = ni;
+                                    self.auto_save();
+                                    self.toasts
+                                        .add("Deferred command moved", ToastSeverity::Info);
+                                }
+                            } else if let Some(ni) = new_idx(idx, ds.set.commands.len()) {
+                                ds.set.commands.swap(idx, ni);
+                                for (i, c) in ds.set.commands.iter_mut().enumerate() {
+                                    c.position = i;
+                                }
+                                ds.command_list.selected = ni;
+                                self.auto_save();
+                                self.toasts.add("Command moved", ToastSeverity::Info);
                             }
-                            ds.command_list.selected = ni;
-                            self.auto_save();
-                            self.toasts.add("Command moved", ToastSeverity::Info);
                         }
                     }
                 }
