@@ -2,7 +2,7 @@ use crate::error::CliError;
 use crate::models::AppData;
 use clap::{Parser, Subcommand};
 use std::collections::HashMap;
-use std::io::{self, Write};
+use std::io::{self, Read, Write};
 use uuid::Uuid;
 
 /// shellpad — command set manager and executor
@@ -465,8 +465,79 @@ fn handle_export(data: &AppData, id: Option<String>, all: bool, output: Option<S
 
 // ---- Import ----
 
-fn handle_import(_data: &mut AppData, _input: Option<String>) {
-    eprintln!("import: not yet implemented");
+fn handle_import(data: &mut AppData, input: Option<String>) {
+    let json = if let Some(path) = input {
+        match std::fs::read_to_string(&path) {
+            Ok(s) => s,
+            Err(e) => {
+                eprintln!("{}", CliError::ImportReadFailed(e.to_string()));
+                return;
+            }
+        }
+    } else {
+        let mut buf = String::new();
+        match std::io::stdin().read_to_string(&mut buf) {
+            Ok(_) => buf,
+            Err(e) => {
+                eprintln!("{}", CliError::ImportReadFailed(e.to_string()));
+                return;
+            }
+        }
+    };
+
+    let imported = match serde_json::from_str::<AppData>(&json) {
+        Ok(d) => d,
+        Err(e) => {
+            eprintln!("{}", CliError::ImportParseFailed(e.to_string()));
+            return;
+        }
+    };
+
+    let mut total_sets = 0usize;
+    let mut total_groups = 0usize;
+
+    for imported_group in &imported.groups {
+        let existing_idx = data
+            .groups
+            .iter()
+            .position(|g| g.name.to_lowercase() == imported_group.name.to_lowercase());
+
+        if let Some(gi) = existing_idx {
+            for imported_set in &imported_group.sets {
+                let mut new_set = imported_set.clone();
+                new_set.id = Uuid::new_v4();
+                new_set.group_id = data.groups[gi].id;
+                new_set.created_at = chrono::Utc::now();
+                new_set.updated_at = chrono::Utc::now();
+                data.groups[gi].sets.push(new_set);
+                total_sets += 1;
+            }
+        } else {
+            let new_group_id = Uuid::new_v4();
+            let mut new_group = crate::models::Group {
+                id: new_group_id,
+                name: imported_group.name.clone(),
+                sets: Vec::new(),
+            };
+            for imported_set in &imported_group.sets {
+                let mut new_set = imported_set.clone();
+                new_set.id = Uuid::new_v4();
+                new_set.group_id = new_group_id;
+                new_set.created_at = chrono::Utc::now();
+                new_set.updated_at = chrono::Utc::now();
+                new_group.sets.push(new_set);
+                total_sets += 1;
+            }
+            data.groups.push(new_group);
+            total_groups += 1;
+        }
+    }
+
+    let _ = crate::storage::save_app_data(data);
+    eprintln!(
+        "Imported {} command set(s) into {} group(s)",
+        total_sets, total_groups
+    );
 }
 
 #[cfg(test)]
@@ -704,5 +775,140 @@ mod tests {
         let random_id = Uuid::new_v4();
         let found = data.find_set_by_id(random_id);
         assert!(found.is_none());
+    }
+
+    // ---- Import tests ----
+
+    #[test]
+    fn test_import_to_empty_data() {
+        let mut g = Group::new("Deploy".to_string());
+        let mut set = CommandSet::new("Prod".to_string(), g.id);
+        set.shell = crate::models::ShellType::Bash;
+        g.sets.push(set);
+        let imported = AppData { groups: vec![g] };
+
+        let mut data = AppData::empty();
+
+        let mut total_sets = 0;
+        for imported_group in &imported.groups {
+            let new_group_id = Uuid::new_v4();
+            let mut new_group = Group {
+                id: new_group_id,
+                name: imported_group.name.clone(),
+                sets: Vec::new(),
+            };
+            for imported_set in &imported_group.sets {
+                let mut new_set = imported_set.clone();
+                new_set.id = Uuid::new_v4();
+                new_set.group_id = new_group_id;
+                new_group.sets.push(new_set);
+                total_sets += 1;
+            }
+            data.groups.push(new_group);
+        }
+
+        assert_eq!(total_sets, 1);
+        assert_eq!(data.groups.len(), 1);
+        assert_eq!(data.groups[0].name, "Deploy");
+        assert_eq!(data.groups[0].sets.len(), 1);
+        assert_eq!(data.groups[0].sets[0].name, "Prod");
+        assert_eq!(data.groups[0].sets[0].shell, crate::models::ShellType::Bash);
+    }
+
+    #[test]
+    fn test_import_merge_same_group_name() {
+        let mut existing_group = Group::new("Deploy".to_string());
+        existing_group
+            .sets
+            .push(CommandSet::new("Prod".to_string(), existing_group.id));
+        let mut data = AppData {
+            groups: vec![existing_group],
+        };
+        let exist_group_id = data.groups[0].id;
+
+        let mut imported_group = Group::new("Deploy".to_string());
+        imported_group.id = Uuid::new_v4();
+        imported_group
+            .sets
+            .push(CommandSet::new("Staging".to_string(), imported_group.id));
+        let imported = AppData {
+            groups: vec![imported_group],
+        };
+
+        let existing_idx = data
+            .groups
+            .iter()
+            .position(|g| g.name.to_lowercase() == "deploy")
+            .unwrap();
+        for imported_set in &imported.groups[0].sets {
+            let mut new_set = imported_set.clone();
+            new_set.id = Uuid::new_v4();
+            new_set.group_id = data.groups[existing_idx].id;
+            data.groups[existing_idx].sets.push(new_set);
+        }
+
+        assert_eq!(data.groups.len(), 1);
+        assert_eq!(data.groups[0].id, exist_group_id);
+        assert_eq!(data.groups[0].sets.len(), 2);
+        assert_eq!(data.groups[0].sets[0].name, "Prod");
+        assert_eq!(data.groups[0].sets[1].name, "Staging");
+        assert_ne!(data.groups[0].sets[1].id, imported.groups[0].sets[0].id);
+    }
+
+    #[test]
+    fn test_import_invalid_json_errors() {
+        let result = serde_json::from_str::<AppData>("not valid json");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_roundtrip_export_preserves_fields() {
+        use crate::models::{Command, ExecMode, ShellType};
+
+        let mut g = Group::new("Deploy".to_string());
+        let mut set = CommandSet::new("Prod".to_string(), g.id);
+        set.shell = ShellType::Bash;
+        set.exec_mode = ExecMode::ContinueOnError;
+        set.working_dir = Some("/tmp".to_string());
+        set.variables.push(crate::models::Variable {
+            name: "HOST".to_string(),
+            default_value: "localhost".to_string(),
+        });
+        set.commands.push(Command {
+            position: 0,
+            command: "echo hello".to_string(),
+        });
+        g.sets.push(set);
+        let original = AppData { groups: vec![g] };
+
+        let json = serde_json::to_string_pretty(&original).unwrap();
+
+        let imported: AppData = serde_json::from_str(&json).unwrap();
+        let mut data = AppData::empty();
+        for ig in &imported.groups {
+            let new_id = Uuid::new_v4();
+            let mut new_group = Group {
+                id: new_id,
+                name: ig.name.clone(),
+                sets: Vec::new(),
+            };
+            for is in &ig.sets {
+                let mut ns = is.clone();
+                ns.id = Uuid::new_v4();
+                ns.group_id = new_id;
+                new_group.sets.push(ns);
+            }
+            data.groups.push(new_group);
+        }
+
+        let s = &data.groups[0].sets[0];
+        assert_eq!(s.name, "Prod");
+        assert_eq!(s.shell, ShellType::Bash);
+        assert_eq!(s.exec_mode, ExecMode::ContinueOnError);
+        assert_eq!(s.working_dir, Some("/tmp".to_string()));
+        assert_eq!(s.variables.len(), 1);
+        assert_eq!(s.variables[0].name, "HOST");
+        assert_eq!(s.commands.len(), 1);
+        assert_eq!(s.commands[0].command, "echo hello");
     }
 }
