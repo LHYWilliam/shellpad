@@ -47,6 +47,26 @@ enum Commands {
         #[arg(long)]
         json: bool,
     },
+    /// Export command sets as JSON. Use --id for a single set, --all for everything.
+    Export {
+        /// UUID of the command set to export
+        #[arg(long, conflicts_with = "all")]
+        id: Option<String>,
+
+        /// Export all command sets
+        #[arg(long, conflicts_with = "id")]
+        all: bool,
+
+        /// Output file path (writes to stdout if omitted)
+        #[arg(long, short)]
+        output: Option<String>,
+    },
+    /// Import command sets from a JSON file. Reads from stdin if no file given.
+    Import {
+        /// Input file path (reads from stdin if omitted)
+        #[arg(long, short)]
+        input: Option<String>,
+    },
 }
 
 // ---- JSON output structs ----
@@ -91,7 +111,7 @@ pub fn run_cli() -> Option<i32> {
     let cli = Cli::try_parse().unwrap_or_else(|e| e.exit());
     let command = cli.command?;
 
-    let data = match crate::storage::load_app_data() {
+    let mut data = match crate::storage::load_app_data() {
         Ok(d) => d,
         Err(e) => {
             eprintln!("{e}");
@@ -108,6 +128,14 @@ pub fn run_cli() -> Option<i32> {
         } => Some(handle_run(&data, id, group, set, var)),
         Commands::Search { set, group, json } => {
             handle_search(&data, set, group, json);
+            Some(0)
+        }
+        Commands::Export { id, all, output } => {
+            handle_export(&data, id, all, output);
+            Some(0)
+        }
+        Commands::Import { input } => {
+            handle_import(&mut data, input);
             Some(0)
         }
     }
@@ -381,6 +409,18 @@ fn truncate(s: &str, max: usize) -> String {
         let end = s.floor_char_boundary(max.saturating_sub(1));
         format!("{}…", &s[..end])
     }
+}
+
+// ---- Export ----
+
+fn handle_export(_data: &AppData, _id: Option<String>, _all: bool, _output: Option<String>) {
+    eprintln!("export: not yet implemented");
+}
+
+// ---- Import ----
+
+fn handle_import(_data: &mut AppData, _input: Option<String>) {
+    eprintln!("import: not yet implemented");
 }
 
 #[cfg(test)]
