@@ -315,9 +315,9 @@ impl App {
                         ToastSeverity::Success
                     };
                     self.toasts.add(summary, severity);
+                    self.teardown_execution(false, false);
+                    self.mode = AppMode::Main;
                 }
-                self.teardown_execution(false, false);
-                self.mode = AppMode::Main;
             }
             AppAction::Pause => {
                 if let ExecutionState::Running {
@@ -825,8 +825,10 @@ mod tests {
             position: 0,
             command: "ok".to_string(),
         }];
+        let mut screen = ExecutionScreenState::new("test".to_string(), &cmds);
+        screen.completed = true; // BackToMain requires completion
         app.execution_state = ExecutionState::Running {
-            screen: Box::new(ExecutionScreenState::new("test".to_string(), &cmds)),
+            screen: Box::new(screen),
             manager: ExecutionManager::new(),
             pending_set: (0, 0),
         };
