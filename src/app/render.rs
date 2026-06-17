@@ -2,7 +2,6 @@ use crate::config::MIN_TERMINAL_HEIGHT;
 use crate::config::MIN_TERMINAL_WIDTH;
 use crate::mode::AppMode;
 use crate::ui::help_screen::draw_help;
-use crate::ui::toast::ToastSeverity;
 use ratatui::Frame;
 use ratatui::layout::{Alignment, Constraint, Layout, Rect};
 use ratatui::style::{Color, Modifier, Style};
@@ -113,26 +112,31 @@ impl App {
         self.variable_screen
             .render(frame, content_area, &self.theme);
 
-        // Render toast notification (centered on title bar)
-        if let Some(toast) = self.toasts.toasts.last() {
-            let (toast_fg, toast_label) = match toast.severity {
-                ToastSeverity::Success => (self.theme.accent_success, " ✓ "),
-                ToastSeverity::Error => (self.theme.accent_error, " ✗ "),
-                ToastSeverity::Info => (self.theme.accent_info, " ● "),
-            };
-            let toast_msg = format!("{}{}", toast_label, toast.message);
-            let toast_display_width = unicode_width::UnicodeWidthStr::width(toast_msg.as_str());
-            let toast_width = (toast_display_width as u16 + 2).min(area.width.saturating_sub(4));
-            let x = (area.width.saturating_sub(toast_width)) / 2;
-            let toast_area = Rect::new(x, title_area.y, toast_width, 1);
-            frame.render_widget(Clear, toast_area);
-            frame.render_widget(
-                Paragraph::new(Line::from(Span::styled(
-                    toast_msg,
-                    Style::default().fg(toast_fg).add_modifier(Modifier::BOLD),
-                ))),
-                toast_area,
-            );
+        // Render toast notifications — stacked bottom-right in content_area
+        let toasts = &self.toasts.toasts;
+        if !toasts.is_empty() {
+            let max_w: u16 = toasts
+                .iter()
+                .map(|t| {
+                    let msg_w = unicode_width::UnicodeWidthStr::width(t.message.as_str()) as u16;
+                    msg_w + 8 // icon(2) + space + msg + title padding + borders
+                })
+                .max()
+                .unwrap_or(20)
+                .min(40);
+            let toast_h = 3u16;
+            let stack_h = toasts.len() as u16 * toast_h;
+            let x = content_area.x + content_area.width.saturating_sub(max_w + 2);
+            let y = content_area.y + content_area.height.saturating_sub(stack_h);
+
+            for (i, toast) in toasts.iter().enumerate() {
+                let row_y = y + i as u16 * toast_h;
+                let area = Rect::new(x, row_y, max_w, toast_h);
+                frame.render_widget(Clear, area);
+                let title = format!(" {} {} ", toast.severity.icon(), toast.message);
+                let block = crate::ui::render::bordered_block_info(&self.theme, &title);
+                frame.render_widget(&block, area);
+            }
         }
     }
 }
