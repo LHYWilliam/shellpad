@@ -1,5 +1,5 @@
 use crate::action::DeleteKind;
-use crate::ui::render::{bordered_block_error_zone, centered_rect};
+use crate::ui::render::{bordered_block_error, centered_rect};
 use crate::ui::theme::Theme;
 use ratatui::Frame;
 use ratatui::layout::{Alignment, Rect};
@@ -48,7 +48,9 @@ pub fn draw_confirm_dialog(frame: &mut Frame, area: Rect, theme: &Theme, kind: &
 
     frame.render_widget(Clear, dialog_area);
 
-    let inner = bordered_block_error_zone(frame, dialog_area, theme, " Delete ");
+    let block = bordered_block_error(theme, " Delete ");
+    let inner = block.inner(dialog_area);
+    frame.render_widget(&block, dialog_area);
 
     // Vertical layout: empty, prompt, empty, hint, empty
     let inner_center_y = inner.y + 1;

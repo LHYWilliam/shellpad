@@ -201,19 +201,6 @@ pub fn bordered_block_info_zone(
     inner
 }
 
-/// Render a bordered error block onto the frame, then return the inner Rect.
-pub fn bordered_block_error_zone(
-    frame: &mut Frame,
-    area: Rect,
-    theme: &Theme,
-    title: &str,
-) -> Rect {
-    let block = bordered_block_error(theme, title);
-    let inner = block.inner(area);
-    frame.render_widget(&block, area);
-    inner
-}
-
 /// Create a styled ListItem with full-row background fill.
 pub fn styled_list_item(label: String, style: Style, width: u16) -> ListItem<'static> {
     ListItem::new(fill_row(
