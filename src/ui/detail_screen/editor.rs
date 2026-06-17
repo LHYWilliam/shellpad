@@ -8,14 +8,11 @@ use crossterm::event::{KeyCode, KeyEvent};
 fn dispatch_inline_edit(
     edit: &mut InlineEdit,
     key: KeyEvent,
-    on_commit: impl FnOnce(&mut InlineEdit),
+    on_commit: impl FnOnce(&mut InlineEdit) -> AppAction,
     on_other: impl FnOnce(&mut InlineEdit),
 ) -> AppAction {
     match key.code {
-        KeyCode::Enter => {
-            on_commit(edit);
-            AppAction::None
-        }
+        KeyCode::Enter => on_commit(edit),
         KeyCode::Esc => {
             edit.cancel();
             AppAction::None
@@ -44,8 +41,12 @@ pub fn handle_variable_edit(
                 let name = input[..eq_pos].trim().to_string();
                 let value = input[eq_pos + 1..].trim().to_string();
                 e.commit(idx, variables, Variable { name, default_value: value }, list);
+                AppAction::VariableSaved
             } else if !input.is_empty() {
                 e.commit(idx, variables, Variable { name: input.trim().to_string(), default_value: String::new() }, list);
+                AppAction::VariableSaved
+            } else {
+                AppAction::None
             }
         },
         // on_other: protect name part from deletion
@@ -71,6 +72,7 @@ pub fn handle_command_edit(
             for (i, c) in commands.iter_mut().enumerate() {
                 c.position = i;
             }
+            AppAction::CommandSaved
         },
         // on_other: plain text input
         |e| e.handle_key(key),
@@ -98,7 +100,7 @@ mod tests {
         let mut list = ScrollableList::new();
         let action =
             handle_variable_edit(&mut edit, make_key(KeyCode::Enter), 0, &mut vars, &mut list);
-        assert!(matches!(action, AppAction::None));
+        assert!(matches!(action, AppAction::VariableSaved));
         assert_eq!(vars[0].name, "x");
         assert_eq!(vars[0].default_value, "y");
         assert!(edit.editing.is_none());
@@ -154,7 +156,7 @@ mod tests {
         let mut list = ScrollableList::new();
         let action =
             handle_command_edit(&mut edit, make_key(KeyCode::Enter), 0, &mut cmds, &mut list);
-        assert!(matches!(action, AppAction::None));
+        assert!(matches!(action, AppAction::CommandSaved));
         assert_eq!(cmds[0].command, "echo new");
     }
 }

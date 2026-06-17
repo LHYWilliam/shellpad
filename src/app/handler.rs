@@ -268,6 +268,12 @@ impl App {
                     self.toasts.add("Command deleted", ToastSeverity::Info);
                 }
             }
+            AppAction::VariableSaved => {
+                self.toasts.add("Variable saved", ToastSeverity::Info);
+            }
+            AppAction::CommandSaved => {
+                self.toasts.add("Command saved", ToastSeverity::Info);
+            }
 
             // ---- Execution screen ----
             AppAction::BackToMain => {

@@ -66,6 +66,8 @@ pub enum AppAction {
     CancelEdit,
     DeleteVariable(usize),
     DeleteCommand(usize),
+    VariableSaved,
+    CommandSaved,
 
     // === Execution screen ===
     SkipCurrent,
