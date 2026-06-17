@@ -1,6 +1,6 @@
 //! XDG configuration paths and terminal size constraints.
 //!
-//! Data is stored at `~/.config/launcher/sets.json` (Linux).
+//! Data is stored at `~/.config/shellpad/sets.json` (Linux).
 //! Minimum terminal dimensions are 80x24.
 
 use directories::ProjectDirs;
@@ -10,21 +10,21 @@ use std::path::PathBuf;
 pub const MIN_TERMINAL_WIDTH: u16 = 80;
 pub const MIN_TERMINAL_HEIGHT: u16 = 24;
 
-/// Returns the project data directory (~/.config/launcher/ on Linux, %APPDATA%/launcher on Windows)
+/// Returns the project data directory (~/.config/shellpad/ on Linux, %APPDATA%/shellpad on Windows)
 pub fn data_dir() -> PathBuf {
-    ProjectDirs::from("com", "launcher", "launcher")
+    ProjectDirs::from("", "", "shellpad")
         .map(|d| d.config_dir().to_path_buf())
         .unwrap_or_else(|| {
             #[cfg(windows)]
             {
                 let appdata = std::env::var("APPDATA")
                     .unwrap_or_else(|_| "C:\\Users\\Default\\AppData\\Roaming".to_string());
-                PathBuf::from(appdata).join("launcher")
+                PathBuf::from(appdata).join("shellpad")
             }
             #[cfg(not(windows))]
             {
                 let home = std::env::var("HOME").unwrap_or_else(|_| "/tmp".to_string());
-                PathBuf::from(home).join(".config/launcher")
+                PathBuf::from(home).join(".config/shellpad")
             }
         })
 }

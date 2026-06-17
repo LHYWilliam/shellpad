@@ -1,4 +1,4 @@
-# Launcher
+# ShellPad
 
 [![CI](https://github.com/LHYLiuWilliam/launcher/actions/workflows/test.yml/badge.svg)](https://github.com/LHYLiuWilliam/launcher/actions/workflows/test.yml)
 ![Rust](https://img.shields.io/badge/rust-1.85%2B-blue)

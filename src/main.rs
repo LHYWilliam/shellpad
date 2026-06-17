@@ -1,10 +1,10 @@
-use launcher::app::App;
-use launcher::tui::{init_terminal, restore_terminal};
+use shellpad::app::App;
+use shellpad::tui::{init_terminal, restore_terminal};
 use std::io;
 
 fn main() -> io::Result<()> {
     // CLI mode
-    if let Some(exit_code) = launcher::cli::run_cli() {
+    if let Some(exit_code) = shellpad::cli::run_cli() {
         std::process::exit(exit_code);
     }
 

@@ -197,6 +197,14 @@ without updating this section.
 - **Key events** — use `make_key(KeyCode::Enter)`. For modifier-key tests,
   inline is fine: `KeyEvent::new(KeyCode::Char('s'), KeyModifiers::CONTROL)`.
 
+- **New feature tests** — when implementing a new feature, proactively add
+  tests covering the new behavior. For handler functions (new actions or
+  key bindings), add test cases in the module's `#[cfg(test)]` block.
+  For new types or methods, add unit tests alongside. For cross-module
+  workflows, add integration tests in `src/integration_tests.rs`. Tests
+  should cover at minimum: happy path, edge cases (empty/null input),
+  and error paths where applicable.
+
 ### Data Mutations
 
 - **Auto-save** — every action that mutates `self.data` (create, update,

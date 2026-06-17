@@ -1,5 +1,5 @@
 [package]
-name = "launcher"
+name = "shellpad"
 version = "0.2.0"
 edition = "2024"
 description = "A Ratatui-based TUI for managing and executing collections of shell commands"
