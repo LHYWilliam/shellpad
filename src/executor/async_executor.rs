@@ -120,6 +120,7 @@ pub fn execute_set(
                             index: actual_index,
                             success: false,
                             duration_ms: cmd_start.elapsed().as_millis(),
+                            exit_code: None,
                         })
                         .is_err()
                     {
@@ -142,16 +143,16 @@ pub fn execute_set(
                 thread::spawn(move || pipe_reader(stderr, actual_index, tx_err, true));
             }
 
-            let success = loop {
+            let (success, exit_code) = loop {
                 if kill_signal.load(Ordering::Relaxed) {
                     let _ = child.kill();
                     child.wait().ok();
-                    break false;
+                    break (false, None);
                 }
                 match child.try_wait() {
-                    Ok(Some(status)) => break status.success(),
+                    Ok(Some(status)) => break (status.success(), status.code()),
                     Ok(None) => thread::sleep(Duration::from_millis(POLL_MS)),
-                    Err(_) => break false,
+                    Err(_) => break (false, None),
                 }
             };
 
@@ -162,6 +163,7 @@ pub fn execute_set(
                     index: actual_index,
                     success,
                     duration_ms: duration,
+                    exit_code,
                 })
                 .is_err()
             {

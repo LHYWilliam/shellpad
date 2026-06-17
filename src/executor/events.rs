@@ -12,6 +12,7 @@ pub enum ExecutionEvent {
         index: usize,
         success: bool,
         duration_ms: u128,
+        exit_code: Option<i32>,
     },
     /// All commands in the set have been executed.
     CompletedAll {
