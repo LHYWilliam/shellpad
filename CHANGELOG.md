@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.2.3 (2026-06-17) — Fix
+
+### Internal
+- Switch crates.io badge from shields.io to badgen.net
+
 ## v0.2.2 (2026-06-17) — Housekeeping
 
 ### Internal
