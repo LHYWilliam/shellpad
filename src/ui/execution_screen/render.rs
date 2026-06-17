@@ -43,20 +43,21 @@ impl ExecutionScreenState {
 
         // Gauge progress bar
         let completed_count = self.succeeded + self.failed + self.skipped;
-        let progress = if self.total > 0 {
-            (completed_count as f64 / self.total as f64).clamp(0.0, 1.0)
+        let pct: u16 = if self.total > 0 {
+            let raw = completed_count as f64 / self.total as f64;
+            ((raw * 100.0) as u16).min(100)
         } else {
-            0.0
+            0
         };
         let gauge_label = format!(
-            "  {}/{}  {:.0}%  ",
+            "  {}/{}  {}%  ",
             completed_count.min(self.total),
             self.total,
-            progress * 100.0
+            pct
         );
         let gauge = Gauge::default()
             .gauge_style(Style::default().fg(theme.accent_success).bg(theme.surface))
-            .percent((progress * 100.0) as u16)
+            .percent(pct)
             .label(gauge_label);
         frame.render_widget(gauge, gauge_area);
 
