@@ -75,126 +75,32 @@ pub fn execute_set(
         let start = std::time::Instant::now();
         let mut succeeded = 0usize;
         let mut failed = 0usize;
-        let _total = commands.len();
 
-        for (actual_index, cmd) in commands.iter().enumerate() {
-            let actual_index = actual_index + index_offset;
+        // Closure: run a batch of commands. `stop_on_error` controls whether
+        // a failure breaks the loop (Phase 1 follows exec_mode; Phase 2 never stops).
+        // `succeeded`/`failed` are passed as arguments rather than captured, to avoid
+        // a &mut borrow that outlives the call and conflicts with CompletedAll below.
+        // `return` inside this closure exits run_phase itself; the caller then
+        // continues to Phase 2 or CompletedAll (tx.send will fail quickly → thread exit).
+        let run_phase = |cmds: &[Command],
+                         index_base: usize,
+                         stop_on_error: bool,
+                         succeeded: &mut usize,
+                         failed: &mut usize| {
+            for (ci, cmd) in cmds.iter().enumerate() {
+                let actual_index = ci + index_base;
 
-            if kill_signal.load(Ordering::Relaxed) {
-                break; // exit Phase 1, continue to defer commands
-            }
-
-            let resolved = {
-                let vars = variables
-                    .iter()
-                    .map(|v| (v.name.as_str(), v.default_value.as_str()));
-                crate::executor::substitute_variables_core(&cmd.command, vars)
-            };
-
-            if tx
-                .send(ExecutionEvent::Starting {
-                    index: actual_index,
-                    command: resolved.clone(),
-                })
-                .is_err()
-            {
-                return;
-            }
-
-            let cmd_start = std::time::Instant::now();
-
-            let mut child = match spawn_shell_command(&shell_cmd, &resolved, working_dir.as_deref())
-            {
-                Ok(c) => c,
-                Err(e) => {
-                    if tx
-                        .send(ExecutionEvent::StderrLine {
-                            index: actual_index,
-                            line: format!("Failed to spawn command: {}", e),
-                        })
-                        .is_err()
-                    {
-                        return;
-                    }
-                    if tx
-                        .send(ExecutionEvent::Finished {
-                            index: actual_index,
-                            success: false,
-                            duration_ms: cmd_start.elapsed().as_millis(),
-                            exit_code: None,
-                        })
-                        .is_err()
-                    {
-                        return;
-                    }
-                    failed += 1;
-                    if matches!(exec_mode, ExecMode::StopOnError) {
-                        break;
-                    }
-                    continue;
-                }
-            };
-
-            if let Some(stdout) = child.stdout.take() {
-                let tx_out = tx.clone();
-                thread::spawn(move || pipe_reader(stdout, actual_index, tx_out, false));
-            }
-            if let Some(stderr) = child.stderr.take() {
-                let tx_err = tx.clone();
-                thread::spawn(move || pipe_reader(stderr, actual_index, tx_err, true));
-            }
-
-            let (success, exit_code) = loop {
-                if kill_signal.load(Ordering::Relaxed) {
-                    let _ = child.kill();
-                    child.wait().ok();
-                    break (false, None);
-                }
-                match child.try_wait() {
-                    Ok(Some(status)) => break (status.success(), status.code()),
-                    Ok(None) => thread::sleep(Duration::from_millis(POLL_MS)),
-                    Err(_) => break (false, None),
-                }
-            };
-
-            let duration = cmd_start.elapsed().as_millis();
-
-            if tx
-                .send(ExecutionEvent::Finished {
-                    index: actual_index,
-                    success,
-                    duration_ms: duration,
-                    exit_code,
-                })
-                .is_err()
-            {
-                return;
-            }
-
-            if success {
-                succeeded += 1;
-            } else {
-                failed += 1;
-                if matches!(exec_mode, ExecMode::StopOnError) {
-                    break;
-                }
-            }
-        }
-
-        // Phase 2: defer commands (reset kill_signal for independent phase)
-        if !defer_commands.is_empty() {
-            kill_signal.store(false, Ordering::Relaxed);
-            for (di, cmd) in defer_commands.iter().enumerate() {
                 if kill_signal.load(Ordering::Relaxed) {
                     break;
                 }
-                let actual_index = commands.len() + di + index_offset;
+
                 let resolved = {
                     let vars = variables
                         .iter()
                         .map(|v| (v.name.as_str(), v.default_value.as_str()));
                     crate::executor::substitute_variables_core(&cmd.command, vars)
                 };
+
                 if tx
                     .send(ExecutionEvent::Starting {
                         index: actual_index,
@@ -204,7 +110,9 @@ pub fn execute_set(
                 {
                     return;
                 }
+
                 let cmd_start = std::time::Instant::now();
+
                 let mut child =
                     match spawn_shell_command(&shell_cmd, &resolved, working_dir.as_deref()) {
                         Ok(c) => c,
@@ -219,10 +127,15 @@ pub fn execute_set(
                                 duration_ms: cmd_start.elapsed().as_millis(),
                                 exit_code: None,
                             });
-                            failed += 1;
-                            continue;
+                            *failed += 1;
+                            if stop_on_error {
+                                break;
+                            } else {
+                                continue;
+                            }
                         }
                     };
+
                 if let Some(stdout) = child.stdout.take() {
                     let tx_out = tx.clone();
                     thread::spawn(move || pipe_reader(stdout, actual_index, tx_out, false));
@@ -231,6 +144,7 @@ pub fn execute_set(
                     let tx_err = tx.clone();
                     thread::spawn(move || pipe_reader(stderr, actual_index, tx_err, true));
                 }
+
                 let (success, exit_code) = loop {
                     if kill_signal.load(Ordering::Relaxed) {
                         let _ = child.kill();
@@ -243,23 +157,51 @@ pub fn execute_set(
                         Err(_) => break (false, None),
                     }
                 };
+
+                let duration = cmd_start.elapsed().as_millis();
+
                 if tx
                     .send(ExecutionEvent::Finished {
                         index: actual_index,
                         success,
-                        duration_ms: cmd_start.elapsed().as_millis(),
+                        duration_ms: duration,
                         exit_code,
                     })
                     .is_err()
                 {
                     return;
                 }
+
                 if success {
-                    succeeded += 1;
+                    *succeeded += 1;
                 } else {
-                    failed += 1;
+                    *failed += 1;
+                    if stop_on_error {
+                        break;
+                    }
                 }
             }
+        };
+
+        // Phase 1: normal commands
+        run_phase(
+            &commands,
+            index_offset,
+            matches!(exec_mode, ExecMode::StopOnError),
+            &mut succeeded,
+            &mut failed,
+        );
+
+        // Phase 2: defer commands (reset kill_signal for independent phase)
+        if !defer_commands.is_empty() {
+            kill_signal.store(false, Ordering::Relaxed);
+            run_phase(
+                &defer_commands,
+                commands.len() + index_offset,
+                false, // defers never stop on error
+                &mut succeeded,
+                &mut failed,
+            );
         }
 
         let total = commands.len() + defer_commands.len();
