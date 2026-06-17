@@ -248,7 +248,7 @@ mod tests {
     fn test_mark_remaining_as_skipped() {
         let mut state = make_state(&["a", "b", "c"]);
         state.mark_remaining_as_skipped();
-        assert!(state.completed);
+        assert!(!state.completed); // completed only set by CompletedAll event
         for (i, cmd) in state.cmd_states.iter().enumerate() {
             assert_eq!(cmd.status, CmdStatus::Skipped, "cmd {i} should be skipped");
         }

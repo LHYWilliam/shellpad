@@ -320,24 +320,33 @@ impl App {
                 self.mode = AppMode::Main;
             }
             AppAction::Pause => {
-                if let ExecutionState::Running { ref mut screen, ref manager, .. } =
-                    self.execution_state
+                if let ExecutionState::Running {
+                    ref mut screen,
+                    ref manager,
+                    ..
+                } = self.execution_state
                 {
                     manager.skip_current();
                     screen.paused = true;
                 }
             }
             AppAction::Continue => {
-                if let ExecutionState::Running { ref mut screen, ref manager, .. } =
-                    self.execution_state
+                if let ExecutionState::Running {
+                    ref mut screen,
+                    ref manager,
+                    ..
+                } = self.execution_state
                 {
                     manager.continue_next();
                     screen.paused = false;
                 }
             }
             AppAction::Abort => {
-                if let ExecutionState::Running { ref mut screen, ref manager, .. } =
-                    self.execution_state
+                if let ExecutionState::Running {
+                    ref mut screen,
+                    ref manager,
+                    ..
+                } = self.execution_state
                 {
                     manager.abort_all();
                     screen.paused = false;

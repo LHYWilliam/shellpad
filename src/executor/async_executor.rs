@@ -137,8 +137,12 @@ pub fn execute_set(
                                 line: format!("Failed to spawn command: {}", e),
                             });
                             send_finished(
-                                &tx, actual_index, false,
-                                cmd_start.elapsed().as_millis(), None, false,
+                                &tx,
+                                actual_index,
+                                false,
+                                cmd_start.elapsed().as_millis(),
+                                None,
+                                false,
                             );
                             *failed += 1;
                             if stop_on_error {
@@ -179,15 +183,23 @@ pub fn execute_set(
 
                     if act == "abort" {
                         send_finished(
-                            &tx, actual_index, false,
-                            cmd_start.elapsed().as_millis(), None, true,
+                            &tx,
+                            actual_index,
+                            false,
+                            cmd_start.elapsed().as_millis(),
+                            None,
+                            true,
                         );
                         return PhaseResult::Aborted;
                     }
                     if act == "skip" {
                         send_finished(
-                            &tx, actual_index, false,
-                            cmd_start.elapsed().as_millis(), None, true,
+                            &tx,
+                            actual_index,
+                            false,
+                            cmd_start.elapsed().as_millis(),
+                            None,
+                            true,
                         );
                         loop {
                             thread::sleep(Duration::from_millis(100));

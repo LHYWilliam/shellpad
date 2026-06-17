@@ -8,8 +8,8 @@ use std::thread;
 pub struct ExecutionManager {
     pub rx: Option<mpsc::Receiver<ExecutionEvent>>,
     pub handle: Option<thread::JoinHandle<()>>,
-    pub kill_signal: Arc<AtomicBool>,  // Ctrl+C — abort normals
-    pub skip_signal: Arc<AtomicBool>,  // s/n — skip/pause
+    pub kill_signal: Arc<AtomicBool>, // Ctrl+C — abort normals
+    pub skip_signal: Arc<AtomicBool>, // s/n — skip/pause
 }
 
 impl ExecutionManager {
