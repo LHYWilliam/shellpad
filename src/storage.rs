@@ -114,7 +114,7 @@ mod tests {
     /// Helper: create a temporary directory and run the test closure.
     /// Returns the directory path so tests can use it.
     fn with_temp_dir(f: impl FnOnce(&Path)) {
-        let tmp_dir = std::env::temp_dir().join(format!("launcher_test_{}", Uuid::new_v4()));
+        let tmp_dir = std::env::temp_dir().join(format!("shellpad_test_{}", Uuid::new_v4()));
         let _ = fs::create_dir_all(&tmp_dir);
         f(&tmp_dir);
         let _ = fs::remove_dir_all(&tmp_dir);

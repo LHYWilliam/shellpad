@@ -17,7 +17,7 @@ mod tests {
     // ------------------------------------------------------------------
     #[test]
     fn test_storage_full_lifecycle() {
-        let tmp = std::env::temp_dir().join(format!("launcher_test_{}", Uuid::new_v4()));
+        let tmp = std::env::temp_dir().join(format!("shellpad_test_{}", Uuid::new_v4()));
         let path = tmp.join("sets.json");
         let tmp_path = tmp.join("sets.json.tmp");
         std::fs::create_dir_all(&tmp).unwrap();
