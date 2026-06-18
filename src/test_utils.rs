@@ -30,6 +30,7 @@ pub(crate) fn make_app() -> App {
         variable_screen: VariableScreenState::new(),
         theme: Theme::default_dark(),
         toasts: ToastManager::new(),
+        trash: Vec::new(),
     }
 }
 

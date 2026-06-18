@@ -9,6 +9,7 @@ use crate::app::execution::ExecutionManager;
 use crate::app::toast::ToastManager;
 use crate::mode::AppMode;
 use crate::models::AppData;
+use crate::models::{CommandSet, Group};
 use crate::storage;
 use crate::tui::TuiTerminal;
 use crate::ui::detail_screen::DetailScreenState;
@@ -17,9 +18,28 @@ use crate::ui::main_screen::MainScreenState;
 use crate::ui::theme::Theme;
 use crate::ui::toast::ToastSeverity;
 use crate::ui::variable_screen::VariableScreenState;
+use chrono::Local;
 use crossterm::event::{self, Event, KeyEventKind};
 use std::io;
 use std::time::Duration;
+
+/// One entry in the undo stack.
+pub(crate) struct TrashEntry {
+    pub timestamp: chrono::DateTime<Local>,
+    pub item: TrashedItem,
+}
+
+pub(crate) enum TrashedItem {
+    Group {
+        group: Group,
+        index: usize,
+    },
+    Set {
+        set: CommandSet,
+        group_index: usize,
+        set_index: usize,
+    },
+}
 
 /// Event loop tick interval (milliseconds).
 const TICK_RATE_MS: u64 = 100;
@@ -61,6 +81,7 @@ pub struct App {
 
     pub theme: Theme,
     pub toasts: ToastManager,
+    pub(crate) trash: Vec<TrashEntry>,
 }
 
 impl Default for App {
@@ -86,6 +107,7 @@ impl App {
             variable_screen: VariableScreenState::new(),
             theme: Theme::default_dark(),
             toasts: ToastManager::new(),
+            trash: Vec::new(),
         }
     }
 
