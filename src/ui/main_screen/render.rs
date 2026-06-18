@@ -1,5 +1,5 @@
 use crate::models::AppData;
-use crate::ui::main_screen::{MainScreenState, Panel};
+use crate::ui::main_screen::{MainScreenMode, MainScreenState, Panel};
 use crate::ui::render::bordered_block_zone;
 use crate::ui::render::{
     empty_hint, fill_row, list_scrollbar_areas, render_inline_cursor, render_scrollbar,
@@ -42,8 +42,14 @@ impl MainScreenState {
                 } else {
                     "  "
                 };
-                let display_name = if self.rename_mode && i == self.group_list.selected {
-                    &self.rename_input.content
+                let is_renaming =
+                    matches!(self.mode, MainScreenMode::Renaming(_)) && i == self.group_list.selected;
+                let display_name = if is_renaming {
+                    if let MainScreenMode::Renaming(ref input) = self.mode {
+                        &input.content
+                    } else {
+                        unreachable!()
+                    }
                 } else {
                     &g.name
                 };
@@ -52,7 +58,7 @@ impl MainScreenState {
                 let name_width = unicode_width::UnicodeWidthStr::width(name.as_str());
                 let pad = avail.saturating_sub(name_width + count.len());
                 let label = format!("{}{:>pad$}{}", name, "", count, pad = pad);
-                let style = if self.rename_mode && i == self.group_list.selected {
+                let style = if is_renaming {
                     theme.editing_style()
                 } else if i == self.group_list.selected {
                     theme.selected_style()
@@ -69,7 +75,7 @@ impl MainScreenState {
 
         let mut list_state = ratatui::widgets::ListState::default()
             .with_selected(self.group_list.selected_or_none(data.groups.len()));
-        let list_highlight = if self.rename_mode {
+        let list_highlight = if matches!(self.mode, MainScreenMode::Renaming(_)) {
             theme.editing_style()
         } else {
             theme.selected_style()
@@ -87,35 +93,40 @@ impl MainScreenState {
         );
 
         // Cursor for rename mode at the selected group name position
-        if self.rename_mode && !data.groups.is_empty() {
+        if let MainScreenMode::Renaming(ref input) = self.mode
+            && !data.groups.is_empty()
+        {
             render_inline_cursor(
                 frame,
                 list_area,
                 self.group_list.offset,
                 self.group_list.selected,
-                &self.rename_input,
+                input,
                 unicode_width::UnicodeWidthStr::width("▶ ") as u16,
             );
         }
     }
 
     pub(crate) fn render_search_block(&self, frame: &mut Frame, area: Rect, theme: &Theme) {
-        let inner = bordered_block_zone(frame, area, theme, " Search ", self.search_mode);
-        frame.render_widget(
-            Paragraph::new(Line::from(Span::styled(
-                format!(" Search: {} ", self.search_input.content),
-                Style::default().fg(theme.text_primary),
-            ))),
-            inner,
-        );
-        let prefix_width = unicode_width::UnicodeWidthStr::width(" Search: ");
-        set_cursor_after_prefix(
-            frame,
-            &self.search_input.content,
-            self.search_input.cursor,
-            prefix_width as u16,
-            inner,
-        );
+        let is_searching = matches!(self.mode, MainScreenMode::Searching(_));
+        let inner = bordered_block_zone(frame, area, theme, " Search ", is_searching);
+        if let MainScreenMode::Searching(ref input) = self.mode {
+            frame.render_widget(
+                Paragraph::new(Line::from(Span::styled(
+                    format!(" Search: {} ", input.content),
+                    Style::default().fg(theme.text_primary),
+                ))),
+                inner,
+            );
+            let prefix_width = unicode_width::UnicodeWidthStr::width(" Search: ");
+            set_cursor_after_prefix(
+                frame,
+                &input.content,
+                input.cursor,
+                prefix_width as u16,
+                inner,
+            );
+        }
     }
 
     pub(crate) fn render_set_panel(
@@ -126,7 +137,7 @@ impl MainScreenState {
         results: &[crate::models::FilterResult<'_>],
         theme: &Theme,
     ) {
-        let title = if self.search_mode {
+        let title = if matches!(self.mode, MainScreenMode::Searching(_)) {
             " Results ".to_string()
         } else {
             let name = self
@@ -192,7 +203,7 @@ impl MainScreenState {
                 parts.push(Span::styled(suffix, text_style));
 
                 // Right-aligned group name in search mode
-                if self.search_mode {
+                if matches!(self.mode, MainScreenMode::Searching(_)) {
                     let gname = data
                         .groups
                         .get(result.group_index)
@@ -240,9 +251,9 @@ impl MainScreenState {
     }
 
     pub(crate) fn render_status_bar(&self, frame: &mut Frame, area: Rect, theme: &Theme) {
-        let text = if self.rename_mode {
+        let text = if matches!(self.mode, MainScreenMode::Renaming(_)) {
             "[Enter] Confirm  [Esc] Cancel — renaming group"
-        } else if self.search_mode {
+        } else if matches!(self.mode, MainScreenMode::Searching(_)) {
             "[Enter] Confirm  [Esc] Cancel  [↑/↓] Nav — searching"
         } else {
             "[↑/↓] Nav  [←/→] Panel  [Ctrl+↑/↓] Move  [Enter] Run  [e] Edit  [n] New  [R] Rename  [d] Del set  [D] Del group  [g] New group  [/] Search  [q] Quit"

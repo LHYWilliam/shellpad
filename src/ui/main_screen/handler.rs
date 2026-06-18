@@ -1,4 +1,4 @@
-use super::Panel;
+use super::{MainScreenMode, Panel};
 use crate::action::{AppAction, DeleteKind, ReorderKind};
 use crate::models::AppData;
 use crate::ui::main_screen::MainScreenState;
@@ -12,44 +12,42 @@ impl MainScreenState {
         use crossterm::event::KeyCode;
 
         // Rename mode (takes priority over search)
-        if self.rename_mode {
+        if let MainScreenMode::Renaming(ref mut input) = self.mode {
             return match key.code {
                 KeyCode::Enter => {
-                    let name = self.rename_input.content.clone();
+                    let name = input.content.clone();
                     let gi = self.group_list.selected;
-                    self.rename_mode = false;
+                    self.mode = MainScreenMode::Normal;
                     AppAction::RenameGroup(gi, name)
                 }
                 KeyCode::Esc => {
-                    self.rename_mode = false;
+                    self.mode = MainScreenMode::Normal;
                     AppAction::None
                 }
                 _ => {
-                    handle_text_input(&mut self.rename_input, key);
+                    handle_text_input(input, key);
                     AppAction::None
                 }
             };
         }
 
         // Search mode
-        if self.search_mode {
+        if let MainScreenMode::Searching(ref mut input) = self.mode {
             return match key.code {
                 KeyCode::Esc => {
-                    self.search_mode = false;
-                    self.search_input = TextInput::new(String::new());
+                    self.mode = MainScreenMode::Normal;
                     self.set_list.reset();
                     self.active_panel = Panel::Groups;
                     AppAction::None
                 }
                 KeyCode::Enter => {
-                    let results = data.filter_sets(&self.search_input.content);
+                    let results = data.filter_sets(&input.content);
                     if let Some(result) = results.get(self.set_list.selected) {
                         self.group_list.selected = result.group_index;
                         self.set_list.selected = result.set_index;
                         self.active_panel = Panel::Sets;
                     }
-                    self.search_mode = false;
-                    self.search_input = TextInput::new(String::new());
+                    self.mode = MainScreenMode::Normal;
                     AppAction::None
                 }
                 KeyCode::Up | KeyCode::Char('k') | KeyCode::Char('K') => {
@@ -57,12 +55,12 @@ impl MainScreenState {
                     AppAction::None
                 }
                 KeyCode::Down | KeyCode::Char('j') | KeyCode::Char('J') => {
-                    let n = data.filter_sets(&self.search_input.content).len();
+                    let n = data.filter_sets(&input.content).len();
                     self.set_list.select_next(n);
                     AppAction::None
                 }
                 _ => {
-                    handle_text_input(&mut self.search_input, key);
+                    handle_text_input(input, key);
                     self.active_panel = Panel::Sets;
                     self.set_list.reset();
                     AppAction::None
@@ -207,14 +205,12 @@ impl MainScreenState {
                     && let Some(gi) = self.selected_group_idx(data)
                 {
                     let current = data.groups[gi].name.clone();
-                    self.rename_mode = true;
-                    self.rename_input = TextInput::new(current);
+                    self.mode = MainScreenMode::Renaming(TextInput::new(current));
                 }
                 AppAction::None
             }
             KeyCode::Char('/') => {
-                self.search_mode = true;
-                self.search_input.content.clear();
+                self.mode = MainScreenMode::Searching(TextInput::new(String::new()));
                 self.set_list.reset();
                 self.active_panel = Panel::Sets;
                 AppAction::None
@@ -357,7 +353,7 @@ mod tests {
         let data = make_data();
         let action = state.handle_key(make_key(KeyCode::Char('/')), &data);
         assert!(matches!(action, AppAction::None));
-        assert!(state.search_mode);
+        assert!(matches!(state.mode, MainScreenMode::Searching(_)));
     }
 
     #[test]

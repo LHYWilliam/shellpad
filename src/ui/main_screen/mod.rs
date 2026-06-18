@@ -14,14 +14,18 @@ pub enum Panel {
     Sets,
 }
 
+/// Which interactive overlay is active — search or rename, if any.
+pub(crate) enum MainScreenMode {
+    Normal,
+    Searching(TextInput),
+    Renaming(TextInput),
+}
+
 pub struct MainScreenState {
     pub group_list: ScrollableList,
     pub set_list: ScrollableList,
     pub active_panel: Panel,
-    pub search_mode: bool,
-    pub search_input: TextInput,
-    pub rename_mode: bool,
-    pub rename_input: TextInput,
+    pub(crate) mode: MainScreenMode,
 }
 
 impl Default for MainScreenState {
@@ -36,10 +40,7 @@ impl MainScreenState {
             group_list: ScrollableList::new(),
             set_list: ScrollableList::new(),
             active_panel: Panel::Groups,
-            search_mode: false,
-            search_input: TextInput::new(String::new()),
-            rename_mode: false,
-            rename_input: TextInput::new(String::new()),
+            mode: MainScreenMode::Normal,
         }
     }
 
@@ -64,8 +65,8 @@ impl MainScreenState {
 
     /// Get all sets visible in current view (accounting for search).
     pub fn visible_sets<'a>(&'a self, data: &'a AppData) -> Vec<crate::models::FilterResult<'a>> {
-        if self.search_mode {
-            data.filter_sets(&self.search_input.content)
+        if let MainScreenMode::Searching(ref input) = self.mode {
+            data.filter_sets(&input.content)
         } else if let Some(gi) = self.selected_group_idx(data) {
             data.groups[gi]
                 .sets
@@ -99,7 +100,7 @@ impl MainScreenState {
         self.render_group_panel(frame, left_area, data, theme);
 
         // Right panel: Search + Results (search mode) or command sets (normal)
-        if self.search_mode {
+        if matches!(self.mode, MainScreenMode::Searching(_)) {
             let search_layout = Layout::vertical([
                 Constraint::Length(3), // Search block
                 Constraint::Min(1),    // Results block
