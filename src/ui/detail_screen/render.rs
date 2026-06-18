@@ -1,4 +1,4 @@
-use super::{DetailFocus, DetailScreenState};
+use super::{DetailFocus, DetailScreenState, EditingState};
 use crate::models::{ExecMode, ShellType};
 use crate::ui::render::bordered_block_zone;
 use crate::ui::render::{
@@ -52,32 +52,38 @@ impl DetailScreenState {
         ] = rows.areas(inner);
 
         // Name
+        let dummy = TextInput::new(String::new());
+        let (editing_name, name_input) = match &self.editing {
+            EditingState::Name(input) => (true, input),
+            _ => (false, &dummy),
+        };
         self.render_editable_field(
-            frame,
-            name_row,
-            theme,
-            "Name",
+            frame, name_row, theme, "Name",
             self.focus == DetailFocus::Name,
-            self.editing_name,
-            &self.name_input,
-            &self.set.name,
-            false,
+            editing_name, name_input, &self.set.name, false,
         );
 
         // WorkDir
+        let (workdir_editing, workdir_input, display, dim) = match &self.editing {
+            EditingState::WorkDir(input) => (
+                true, input,
+                if input.content.trim().is_empty() {
+                    "(default — shellpad CWD)"
+                } else {
+                    input.content.as_str()
+                },
+                input.content.trim().is_empty(),
+            ),
+            _ => (
+                false, &dummy,
+                self.set.working_dir.as_deref().unwrap_or("(default — shellpad CWD)"),
+                self.set.working_dir.is_none(),
+            ),
+        };
         self.render_editable_field(
-            frame,
-            workdir_row,
-            theme,
-            "WorkDir",
+            frame, workdir_row, theme, "WorkDir",
             self.focus == DetailFocus::WorkDir,
-            self.workdir_editing,
-            &self.workdir_input,
-            self.set
-                .working_dir
-                .as_deref()
-                .unwrap_or("(default — shellpad CWD)"),
-            self.set.working_dir.is_none(),
+            workdir_editing, workdir_input, display, dim,
         );
 
         // Separator — full width

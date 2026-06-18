@@ -3,6 +3,7 @@ mod tests {
     use crate::action::{AppAction, DeleteKind, ReorderKind};
     use crate::mode::AppMode;
     use crate::models::{AppData, CommandSet, Group, Variable};
+    use crate::ui::detail_screen::EditingState;
     use crate::storage;
     use crate::ui::detail_screen::{DetailFocus, DetailScreenState};
     use crate::ui::main_screen::{MainScreenState, Panel};
@@ -128,7 +129,7 @@ mod tests {
         let mut detail = DetailScreenState::new(set, groups);
         detail.focus = DetailFocus::Name;
         detail.handle_key(enter);
-        assert!(detail.editing_name);
+        assert!(matches!(detail.editing, EditingState::Name(_)));
 
         let ctrl_s = crossterm::event::KeyEvent::new(
             crossterm::event::KeyCode::Char('s'),

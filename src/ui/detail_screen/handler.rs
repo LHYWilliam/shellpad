@@ -1,5 +1,5 @@
 use super::editor::{handle_command_edit, handle_variable_edit};
-use super::{DetailFocus, DetailScreenState};
+use super::{DetailFocus, DetailScreenState, EditingState};
 use crate::action::{AppAction, DeleteKind, ReorderKind};
 use crate::ui::widget::text_input::handle_text_input;
 use crate::ui::widget::{InlineEdit, ScrollableList, TextInput};
@@ -244,29 +244,29 @@ impl DetailScreenState {
             KeyCode::Enter => {
                 match self.focus {
                     DetailFocus::Name => {
-                        if self.editing_name {
+                        if let EditingState::Name(input) = &self.editing {
                             // Second Enter: confirm edit
-                            self.set.name = self.name_input.content.clone();
-                            self.editing_name = false;
+                            self.set.name = input.content.clone();
+                            self.editing = EditingState::None;
                         } else {
                             // First Enter: start editing
-                            self.name_input = TextInput::new(self.set.name.clone());
-                            self.editing_name = true;
+                            self.editing =
+                                EditingState::Name(TextInput::new(self.set.name.clone()));
                         }
                     }
                     DetailFocus::WorkDir => {
-                        if self.workdir_editing {
-                            let content = self.workdir_input.content.clone();
+                        if let EditingState::WorkDir(input) = &self.editing {
+                            let content = input.content.clone();
                             self.set.working_dir = if content.trim().is_empty() {
                                 None
                             } else {
                                 Some(content)
                             };
-                            self.workdir_editing = false;
+                            self.editing = EditingState::None;
                         } else {
-                            self.workdir_input =
-                                TextInput::new(self.set.working_dir.clone().unwrap_or_default());
-                            self.workdir_editing = true;
+                            self.editing = EditingState::WorkDir(TextInput::new(
+                                self.set.working_dir.clone().unwrap_or_default(),
+                            ));
                         }
                     }
                     DetailFocus::Variables if !self.set.variables.is_empty() => {
@@ -379,10 +379,11 @@ impl DetailScreenState {
                 return AppAction::SaveSet(self.set.clone());
             }
             KeyCode::Esc => {
-                if self.editing_name {
-                    self.editing_name = false;
-                } else if self.workdir_editing {
-                    self.workdir_editing = false;
+                if matches!(
+                    &self.editing,
+                    EditingState::Name(..) | EditingState::WorkDir(..)
+                ) {
+                    self.editing = EditingState::None;
                 } else {
                     return AppAction::CancelEdit;
                 }
@@ -390,33 +391,32 @@ impl DetailScreenState {
             _ => {}
         };
 
-        // Handle name editing (Enter to confirm is handled in the outer match)
-        if self.editing_name {
-            handle_text_input(&mut self.name_input, key);
-        }
-        if self.workdir_editing {
-            handle_text_input(&mut self.workdir_input, key);
+        // Dispatch key to active editor (Name/List handled elsewhere)
+        match &mut self.editing {
+            EditingState::Name(input) => handle_text_input(input, key),
+            EditingState::WorkDir(input) => handle_text_input(input, key),
+            _ => {}
         }
 
         AppAction::None
     }
 
     fn commit_name_edit(&mut self) {
-        if self.editing_name {
-            self.set.name = self.name_input.content.clone();
-            self.editing_name = false;
+        if let EditingState::Name(input) = &self.editing {
+            self.set.name = input.content.clone();
+            self.editing = EditingState::None;
         }
     }
 
     fn commit_workdir_edit(&mut self) {
-        if self.workdir_editing {
-            let content = self.workdir_input.content.clone();
+        if let EditingState::WorkDir(ref input) = self.editing {
+            let content = input.content.clone();
             self.set.working_dir = if content.trim().is_empty() {
                 None
             } else {
                 Some(content)
             };
-            self.workdir_editing = false;
+            self.editing = EditingState::None;
         }
     }
 
@@ -492,9 +492,9 @@ mod tests {
     fn test_enter_on_name_starts_editing() {
         let mut state = make_state();
         assert_eq!(state.focus, DetailFocus::Name);
-        assert!(!state.editing_name);
+        assert!(matches!(state.editing, EditingState::None));
         state.handle_key(make_key(KeyCode::Enter));
-        assert!(state.editing_name);
+        assert!(matches!(state.editing, EditingState::Name(_)));
     }
 
     #[test]
@@ -624,9 +624,9 @@ mod tests {
     fn test_enter_on_workdir_starts_editing() {
         let mut state = make_state();
         state.focus = DetailFocus::WorkDir;
-        assert!(!state.workdir_editing);
+        assert!(matches!(state.editing, EditingState::None));
         state.handle_key(make_key(KeyCode::Enter));
-        assert!(state.workdir_editing);
+        assert!(matches!(state.editing, EditingState::WorkDir(_)));
     }
 
     #[test]
@@ -634,10 +634,13 @@ mod tests {
         let mut state = make_state();
         state.focus = DetailFocus::WorkDir;
         state.handle_key(make_key(KeyCode::Enter)); // start editing
-        assert!(state.workdir_editing);
-        state.workdir_input = crate::ui::widget::TextInput::new("/tmp/test".to_string());
+        assert!(matches!(state.editing, EditingState::WorkDir(_)));
+        // Simulate typing: replace the editing input
+        if let EditingState::WorkDir(input) = &mut state.editing {
+            *input = crate::ui::widget::TextInput::new("/tmp/test".to_string());
+        }
         state.handle_key(make_key(KeyCode::Enter)); // confirm
-        assert!(!state.workdir_editing);
+        assert!(matches!(state.editing, EditingState::None));
         assert_eq!(state.set.working_dir, Some("/tmp/test".to_string()));
     }
 
@@ -647,9 +650,11 @@ mod tests {
         state.set.working_dir = Some("/old/path".to_string());
         state.focus = DetailFocus::WorkDir;
         state.handle_key(make_key(KeyCode::Enter)); // start editing
-        state.workdir_input = crate::ui::widget::TextInput::new(String::new());
+        if let EditingState::WorkDir(input) = &mut state.editing {
+            *input = crate::ui::widget::TextInput::new(String::new());
+        }
         state.handle_key(make_key(KeyCode::Enter)); // confirm with empty
-        assert!(!state.workdir_editing);
+        assert!(matches!(state.editing, EditingState::None));
         assert_eq!(state.set.working_dir, None);
     }
 
@@ -659,10 +664,12 @@ mod tests {
         state.set.working_dir = Some("/existing".to_string());
         state.focus = DetailFocus::WorkDir;
         state.handle_key(make_key(KeyCode::Enter)); // start editing
-        assert!(state.workdir_editing);
-        state.workdir_input = crate::ui::widget::TextInput::new("/changed".to_string());
+        assert!(matches!(state.editing, EditingState::WorkDir(_)));
+        if let EditingState::WorkDir(input) = &mut state.editing {
+            *input = crate::ui::widget::TextInput::new("/changed".to_string());
+        }
         state.handle_key(make_key(KeyCode::Esc));
-        assert!(!state.workdir_editing);
+        assert!(matches!(state.editing, EditingState::None));
         assert_eq!(state.set.working_dir, Some("/existing".to_string()));
     }
 
@@ -671,9 +678,11 @@ mod tests {
         let mut state = make_state();
         state.focus = DetailFocus::WorkDir;
         state.handle_key(make_key(KeyCode::Enter)); // start editing
-        state.workdir_input = crate::ui::widget::TextInput::new("/committed".to_string());
+        if let EditingState::WorkDir(input) = &mut state.editing {
+            *input = crate::ui::widget::TextInput::new("/committed".to_string());
+        }
         state.handle_key(make_key(KeyCode::Tab)); // Tab commits + moves
-        assert!(!state.workdir_editing);
+        assert!(matches!(state.editing, EditingState::None));
         assert_eq!(state.set.working_dir, Some("/committed".to_string()));
         assert_eq!(state.focus, DetailFocus::Variables);
     }

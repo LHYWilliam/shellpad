@@ -103,8 +103,8 @@ impl DetailScreenState {
             .border_style(Style::default().fg(theme.accent_info))
             .title(format!(
                 " Edit: {} ",
-                if self.editing_name {
-                    &self.name_input.content
+                if let EditingState::Name(input) = &self.editing {
+                    &input.content
                 } else {
                     &self.set.name
                 }
