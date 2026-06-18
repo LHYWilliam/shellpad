@@ -1,8 +1,7 @@
-use super::{CmdStatus, ExecutionScreenState, SearchState, MAX_OUTPUT_LINES};
+use super::{CmdStatus, ExecutionScreenState, MAX_OUTPUT_LINES, SearchState};
 use crate::ui::render::bordered_block_primary_zone;
 use crate::ui::render::{
-    empty_hint, list_scrollbar_areas, render_scrollbar, render_status_bar,
-    set_cursor_after_prefix,
+    empty_hint, list_scrollbar_areas, render_scrollbar, render_status_bar, set_cursor_after_prefix,
 };
 use crate::ui::theme::Theme;
 use ratatui::Frame;
@@ -26,8 +25,11 @@ fn search_bar_text(query: &str, matches: &[usize], current: usize) -> String {
 
 impl ExecutionScreenState {
     pub(crate) fn render(&mut self, frame: &mut Frame, area: Rect, theme: &Theme) {
-        let search_height: u16 =
-            if matches!(self.search, SearchState::Active { .. }) { 1 } else { 0 };
+        let search_height: u16 = if matches!(self.search, SearchState::Active { .. }) {
+            1
+        } else {
+            0
+        };
 
         let vertical = Layout::vertical([
             Constraint::Length(1),
@@ -153,9 +155,7 @@ impl ExecutionScreenState {
 
             let current_match_idx: Option<usize> =
                 if let SearchState::Active {
-                    current,
-                    matches,
-                    ..
+                    current, matches, ..
                 } = &self.search
                 {
                     matches.get(*current).copied()
@@ -164,11 +164,10 @@ impl ExecutionScreenState {
                 };
 
             // Output lines (indented)
-            let mut item_idx = items.len();
-            for line in &state.output_lines {
+            for (li, line) in (items.len()..).zip(state.output_lines.iter()) {
                 let is_stderr = line.starts_with("[stderr]");
-                let is_match = match_set.contains(&item_idx);
-                let is_current_match = current_match_idx == Some(item_idx);
+                let is_match = match_set.contains(&li);
+                let is_current_match = current_match_idx == Some(li);
 
                 let line_style = if is_current_match {
                     Style::default()
@@ -176,9 +175,7 @@ impl ExecutionScreenState {
                         .bg(theme.accent_primary)
                         .add_modifier(Modifier::BOLD)
                 } else if is_match {
-                    Style::default()
-                        .fg(theme.accent_primary)
-                        .bg(theme.surface)
+                    Style::default().fg(theme.accent_primary).bg(theme.surface)
                 } else {
                     Style::default().fg(if is_stderr {
                         theme.accent_error
@@ -191,7 +188,6 @@ impl ExecutionScreenState {
                     format!("   {}", line),
                     line_style,
                 ))));
-                item_idx += 1;
             }
 
             // Separator between commands
@@ -305,7 +301,13 @@ impl ExecutionScreenState {
             frame.render_widget(para, area);
 
             let prefix_width = unicode_width::UnicodeWidthStr::width(" Search: ");
-            set_cursor_after_prefix(frame, &input.content, input.cursor, prefix_width as u16, area);
+            set_cursor_after_prefix(
+                frame,
+                &input.content,
+                input.cursor,
+                prefix_width as u16,
+                area,
+            );
         }
     }
 }

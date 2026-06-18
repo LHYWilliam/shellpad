@@ -27,9 +27,10 @@ Inspired by task runners like `just` and `make`, but interactive.
 - **Tab Navigation** — Tab/Shift+Tab cycles Properties ↔ Variables ↔ Commands ↔ Deferred Commands, ↑/↓ navigates within each region
 - **Reordering** — Ctrl+Up/Down reorder groups, sets, variables, and commands
 - **Delete Confirmation** — Modal confirmation dialog with Confirm/Cancel buttons
+- **Undo Delete** — Ctrl+Z restores recently deleted groups and sets, multi-level LIFO stack with status bar hint
 - **Atomic Persistence** — Crash-safe JSON save at `~/.config/shellpad/sets.json`
 - **CLI Mode** — Execute, search, import/export command sets from the terminal
-- **260 Tests** — Comprehensive unit, handler, and integration test coverage
+- **270 Tests** — Comprehensive unit, handler, and integration test coverage
 - **Published on crates.io** — Install with `cargo install shellpad`
 
 ## Installation
@@ -75,6 +76,7 @@ shellpad
 | `↑/↓` / `j/k` | Navigate list |
 | `←/→` | Switch between Groups / Sets panel |
 | `Ctrl+↑/↓` | Reorder group or set |
+| `Ctrl+Z` | Undo last deletion |
 | `Enter` | Execute selected command set |
 | `e` | Edit selected command set |
 | `n` | New command set |
@@ -179,7 +181,7 @@ Key modules: `app/` (state machine, dispatch, toast), `ui/` (screens, widgets, t
 ```bash
 cargo build              # Build
 cargo run                # Run TUI (requires real terminal)
-cargo test               # Run all 260 tests
+cargo test               # Run all 270 tests
 cargo check              # Fast compilation check
 cargo clippy             # Lint
 ```

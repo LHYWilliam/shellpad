@@ -14,7 +14,7 @@ const PAGE_SIZE: usize = 20;
 
 /// Scroll tracking mode — exactly one variant is active.
 #[derive(Debug, Clone, PartialEq, Eq)]
-enum ScrollMode {
+pub(crate) enum ScrollMode {
     /// Tail-follow: auto-scrolls to show latest output at bottom (default).
     Follow,
     /// Browse: locked to a specific command's header line (←/→).
@@ -44,7 +44,7 @@ pub(crate) struct CmdState {
 
 /// Output search state — only active while the search bar is open.
 #[derive(Debug, Clone)]
-enum SearchState {
+pub(crate) enum SearchState {
     Inactive,
     Active {
         input: TextInput,
@@ -286,10 +286,8 @@ impl ExecutionScreenState {
                 | KeyCode::Home
                 | KeyCode::End
         );
-        if is_edit_key {
-            if let SearchState::Active { ref mut input, .. } = self.search {
-                crate::ui::widget::text_input::handle_text_input(input, key);
-            }
+        if is_edit_key && let SearchState::Active { ref mut input, .. } = self.search {
+            crate::ui::widget::text_input::handle_text_input(input, key);
         }
 
         // If query changed, recalculate matches
@@ -305,7 +303,9 @@ impl ExecutionScreenState {
         match key.code {
             KeyCode::Enter => {
                 let target = if let SearchState::Active {
-                    ref matches, current, ..
+                    ref matches,
+                    current,
+                    ..
                 } = self.search
                 {
                     if !matches.is_empty() && current < matches.len() {
@@ -364,17 +364,16 @@ impl ExecutionScreenState {
                 AppAction::None
             }
             KeyCode::Esc => {
-                let (prev_scroll, prev_offset) =
-                    if let SearchState::Active {
-                        prev_scroll,
-                        prev_offset,
-                        ..
-                    } = &self.search
-                    {
-                        (prev_scroll.clone(), *prev_offset)
-                    } else {
-                        (ScrollMode::Follow, 0)
-                    };
+                let (prev_scroll, prev_offset) = if let SearchState::Active {
+                    prev_scroll,
+                    prev_offset,
+                    ..
+                } = &self.search
+                {
+                    (prev_scroll.clone(), *prev_offset)
+                } else {
+                    (ScrollMode::Follow, 0)
+                };
                 self.search = SearchState::Inactive;
                 self.scroll = prev_scroll;
                 self.last_offset = prev_offset;
@@ -721,7 +720,10 @@ mod tests {
         }
 
         let _ = state.handle_key(make_key(KeyCode::Down));
-        let last = if let SearchState::Active { matches, current, .. } = &state.search {
+        let last = if let SearchState::Active {
+            matches, current, ..
+        } = &state.search
+        {
             let l = matches.len() - 1;
             assert_eq!(*current, l);
             l
