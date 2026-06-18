@@ -306,14 +306,16 @@ mod tests {
     fn test_status_bar_no_undo_when_trash_empty() {
         let state = MainScreenState::new();
         let text = state.status_bar_text(0);
-        assert!(!text.contains("to undo"), "expected no undo hint, got: {text}");
+        assert!(
+            !text.contains("to undo"),
+            "expected no undo hint, got: {text}"
+        );
     }
 
     #[test]
     fn test_status_bar_no_undo_in_search_mode() {
         let mut state = MainScreenState::new();
-        state.mode =
-            MainScreenMode::Searching(crate::ui::widget::TextInput::new(String::new()));
+        state.mode = MainScreenMode::Searching(crate::ui::widget::TextInput::new(String::new()));
         let text = state.status_bar_text(1);
         assert!(
             !text.contains("to undo"),

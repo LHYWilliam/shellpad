@@ -19,14 +19,12 @@ use crate::ui::main_screen::Panel;
 use crate::ui::theme::Theme;
 use crate::ui::toast::ToastSeverity;
 use crate::ui::variable_screen::VariableScreenState;
-use chrono::Local;
 use crossterm::event::{self, Event, KeyEventKind};
 use std::io;
 use std::time::Duration;
 
 /// One entry in the undo stack.
 pub(crate) struct TrashEntry {
-    pub timestamp: chrono::DateTime<Local>,
     pub item: TrashedItem,
 }
 

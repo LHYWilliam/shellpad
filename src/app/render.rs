@@ -53,8 +53,13 @@ impl App {
 
         match &self.mode {
             AppMode::Main => {
-                self.main_screen
-                    .render(frame, content_area, &self.data, &self.theme, self.trash.len());
+                self.main_screen.render(
+                    frame,
+                    content_area,
+                    &self.data,
+                    &self.theme,
+                    self.trash.len(),
+                );
             }
             AppMode::Detail => {
                 if let Some(ref mut ds) = self.detail_screen {
@@ -80,8 +85,13 @@ impl App {
                         }
                     }
                     _ => {
-                        self.main_screen
-                            .render(frame, content_area, &self.data, &self.theme, self.trash.len());
+                        self.main_screen.render(
+                            frame,
+                            content_area,
+                            &self.data,
+                            &self.theme,
+                            self.trash.len(),
+                        );
                     }
                 }
                 draw_help(frame, content_area, &self.theme);
@@ -105,8 +115,13 @@ impl App {
                         }
                     }
                     _ => {
-                        self.main_screen
-                            .render(frame, content_area, &self.data, &self.theme, self.trash.len());
+                        self.main_screen.render(
+                            frame,
+                            content_area,
+                            &self.data,
+                            &self.theme,
+                            self.trash.len(),
+                        );
                     }
                 }
                 crate::ui::confirm_dialog::draw_confirm_dialog(

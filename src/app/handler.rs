@@ -177,7 +177,6 @@ impl App {
                 if gi < self.data.groups.len() && si < self.data.groups[gi].sets.len() {
                     let removed = self.data.groups[gi].sets[si].clone();
                     self.trash.push(crate::app::TrashEntry {
-                        timestamp: chrono::Local::now(),
                         item: crate::app::TrashedItem::Set {
                             set: removed,
                             group_index: gi,
@@ -217,7 +216,6 @@ impl App {
                 if gi < self.data.groups.len() {
                     let removed = self.data.groups[gi].clone();
                     self.trash.push(crate::app::TrashEntry {
-                        timestamp: chrono::Local::now(),
                         item: crate::app::TrashedItem::Group {
                             group: removed,
                             index: gi,
@@ -1464,7 +1462,6 @@ mod tests {
         let set = app.data.groups[0].sets[0].clone();
         // Manually push a set whose group_index points to a non-existent group
         app.trash.push(crate::app::TrashEntry {
-            timestamp: chrono::Local::now(),
             item: crate::app::TrashedItem::Set {
                 set,
                 group_index: 5, // out of bounds
