@@ -64,6 +64,11 @@ impl ExecutionScreenState {
         // Body: scrollable command output
         let mut items: Vec<ListItem> = Vec::new();
 
+        // Pre-compute separator strings (loop-invariant)
+        let sep_width = area.width.saturating_sub(6) as usize;
+        let thin_sep = "─".repeat(sep_width);
+        let thick_sep = "═".repeat(sep_width);
+
         for (i, state) in self.cmd_states.iter().enumerate() {
             // Command header
             let status_symbol = match (&state.status, state.exit_code) {
@@ -129,29 +134,19 @@ impl ExecutionScreenState {
 
             // Separator between commands
             if i + 1 < self.cmd_states.len() {
-                let sep_width = area.width.saturating_sub(6) as usize;
-                let next_is_defer = self.cmd_states[i + 1].defer;
-                let current_is_normal = !state.defer;
-
-                if next_is_defer && current_is_normal {
-                    // Defer boundary: empty line + bold double separator
+                let is_defer_boundary = !state.defer && self.cmd_states[i + 1].defer;
+                if is_defer_boundary {
                     items.push(ListItem::new(Line::from("")));
-                    let separator = "═".repeat(sep_width);
-                    items.push(ListItem::new(Line::from(Span::styled(
-                        separator,
-                        Style::default()
-                            .fg(theme.accent_info)
-                            .add_modifier(Modifier::BOLD),
-                    ))));
-                } else {
-                    let separator = "─".repeat(sep_width);
-                    items.push(ListItem::new(Line::from(Span::styled(
-                        separator,
-                        Style::default()
-                            .fg(theme.text_disabled)
-                            .add_modifier(Modifier::DIM),
-                    ))));
                 }
+                let (sep, fg, modif) = if is_defer_boundary {
+                    (&thick_sep, theme.accent_info, Modifier::BOLD)
+                } else {
+                    (&thin_sep, theme.text_disabled, Modifier::DIM)
+                };
+                items.push(ListItem::new(Line::from(Span::styled(
+                    sep.clone(),
+                    Style::default().fg(fg).add_modifier(modif),
+                ))));
             }
         }
 

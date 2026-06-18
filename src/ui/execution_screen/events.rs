@@ -263,16 +263,7 @@ mod tests {
 
     #[test]
     fn test_mark_remaining_skips_normals_not_defers() {
-        let cmds: Vec<_> = ["n1", "n2", "d1", "d2"]
-            .iter()
-            .enumerate()
-            .map(|(i, c)| crate::models::Command {
-                position: i,
-                command: c.to_string(),
-            })
-            .collect();
-        let mut state = ExecutionScreenState::new("test".to_string(), &cmds);
-        // Mark last two as defer
+        let mut state = make_state(&["n1", "n2", "d1", "d2"]);
         state.cmd_states[2].defer = true;
         state.cmd_states[3].defer = true;
 
