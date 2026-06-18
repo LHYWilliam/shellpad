@@ -264,13 +264,12 @@ pub(crate) fn resolve_variables(
     // Parse overrides into a map
     let mut overrides_map: HashMap<String, String> = HashMap::new();
     for ov in overrides {
-        if let Some(eq_pos) = ov.find('=') {
-            let key = ov[..eq_pos].trim().to_string();
-            let val = ov[eq_pos + 1..].trim().to_string();
-            overrides_map.insert(key, val);
-        } else {
+        let Some(eq_pos) = ov.find('=') else {
             return Err(CliError::InvalidVar(ov.clone()));
-        }
+        };
+        let key = ov[..eq_pos].trim().to_string();
+        let val = ov[eq_pos + 1..].trim().to_string();
+        overrides_map.insert(key, val);
     }
 
     let mut result = HashMap::new();
@@ -417,19 +416,13 @@ fn handle_export(data: &AppData, id: Option<String>, all: bool, output: Option<S
     let export_data = if all {
         data.clone()
     } else if let Some(id_str) = id {
-        let uuid = match Uuid::parse_str(&id_str) {
-            Ok(u) => u,
-            Err(_) => {
-                eprintln!("Invalid UUID: {}", id_str);
-                return;
-            }
+        let Ok(uuid) = Uuid::parse_str(&id_str) else {
+            eprintln!("Invalid UUID: {}", id_str);
+            return;
         };
-        let (gi, si) = match data.find_set_by_id(uuid) {
-            Some(idx) => idx,
-            None => {
-                eprintln!("No command set with UUID {}", uuid);
-                return;
-            }
+        let Some((gi, si)) = data.find_set_by_id(uuid) else {
+            eprintln!("No command set with UUID {}", uuid);
+            return;
         };
         let group = &data.groups[gi];
         let set = &group.sets[si];

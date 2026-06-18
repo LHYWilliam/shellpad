@@ -8,9 +8,17 @@ pub struct ToastManager {
     pub toasts: Vec<Toast>,
 }
 
+impl Default for ToastManager {
+    fn default() -> Self {
+        Self {
+            toasts: Vec::new(),
+        }
+    }
+}
+
 impl ToastManager {
     pub fn new() -> Self {
-        Self { toasts: Vec::new() }
+        Self::default()
     }
 
     pub fn add(&mut self, message: impl Into<String>, severity: ToastSeverity) {

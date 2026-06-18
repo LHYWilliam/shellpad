@@ -9,10 +9,7 @@ pub fn fuzzy_match(target: &str, query: &str) -> Option<Vec<(usize, usize)>> {
     }
 
     let target_chars: Vec<(usize, char)> = target.char_indices().collect();
-    let target_lower: Vec<char> = target
-        .chars()
-        .map(|c| c.to_lowercase().next().unwrap_or(c))
-        .collect();
+    let target_lower: Vec<char> = target.chars().flat_map(|c| c.to_lowercase()).collect();
     let query_lower: Vec<char> = query.chars().flat_map(|c| c.to_lowercase()).collect();
 
     let mut matches: Vec<(usize, usize)> = Vec::new();
