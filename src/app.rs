@@ -29,15 +29,8 @@ pub(crate) struct TrashEntry {
 }
 
 pub(crate) enum TrashedItem {
-    Group {
-        group: Group,
-        index: usize,
-    },
-    Set {
-        set: CommandSet,
-        group_index: usize,
-        set_index: usize,
-    },
+    Group(Group),
+    Set(CommandSet),
 }
 
 /// Event loop tick interval (milliseconds).
@@ -234,30 +227,25 @@ impl App {
         };
 
         match entry.item {
-            crate::app::TrashedItem::Group { group, index } => {
-                let pos = index.min(self.data.groups.len());
-                self.data.groups.insert(pos, group);
-                self.main_screen.group_list.selected = pos;
+            crate::app::TrashedItem::Group(group) => {
+                self.data.groups.push(group);
+                self.main_screen.group_list.selected = self.data.groups.len().saturating_sub(1);
                 self.main_screen.set_list.reset();
                 self.auto_save();
                 self.toasts.add("Group restored", ToastSeverity::Info);
             }
-            crate::app::TrashedItem::Set {
-                set,
-                group_index,
-                set_index,
-            } => {
-                if group_index >= self.data.groups.len() {
+            crate::app::TrashedItem::Set(set) => {
+                let Some(gi) = self.data.groups.iter().position(|g| g.id == set.group_id) else {
                     self.toasts.add(
                         "Cannot restore: group no longer exists",
                         ToastSeverity::Error,
                     );
                     return;
-                }
-                let pos = set_index.min(self.data.groups[group_index].sets.len());
-                self.data.groups[group_index].sets.insert(pos, set);
-                self.main_screen.group_list.selected = group_index;
-                self.main_screen.set_list.selected = pos;
+                };
+                self.data.groups[gi].sets.push(set);
+                self.main_screen.group_list.selected = gi;
+                self.main_screen.set_list.selected =
+                    self.data.groups[gi].sets.len().saturating_sub(1);
                 self.main_screen.active_panel = Panel::Sets;
                 self.auto_save();
                 self.toasts.add("Set restored", ToastSeverity::Info);

@@ -177,11 +177,7 @@ impl App {
                 if gi < self.data.groups.len() && si < self.data.groups[gi].sets.len() {
                     let removed = self.data.groups[gi].sets[si].clone();
                     self.trash.push(crate::app::TrashEntry {
-                        item: crate::app::TrashedItem::Set {
-                            set: removed,
-                            group_index: gi,
-                            set_index: si,
-                        },
+                        item: crate::app::TrashedItem::Set(removed),
                     });
                     self.data.groups[gi].sets.remove(si);
                     self.main_screen
@@ -216,10 +212,7 @@ impl App {
                 if gi < self.data.groups.len() {
                     let removed = self.data.groups[gi].clone();
                     self.trash.push(crate::app::TrashEntry {
-                        item: crate::app::TrashedItem::Group {
-                            group: removed,
-                            index: gi,
-                        },
+                        item: crate::app::TrashedItem::Group(removed),
                     });
                     self.data.groups.remove(gi);
                     self.main_screen
@@ -507,6 +500,7 @@ mod tests {
     use crate::ui::detail_screen::DetailScreenState;
     use crate::ui::main_screen::Panel;
     use crossterm::event::KeyCode;
+    use uuid::Uuid;
 
     // ---- NewGroup ----
     #[test]
@@ -1405,17 +1399,12 @@ mod tests {
         app.handle_action(AppAction::DeleteSet(0, 0));
 
         assert_eq!(app.trash.len(), 1);
-        if let TrashedItem::Set {
-            ref set,
-            group_index,
-            set_index,
-        } = app.trash[0].item
-        {
+        if let TrashedItem::Set(ref set) = app.trash[0].item {
             assert_eq!(set.name, "Prod");
             assert_eq!(set.commands.len(), 1);
             assert_eq!(set.commands[0].command, "echo hi");
-            assert_eq!(group_index, 0);
-            assert_eq!(set_index, 0);
+            // group_id preserved inside the cloned set
+            assert_eq!(set.group_id, app.data.groups[0].id);
         } else {
             panic!("expected TrashedItem::Set");
         }
@@ -1459,19 +1448,16 @@ mod tests {
     fn test_undo_set_with_gone_parent_group_shows_error() {
         let mut app = make_app();
         app.data = make_data_with_one_group();
-        let set = app.data.groups[0].sets[0].clone();
-        // Manually push a set whose group_index points to a non-existent group
+        let mut set = app.data.groups[0].sets[0].clone();
+        // Assign a group_id that doesn't exist
+        set.group_id = Uuid::new_v4();
         app.trash.push(crate::app::TrashEntry {
-            item: crate::app::TrashedItem::Set {
-                set,
-                group_index: 5, // out of bounds
-                set_index: 0,
-            },
+            item: crate::app::TrashedItem::Set(set),
         });
 
         app.undo_last_trash();
 
-        // Trash entry should be consumed (popped), but no set added
+        // Trash entry consumed, but no set added
         assert!(app.trash.is_empty());
         assert_eq!(app.data.groups[0].sets.len(), 1); // unchanged
         let has_error = app
