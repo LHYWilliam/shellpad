@@ -70,37 +70,34 @@ impl DetailScreenState {
         }
     }
 
+    fn handle_inline_edit(&mut self, key: KeyEvent) -> Option<AppAction> {
+        if let Some(idx) = self.var_editor.edit.editing {
+            return Some(handle_variable_edit(
+                &mut self.var_editor.edit, key, idx,
+                &mut self.set.variables, &mut self.var_editor.list,
+            ));
+        }
+        if let Some(idx) = self.cmd_editor.edit.editing {
+            return Some(handle_command_edit(
+                &mut self.cmd_editor.edit, key, idx,
+                &mut self.set.commands, &mut self.cmd_editor.list,
+            ));
+        }
+        if let Some(idx) = self.deferred_editor.edit.editing {
+            return Some(handle_command_edit(
+                &mut self.deferred_editor.edit, key, idx,
+                &mut self.set.defer_commands, &mut self.deferred_editor.list,
+            ));
+        }
+        None
+    }
+
     /// Handle a key event.
     pub fn handle_key(&mut self, key: KeyEvent) -> AppAction {
         use crossterm::event::KeyCode;
 
-        // Handle inline editing
-        if let Some(idx) = self.var_editor.edit.editing {
-            return handle_variable_edit(
-                &mut self.var_editor.edit,
-                key,
-                idx,
-                &mut self.set.variables,
-                &mut self.var_editor.list,
-            );
-        }
-        if let Some(idx) = self.cmd_editor.edit.editing {
-            return handle_command_edit(
-                &mut self.cmd_editor.edit,
-                key,
-                idx,
-                &mut self.set.commands,
-                &mut self.cmd_editor.list,
-            );
-        }
-        if let Some(idx) = self.deferred_editor.edit.editing {
-            return handle_command_edit(
-                &mut self.deferred_editor.edit,
-                key,
-                idx,
-                &mut self.set.defer_commands,
-                &mut self.deferred_editor.list,
-            );
+        if let Some(action) = self.handle_inline_edit(key) {
+            return action;
         }
 
         match key.code {
