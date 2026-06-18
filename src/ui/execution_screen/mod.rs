@@ -170,14 +170,37 @@ impl ExecutionScreenState {
             KeyCode::Char('r') if self.completed => AppAction::ReExec,
             KeyCode::Left => {
                 let browsing = self.browsing_index().unwrap_or(self.current_index);
-                if let Some(idx) = self.nearest_non_pending(browsing, -1) {
+                let idx = self
+                    .nearest_non_pending(browsing, -1)
+                    .or_else(|| {
+                        // Single command: no adjacent, browse current if it exists
+                        if browsing < self.cmd_states.len()
+                            && self.cmd_states[browsing].status != CmdStatus::Pending
+                        {
+                            Some(browsing)
+                        } else {
+                            None
+                        }
+                    });
+                if let Some(idx) = idx {
                     self.scroll = ScrollMode::Browse { index: idx };
                 }
                 AppAction::None
             }
             KeyCode::Right => {
                 let browsing = self.browsing_index().unwrap_or(self.current_index);
-                if let Some(idx) = self.nearest_non_pending(browsing, 1) {
+                let idx = self
+                    .nearest_non_pending(browsing, 1)
+                    .or_else(|| {
+                        if browsing < self.cmd_states.len()
+                            && self.cmd_states[browsing].status != CmdStatus::Pending
+                        {
+                            Some(browsing)
+                        } else {
+                            None
+                        }
+                    });
+                if let Some(idx) = idx {
                     self.scroll = ScrollMode::Browse { index: idx };
                 }
                 AppAction::None
