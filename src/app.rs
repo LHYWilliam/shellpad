@@ -110,7 +110,7 @@ impl App {
                 ref manager,
                 ..
             } = self.execution_state
-                && let Some(ref rx) = manager.thread.as_ref().map(|t| &t.rx)
+                && let Some(rx) = manager.thread.as_ref().map(|t| &t.rx)
             {
                 screen.process_events(rx);
                 if screen.output_truncated {

@@ -268,7 +268,8 @@ impl App {
                         ds.focus == crate::ui::detail_screen::DetailFocus::DeferredCommands;
                     if is_deferred && idx < ds.set.defer_commands.len() {
                         ds.set.defer_commands.remove(idx);
-                        ds.deferred_editor.list
+                        ds.deferred_editor
+                            .list
                             .clamp_selected(ds.set.defer_commands.len());
                         if ds.set.defer_commands.is_empty() {
                             ds.focus = crate::ui::detail_screen::DetailFocus::Commands;

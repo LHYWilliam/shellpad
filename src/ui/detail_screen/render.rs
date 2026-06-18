@@ -58,15 +58,22 @@ impl DetailScreenState {
             _ => (false, &dummy),
         };
         self.render_editable_field(
-            frame, name_row, theme, "Name",
+            frame,
+            name_row,
+            theme,
+            "Name",
             self.focus == DetailFocus::Name,
-            editing_name, name_input, &self.set.name, false,
+            editing_name,
+            name_input,
+            &self.set.name,
+            false,
         );
 
         // WorkDir
         let (workdir_editing, workdir_input, display, dim) = match &self.editing {
             EditingState::WorkDir(input) => (
-                true, input,
+                true,
+                input,
                 if input.content.trim().is_empty() {
                     "(default — shellpad CWD)"
                 } else {
@@ -75,15 +82,25 @@ impl DetailScreenState {
                 input.content.trim().is_empty(),
             ),
             _ => (
-                false, &dummy,
-                self.set.working_dir.as_deref().unwrap_or("(default — shellpad CWD)"),
+                false,
+                &dummy,
+                self.set
+                    .working_dir
+                    .as_deref()
+                    .unwrap_or("(default — shellpad CWD)"),
                 self.set.working_dir.is_none(),
             ),
         };
         self.render_editable_field(
-            frame, workdir_row, theme, "WorkDir",
+            frame,
+            workdir_row,
+            theme,
+            "WorkDir",
             self.focus == DetailFocus::WorkDir,
-            workdir_editing, workdir_input, display, dim,
+            workdir_editing,
+            workdir_input,
+            display,
+            dim,
         );
 
         // Separator — full width
@@ -420,7 +437,8 @@ impl DetailScreenState {
                 editing_item: self.var_editor.edit.editing,
                 insert_at: self.var_editor.edit.insert_at,
                 preview_label: self
-                    .var_edit
+                    .var_editor
+                    .edit
                     .insert_at
                     .is_some()
                     .then(|| format!("  ▶ {}", self.var_editor.edit.edit_input.content)),
@@ -445,7 +463,7 @@ impl DetailScreenState {
         self.render_edit_cursor(
             frame,
             list_area,
-            &self.var_edit,
+            &self.var_editor.edit,
             &self.var_editor.list,
             "  ▶ ",
         );
@@ -499,7 +517,7 @@ impl DetailScreenState {
             self.render_edit_cursor(
                 frame,
                 list_area,
-                &self.cmd_edit,
+                &self.cmd_editor.edit,
                 &self.cmd_editor.list,
                 &format!("  #{}▶ ", pos),
             );
@@ -520,7 +538,8 @@ impl DetailScreenState {
                 editing_item: self.deferred_editor.edit.editing,
                 insert_at: self.deferred_editor.edit.insert_at,
                 preview_label: self
-                    .deferred_edit
+                    .deferred_editor
+                    .edit
                     .insert_at
                     .is_some()
                     .then(|| format!("  ▽ {}", self.deferred_editor.edit.edit_input.content)),
@@ -546,7 +565,7 @@ impl DetailScreenState {
             self.render_edit_cursor(
                 frame,
                 list_area,
-                &self.deferred_edit,
+                &self.deferred_editor.edit,
                 &self.deferred_editor.list,
                 "  ▽ ",
             );

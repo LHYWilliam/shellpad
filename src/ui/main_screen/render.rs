@@ -42,8 +42,8 @@ impl MainScreenState {
                 } else {
                     "  "
                 };
-                let is_renaming =
-                    matches!(self.mode, MainScreenMode::Renaming(_)) && i == self.group_list.selected;
+                let is_renaming = matches!(self.mode, MainScreenMode::Renaming(_))
+                    && i == self.group_list.selected;
                 let display_name = if is_renaming {
                     if let MainScreenMode::Renaming(ref input) = self.mode {
                         &input.content

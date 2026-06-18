@@ -3,8 +3,8 @@ mod tests {
     use crate::action::{AppAction, DeleteKind, ReorderKind};
     use crate::mode::AppMode;
     use crate::models::{AppData, CommandSet, Group, Variable};
-    use crate::ui::detail_screen::EditingState;
     use crate::storage;
+    use crate::ui::detail_screen::EditingState;
     use crate::ui::detail_screen::{DetailFocus, DetailScreenState};
     use crate::ui::main_screen::{MainScreenState, Panel};
     use uuid::Uuid;

@@ -38,12 +38,11 @@ impl ListEditor {
 }
 
 /// Exactly one editing operation can be active at a time.
-/// (To be adopted in a follow-up refactoring session.)
-#[allow(dead_code)]
 pub(crate) enum EditingState {
     None,
     Name(TextInput),
     WorkDir(TextInput),
+    #[allow(dead_code)]
     ListItem,
 }
 
@@ -51,31 +50,14 @@ pub struct DetailScreenState {
     pub set: CommandSet,
     pub groups: Vec<Group>,
     pub focus: DetailFocus,
-    // New structured fields (future: eliminate old fields below)
-    #[allow(dead_code)]
     pub(crate) editing: EditingState,
-    #[allow(dead_code)]
     pub(crate) var_editor: ListEditor,
-    #[allow(dead_code)]
     pub(crate) cmd_editor: ListEditor,
-    #[allow(dead_code)]
     pub(crate) deferred_editor: ListEditor,
-    // Legacy fields — kept for compatibility, to be migrated in follow-up
-    pub name_input: TextInput,
-    pub variable_list: ScrollableList,
-    pub command_list: ScrollableList,
-    pub editing_name: bool,
-    pub workdir_editing: bool,
-    pub workdir_input: TextInput,
-    pub var_edit: InlineEdit,
-    pub cmd_edit: InlineEdit,
-    pub deferred_command_list: ScrollableList,
-    pub deferred_edit: InlineEdit,
 }
 
 impl DetailScreenState {
     pub fn new(set: CommandSet, groups: Vec<Group>) -> Self {
-        let name = set.name.clone();
         Self {
             set,
             groups,
@@ -84,16 +66,6 @@ impl DetailScreenState {
             var_editor: ListEditor::new(),
             cmd_editor: ListEditor::new(),
             deferred_editor: ListEditor::new(),
-            name_input: TextInput::new(name),
-            variable_list: ScrollableList::new(),
-            command_list: ScrollableList::new(),
-            editing_name: false,
-            workdir_editing: false,
-            workdir_input: TextInput::new(String::new()),
-            var_edit: InlineEdit::new(),
-            cmd_edit: InlineEdit::new(),
-            deferred_command_list: ScrollableList::new(),
-            deferred_edit: InlineEdit::new(),
         }
     }
 
@@ -124,11 +96,14 @@ impl DetailScreenState {
         let [meta_area, var_area, cmd_area, def_area, status_area] = layout.areas(inner);
 
         // Update scroll offsets (approx inner height = area - 2 for borders)
-        self.variable_list
+        self.var_editor
+            .list
             .update_offset(var_area.height.saturating_sub(2) as usize);
-        self.command_list
+        self.cmd_editor
+            .list
             .update_offset(cmd_area.height.saturating_sub(2) as usize);
-        self.deferred_command_list
+        self.deferred_editor
+            .list
             .update_offset(def_area.height.saturating_sub(2) as usize);
 
         // When an Option is focused, split into Properties (left) + Picker (right)

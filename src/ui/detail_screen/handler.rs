@@ -118,21 +118,24 @@ impl DetailScreenState {
                 match self.focus {
                     DetailFocus::Variables if !self.set.variables.is_empty() => {
                         let idx = self
-                            .var_editor.list
+                            .var_editor
+                            .list
                             .selected
                             .min(self.set.variables.len().saturating_sub(1));
                         return AppAction::Reorder(ReorderKind::Variable(idx), -1);
                     }
                     DetailFocus::Commands if !self.set.commands.is_empty() => {
                         let idx = self
-                            .cmd_editor.list
+                            .cmd_editor
+                            .list
                             .selected
                             .min(self.set.commands.len().saturating_sub(1));
                         return AppAction::Reorder(ReorderKind::Command(idx), -1);
                     }
                     DetailFocus::DeferredCommands if !self.set.defer_commands.is_empty() => {
                         let idx = self
-                            .deferred_editor.list
+                            .deferred_editor
+                            .list
                             .selected
                             .min(self.set.defer_commands.len().saturating_sub(1));
                         return AppAction::Reorder(ReorderKind::Command(idx), -1);
@@ -171,21 +174,24 @@ impl DetailScreenState {
                 match self.focus {
                     DetailFocus::Variables if !self.set.variables.is_empty() => {
                         let idx = self
-                            .var_editor.list
+                            .var_editor
+                            .list
                             .selected
                             .min(self.set.variables.len().saturating_sub(1));
                         return AppAction::Reorder(ReorderKind::Variable(idx), 1);
                     }
                     DetailFocus::Commands if !self.set.commands.is_empty() => {
                         let idx = self
-                            .cmd_editor.list
+                            .cmd_editor
+                            .list
                             .selected
                             .min(self.set.commands.len().saturating_sub(1));
                         return AppAction::Reorder(ReorderKind::Command(idx), 1);
                     }
                     DetailFocus::DeferredCommands if !self.set.defer_commands.is_empty() => {
                         let idx = self
-                            .deferred_editor.list
+                            .deferred_editor
+                            .list
                             .selected
                             .min(self.set.defer_commands.len().saturating_sub(1));
                         return AppAction::Reorder(ReorderKind::Command(idx), 1);
@@ -213,7 +219,8 @@ impl DetailScreenState {
                     self.cmd_editor.list.select_next(self.set.commands.len());
                 }
                 DetailRegion::DeferredCommands => {
-                    self.deferred_editor.list
+                    self.deferred_editor
+                        .list
                         .select_next(self.set.defer_commands.len());
                 }
             },
@@ -271,7 +278,8 @@ impl DetailScreenState {
                     }
                     DetailFocus::Variables if !self.set.variables.is_empty() => {
                         let idx = self
-                            .var_editor.list
+                            .var_editor
+                            .list
                             .selected
                             .min(self.set.variables.len() - 1);
                         let text = format!(
@@ -286,7 +294,11 @@ impl DetailScreenState {
                         );
                     }
                     DetailFocus::Commands if !self.set.commands.is_empty() => {
-                        let idx = self.cmd_editor.list.selected.min(self.set.commands.len() - 1);
+                        let idx = self
+                            .cmd_editor
+                            .list
+                            .selected
+                            .min(self.set.commands.len() - 1);
                         let text = self.set.commands[idx].command.clone();
                         Self::list_edit_begin(
                             &mut self.cmd_editor.edit,
@@ -297,7 +309,8 @@ impl DetailScreenState {
                     }
                     DetailFocus::DeferredCommands if !self.set.defer_commands.is_empty() => {
                         let idx = self
-                            .deferred_editor.list
+                            .deferred_editor
+                            .list
                             .selected
                             .min(self.set.defer_commands.len() - 1);
                         let text = self.set.defer_commands[idx].command.clone();
@@ -338,7 +351,8 @@ impl DetailScreenState {
             KeyCode::Char('d' | 'D') => match self.focus {
                 DetailFocus::Variables if !self.set.variables.is_empty() => {
                     let idx = self
-                        .var_editor.list
+                        .var_editor
+                        .list
                         .selected
                         .min(self.set.variables.len().saturating_sub(1));
                     let var_name = self.set.variables[idx].name.clone();
@@ -349,7 +363,8 @@ impl DetailScreenState {
                 }
                 DetailFocus::Commands if !self.set.commands.is_empty() => {
                     let idx = self
-                        .cmd_editor.list
+                        .cmd_editor
+                        .list
                         .selected
                         .min(self.set.commands.len().saturating_sub(1));
                     let cmd_preview = self.set.commands[idx].command.clone();
@@ -360,7 +375,8 @@ impl DetailScreenState {
                 }
                 DetailFocus::DeferredCommands if !self.set.defer_commands.is_empty() => {
                     let idx = self
-                        .deferred_editor.list
+                        .deferred_editor
+                        .list
                         .selected
                         .min(self.set.defer_commands.len().saturating_sub(1));
                     let cmd_preview = self.set.defer_commands[idx].command.clone();
