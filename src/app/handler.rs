@@ -2,7 +2,9 @@ use crate::action::{AppAction, ConfirmChoice, DeleteKind, ReorderKind};
 use crate::mode::AppMode;
 use crate::models::CommandSet;
 use crate::storage;
+use crate::app::execution::ExecutionManager;
 use crate::ui::detail_screen::DetailScreenState;
+use crate::ui::execution_screen::ExecutionScreenState;
 use crate::ui::main_screen::Panel;
 use crate::ui::toast::ToastSeverity;
 use crossterm::event::KeyCode;
@@ -97,6 +99,20 @@ impl App {
             AppMode::Help => {
                 self.mode = self.prev_mode.take().unwrap_or(AppMode::Main);
             }
+        }
+    }
+
+    fn with_execution_mut(
+        &mut self,
+        f: impl FnOnce(&mut ExecutionScreenState, &ExecutionManager),
+    ) {
+        if let ExecutionState::Running {
+            ref mut screen,
+            ref manager,
+            ..
+        } = self.execution_state
+        {
+            f(screen, manager);
         }
     }
 
@@ -320,40 +336,19 @@ impl App {
                     self.mode = AppMode::Main;
                 }
             }
-            AppAction::Pause => {
-                if let ExecutionState::Running {
-                    ref mut screen,
-                    ref manager,
-                    ..
-                } = self.execution_state
-                {
-                    manager.skip_current();
-                    screen.paused = true;
-                }
-            }
-            AppAction::Continue => {
-                if let ExecutionState::Running {
-                    ref mut screen,
-                    ref manager,
-                    ..
-                } = self.execution_state
-                {
-                    manager.continue_next();
-                    screen.paused = false;
-                }
-            }
-            AppAction::Abort => {
-                if let ExecutionState::Running {
-                    ref mut screen,
-                    ref manager,
-                    ..
-                } = self.execution_state
-                {
-                    manager.abort_all();
-                    screen.paused = false;
-                    screen.mark_remaining_as_skipped();
-                }
-            }
+            AppAction::Pause => self.with_execution_mut(|s, m| {
+                m.skip_current();
+                s.paused = true;
+            }),
+            AppAction::Continue => self.with_execution_mut(|s, m| {
+                m.continue_next();
+                s.paused = false;
+            }),
+            AppAction::Abort => self.with_execution_mut(|s, m| {
+                m.abort_all();
+                s.paused = false;
+                s.mark_remaining_as_skipped();
+            }),
             AppAction::ReExec => {
                 let pending =
                     if let ExecutionState::Running { pending_set, .. } = self.execution_state {
