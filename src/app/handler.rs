@@ -168,6 +168,15 @@ impl App {
             }
             AppAction::DeleteSet(gi, si) => {
                 if gi < self.data.groups.len() && si < self.data.groups[gi].sets.len() {
+                    let removed = self.data.groups[gi].sets[si].clone();
+                    self.trash.push(crate::app::TrashEntry {
+                        timestamp: chrono::Local::now(),
+                        item: crate::app::TrashedItem::Set {
+                            set: removed,
+                            group_index: gi,
+                            set_index: si,
+                        },
+                    });
                     self.data.groups[gi].sets.remove(si);
                     self.main_screen
                         .set_list
@@ -199,6 +208,14 @@ impl App {
             }
             AppAction::DeleteGroup(gi) => {
                 if gi < self.data.groups.len() {
+                    let removed = self.data.groups[gi].clone();
+                    self.trash.push(crate::app::TrashEntry {
+                        timestamp: chrono::Local::now(),
+                        item: crate::app::TrashedItem::Group {
+                            group: removed,
+                            index: gi,
+                        },
+                    });
                     self.data.groups.remove(gi);
                     self.main_screen
                         .group_list
@@ -477,6 +494,7 @@ impl App {
 mod tests {
     use super::ExecutionState;
     use crate::action::{AppAction, ConfirmChoice, DeleteKind, ReorderKind};
+    use crate::app::TrashedItem;
     use crate::app::execution::ExecutionManager;
     use crate::mode::AppMode;
     use crate::models::{AppData, CommandSet, Group};
@@ -1341,5 +1359,60 @@ mod tests {
         let ds = app.detail_screen.as_ref().unwrap();
         assert_eq!(ds.set.commands.len(), 1);
         assert_eq!(ds.set.commands[0].command, "only");
+    }
+
+    // ---- Trash push ----
+    #[test]
+    fn test_delete_set_pushes_to_trash() {
+        let mut app = make_app();
+        app.data = make_data_with_one_group();
+
+        app.handle_action(AppAction::DeleteSet(0, 0));
+
+        assert_eq!(app.trash.len(), 1);
+        assert!(app.data.groups[0].sets.is_empty());
+    }
+
+    #[test]
+    fn test_delete_group_pushes_to_trash() {
+        let mut app = make_app();
+        app.data = make_data_with_one_group();
+
+        app.handle_action(AppAction::DeleteGroup(0));
+
+        assert_eq!(app.trash.len(), 1);
+        assert!(app.data.groups.is_empty());
+    }
+
+    #[test]
+    fn test_delete_set_preserves_full_content_in_trash() {
+        use crate::models::Command;
+        let mut app = make_app();
+        let mut g = Group::new("Deploy".to_string());
+        let mut set = CommandSet::new("Prod".to_string(), g.id);
+        set.commands.push(Command {
+            position: 0,
+            command: "echo hi".to_string(),
+        });
+        g.sets.push(set);
+        app.data = AppData { groups: vec![g] };
+
+        app.handle_action(AppAction::DeleteSet(0, 0));
+
+        assert_eq!(app.trash.len(), 1);
+        if let TrashedItem::Set {
+            ref set,
+            group_index,
+            set_index,
+        } = app.trash[0].item
+        {
+            assert_eq!(set.name, "Prod");
+            assert_eq!(set.commands.len(), 1);
+            assert_eq!(set.commands[0].command, "echo hi");
+            assert_eq!(group_index, 0);
+            assert_eq!(set_index, 0);
+        } else {
+            panic!("expected TrashedItem::Set");
+        }
     }
 }
