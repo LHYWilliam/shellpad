@@ -238,12 +238,15 @@ impl ExecutionScreenState {
         }
 
         // Footer with key hints
-        let footer_text = match (
-            self.browsing_index(),
-            self.paused,
-            self.deferring,
-            self.completed,
-        ) {
+        let footer_text = if matches!(self.search, SearchState::Active { .. }) {
+            "[Esc] Cancel  [Enter] Exit  [↑/↓] Next match"
+        } else {
+            match (
+                self.browsing_index(),
+                self.paused,
+                self.deferring,
+                self.completed,
+            ) {
             (Some(_), _, _, _) => {
                 "[←/→] Browse  [↑/↓] Scroll  [PgUp/PgDn] Page  [z] Follow  [q] Back"
             }
@@ -255,7 +258,8 @@ impl ExecutionScreenState {
             (None, _, _, true) => {
                 "[←/→] Browse  [↑/↓] Scroll  [PgUp/PgDn] Page  [r] Re-execute  [q] Back"
             }
-        };
+        }
+    };
 
         let body_layout = Layout::vertical([Constraint::Min(1), Constraint::Length(2)]);
         let [list_area, footer_area] = body_layout.areas(body_area);
