@@ -23,6 +23,7 @@ Inspired by task runners like `just` and `make`, but interactive.
 - **Multi-Shell** — bash, zsh, fish, PowerShell, System Default, or custom shell path per command set
 - **Real-time Output** — Stream stdout/stderr with per-command status timing, auto-scroll
 - **Output Buffer** — 10,000-line ring buffer prevents runaway memory growth, drops oldest lines gracefully
+- **Execution Search** — `/` to search output lines across all commands, real-time substring highlighting, ↑/↓ to jump between matches
 - **Working Directory** — Set a per-command-set working directory, defaults to shellpad CWD
 - **Tab Navigation** — Tab/Shift+Tab cycles Properties ↔ Variables ↔ Commands ↔ Deferred Commands, ↑/↓ navigates within each region
 - **Reordering** — Ctrl+Up/Down reorder groups, sets, variables, and commands
@@ -30,7 +31,7 @@ Inspired by task runners like `just` and `make`, but interactive.
 - **Undo Delete** — Ctrl+Z restores recently deleted groups and sets, multi-level LIFO stack with status bar hint
 - **Atomic Persistence** — Crash-safe JSON save at `~/.config/shellpad/sets.json`
 - **CLI Mode** — Execute, search, import/export command sets from the terminal
-- **270 Tests** — Comprehensive unit, handler, and integration test coverage
+- **289 Tests** — Comprehensive unit, handler, and integration test coverage
 - **Published on crates.io** — Install with `cargo install shellpad`
 
 ## Installation
@@ -114,6 +115,7 @@ shellpad
 | `Ctrl+C` | Abort all remaining normal commands, run defers |
 | `r` | Re-execute all from beginning |
 | `q` | Back to main (only when complete) |
+| `/` | Search output |
 | `?` | Help overlay |
 
 ### CLI mode
@@ -181,7 +183,7 @@ Key modules: `app/` (state machine, dispatch, toast), `ui/` (screens, widgets, t
 ```bash
 cargo build              # Build
 cargo run                # Run TUI (requires real terminal)
-cargo test               # Run all 270 tests
+cargo test               # Run all 289 tests
 cargo check              # Fast compilation check
 cargo clippy             # Lint
 ```
