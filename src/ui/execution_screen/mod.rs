@@ -197,6 +197,11 @@ impl ExecutionScreenState {
     pub fn handle_key(&mut self, key: crossterm::event::KeyEvent) -> AppAction {
         use crossterm::event::KeyCode;
 
+        // ---- Search mode guard ----
+        if matches!(self.search, SearchState::Active { .. }) {
+            return self.handle_search_key(key);
+        }
+
         match key.code {
             KeyCode::Char('q') => AppAction::BackToMain,
             KeyCode::Char('s') if !self.completed && !self.paused && !self.deferring => {
@@ -215,6 +220,16 @@ impl ExecutionScreenState {
                 AppAction::Abort
             }
             KeyCode::Char('r') if self.completed => AppAction::ReExec,
+            KeyCode::Char('/') => {
+                self.search = SearchState::Active {
+                    input: TextInput::new(String::new()),
+                    matches: Vec::new(),
+                    current: 0,
+                    prev_scroll: self.scroll.clone(),
+                    prev_offset: self.last_offset,
+                };
+                AppAction::None
+            }
             KeyCode::Left => {
                 self.browse_command(-1);
                 AppAction::None
@@ -251,6 +266,31 @@ impl ExecutionScreenState {
         }
     }
 
+    fn handle_search_key(&mut self, key: crossterm::event::KeyEvent) -> AppAction {
+        use crossterm::event::KeyCode;
+
+        match key.code {
+            KeyCode::Esc => {
+                let (prev_scroll, prev_offset) =
+                    if let SearchState::Active {
+                        prev_scroll,
+                        prev_offset,
+                        ..
+                    } = &self.search
+                    {
+                        (prev_scroll.clone(), *prev_offset)
+                    } else {
+                        (ScrollMode::Follow, 0)
+                    };
+                self.search = SearchState::Inactive;
+                self.scroll = prev_scroll;
+                self.last_offset = prev_offset;
+                AppAction::None
+            }
+            _ => AppAction::None,
+        }
+    }
+
     /// Total rendered items including summary footer.
     pub(crate) fn items_total(&self) -> usize {
         let mut total = self.items_offset_for_command(self.cmd_states.len());
@@ -265,6 +305,7 @@ impl ExecutionScreenState {
 mod tests {
     use super::*;
     use crate::test_utils::make_key;
+    use crossterm::event::KeyCode;
 
     fn make_test_state() -> ExecutionScreenState {
         let cmds: Vec<crate::models::Command> = vec![
@@ -329,5 +370,27 @@ mod tests {
 
         let _ = state.handle_key(make_key(crossterm::event::KeyCode::Char('k')));
         assert!(matches!(state.scroll, ScrollMode::Free { offset: 1 }));
+    }
+
+    #[test]
+    fn test_slash_enters_search_mode() {
+        let mut state = make_test_state();
+        let action = state.handle_key(make_key(KeyCode::Char('/')));
+        assert!(matches!(action, AppAction::None));
+        assert!(matches!(state.search, SearchState::Active { .. }));
+    }
+
+    #[test]
+    fn test_esc_exits_search_and_restores_scroll() {
+        let mut state = make_test_state();
+        state.scroll = ScrollMode::Free { offset: 5 };
+        // Enter search
+        let _ = state.handle_key(make_key(KeyCode::Char('/')));
+        assert!(matches!(state.search, SearchState::Active { .. }));
+        // Exit search
+        let action = state.handle_key(make_key(KeyCode::Esc));
+        assert!(matches!(action, AppAction::None));
+        assert!(matches!(state.search, SearchState::Inactive));
+        assert_eq!(state.scroll, ScrollMode::Free { offset: 5 });
     }
 }
