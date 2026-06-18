@@ -153,65 +153,60 @@ impl ExecutionScreenState {
             }
             KeyCode::Char('r') if self.completed => AppAction::ReExec,
             KeyCode::Left => {
-                let target = self.focus_index.unwrap_or(self.current_index);
-                if let Some(idx) = self.nearest_non_pending(target, -1) {
-                    self.focus_index = Some(idx);
-                    self.auto_scroll = false;
+                let browsing = self.browsing_index().unwrap_or(self.current_index);
+                if let Some(idx) = self.nearest_non_pending(browsing, -1) {
+                    self.scroll = ScrollMode::Browse { index: idx };
                 }
                 AppAction::None
             }
             KeyCode::Right => {
-                let target = self.focus_index.unwrap_or(self.current_index);
-                if let Some(idx) = self.nearest_non_pending(target, 1) {
-                    self.focus_index = Some(idx);
-                    self.auto_scroll = false;
+                let browsing = self.browsing_index().unwrap_or(self.current_index);
+                if let Some(idx) = self.nearest_non_pending(browsing, 1) {
+                    self.scroll = ScrollMode::Browse { index: idx };
                 }
                 AppAction::None
             }
             KeyCode::Up | KeyCode::Char('k') => {
-                self.focus_index = None;
-                self.auto_scroll = false;
-                self.scroll_offset = self.scroll_offset.saturating_sub(1);
+                let total = self.items_total();
+                let offset = self.scroll_offset(0).saturating_sub(1);
+                self.scroll = ScrollMode::Free {
+                    offset: offset.min(total.saturating_sub(1)),
+                };
                 AppAction::None
             }
             KeyCode::Down | KeyCode::Char('j') => {
-                self.focus_index = None;
-                self.auto_scroll = false;
-                self.scroll_offset = self.scroll_offset.saturating_add(1);
-                self.clamp_scroll_offset();
+                let total = self.items_total();
+                let offset = self.scroll_offset(0).saturating_add(1);
+                self.scroll = ScrollMode::Free {
+                    offset: offset.min(total.saturating_sub(1)),
+                };
                 AppAction::None
             }
             KeyCode::PageUp => {
-                self.focus_index = None;
-                self.auto_scroll = false;
-                self.scroll_offset = self.scroll_offset.saturating_sub(PAGE_SIZE);
+                let total = self.items_total();
+                let offset = self.scroll_offset(0).saturating_sub(PAGE_SIZE);
+                self.scroll = ScrollMode::Free {
+                    offset: offset.min(total.saturating_sub(1)),
+                };
                 AppAction::None
             }
             KeyCode::PageDown => {
-                self.focus_index = None;
-                self.auto_scroll = false;
-                self.scroll_offset = self.scroll_offset.saturating_add(PAGE_SIZE);
-                self.clamp_scroll_offset();
+                let total = self.items_total();
+                let offset = self.scroll_offset(0).saturating_add(PAGE_SIZE);
+                self.scroll = ScrollMode::Free {
+                    offset: offset.min(total.saturating_sub(1)),
+                };
                 AppAction::None
             }
             KeyCode::Char('z') => {
-                if self.focus_index.is_some() {
-                    self.focus_index = None;
-                    self.auto_scroll = true;
-                } else {
-                    self.auto_scroll = !self.auto_scroll;
-                }
+                self.scroll = match &self.scroll {
+                    ScrollMode::Browse { .. } => ScrollMode::Follow,
+                    ScrollMode::Follow => ScrollMode::Free { offset: 0 },
+                    ScrollMode::Free { .. } => ScrollMode::Follow,
+                };
                 AppAction::None
             }
             _ => AppAction::None,
-        }
-    }
-
-    /// Clamp scroll_offset to valid range [0, items_total-1].
-    fn clamp_scroll_offset(&mut self) {
-        let max = self.items_total().saturating_sub(1);
-        if self.scroll_offset > max {
-            self.scroll_offset = max;
         }
     }
 
@@ -247,51 +242,51 @@ mod tests {
     #[test]
     fn test_scroll_up_enters_free_scroll_mode() {
         let mut state = make_test_state();
-        state.scroll_offset = 10;
-        state.focus_index = Some(0);
-        state.auto_scroll = true;
+        // 2 commands, 0 output → items_total=3, max offset=2
+        state.scroll = ScrollMode::Free { offset: 1 };
 
         let action = state.handle_key(make_key(crossterm::event::KeyCode::Up));
         assert!(matches!(action, AppAction::None));
-        assert_eq!(state.focus_index, None);
-        assert!(!state.auto_scroll);
-        assert_eq!(state.scroll_offset, 9);
+        assert!(matches!(state.scroll, ScrollMode::Free { offset: 0 }));
     }
 
     #[test]
     fn test_scroll_down_is_clamped_to_content() {
         let mut state = make_test_state();
         // 2 commands, 0 output → items_total = 3 → max scroll_offset = 2
-        state.scroll_offset = 5;
+        state.scroll = ScrollMode::Free { offset: 1 };
 
         let _ = state.handle_key(make_key(crossterm::event::KeyCode::Down));
-        assert_eq!(state.scroll_offset, 2);
-        assert!(!state.auto_scroll);
+        assert!(matches!(state.scroll, ScrollMode::Free { offset: 2 }));
+
+        let _ = state.handle_key(make_key(crossterm::event::KeyCode::Down));
+        // stays clamped at 2
+        assert!(matches!(state.scroll, ScrollMode::Free { offset: 2 }));
     }
 
     #[test]
     fn test_page_up_down() {
         let mut state = make_test_state();
-        state.scroll_offset = 50;
+        // 2 commands, 0 output → items_total=3, max offset=2
+        state.scroll = ScrollMode::Free { offset: 2 };
 
         let _ = state.handle_key(make_key(crossterm::event::KeyCode::PageUp));
-        assert_eq!(state.scroll_offset, 30);
+        assert!(matches!(state.scroll, ScrollMode::Free { offset: 0 }));
 
         let _ = state.handle_key(make_key(crossterm::event::KeyCode::PageDown));
-        // items_total = 3, max = 2
-        assert_eq!(state.scroll_offset, 2);
+        assert!(matches!(state.scroll, ScrollMode::Free { offset: 2 }));
     }
 
     #[test]
     fn test_jk_vim_keys() {
         let mut state = make_test_state();
-        state.scroll_offset = 10;
+        // 2 commands, 0 output → items_total=3, max offset=2
+        state.scroll = ScrollMode::Free { offset: 1 };
 
         let _ = state.handle_key(make_key(crossterm::event::KeyCode::Char('j')));
-        // items_total = 3, max = 2
-        assert_eq!(state.scroll_offset, 2);
+        assert!(matches!(state.scroll, ScrollMode::Free { offset: 2 }));
 
         let _ = state.handle_key(make_key(crossterm::event::KeyCode::Char('k')));
-        assert_eq!(state.scroll_offset, 1);
+        assert!(matches!(state.scroll, ScrollMode::Free { offset: 1 }));
     }
 }

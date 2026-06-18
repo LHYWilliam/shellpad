@@ -91,7 +91,7 @@ impl ExecutionScreenState {
 
             let duration_str = state.duration_ms.map(format_duration).unwrap_or_default();
 
-            let header_style = if Some(i) == self.focus_index {
+            let header_style = if self.browsing_index() == Some(i) {
                 Style::default()
                     .fg(theme.accent_primary)
                     .add_modifier(Modifier::BOLD)
@@ -180,7 +180,7 @@ impl ExecutionScreenState {
 
         // Footer with key hints
         let footer_text = match (
-            self.focus_index,
+            self.browsing_index(),
             self.paused,
             self.deferring,
             self.completed,
@@ -206,17 +206,7 @@ impl ExecutionScreenState {
         // Split list inner into content + scrollbar
         let (content_area, scrollbar_area) = list_scrollbar_areas(list_inner);
 
-        // Browse mode (←/→): jump to the selected command's header
-        if let Some(idx) = self.focus_index {
-            self.scroll_offset = self.items_offset_for_command(idx);
-        }
-        // Follow mode (z): keep latest output at the bottom of the viewport
-        if self.auto_scroll {
-            let total = self.items_total();
-            let vis = content_area.height as usize;
-            self.scroll_offset = total.saturating_sub(vis);
-        }
-        let scroll_offset = self.scroll_offset;
+        let scroll_offset = self.scroll_offset(content_area.height);
         let mut list_state = ratatui::widgets::ListState::default().with_offset(scroll_offset);
         frame.render_stateful_widget(List::new(items), content_area, &mut list_state);
 

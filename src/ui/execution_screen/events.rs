@@ -38,8 +38,7 @@ impl ExecutionScreenState {
 
     /// Reset the screen for continuing execution from a skip point.
     pub(crate) fn reset_from(&mut self, start_from: usize) {
-        self.auto_scroll = true;
-        self.scroll_offset = 0;
+        self.scroll = super::ScrollMode::Follow;
         for state in self.cmd_states[start_from..].iter_mut() {
             if state.status == CmdStatus::Skipped {
                 state.status = CmdStatus::Pending;
@@ -60,10 +59,6 @@ impl ExecutionScreenState {
                         self.current_index = index;
                         if self.cmd_states[index].defer {
                             self.deferring = true;
-                        }
-                        if self.auto_scroll {
-                            self.scroll_offset = self.items_offset_for_command(index);
-                            self.focus_index = None;
                         }
                     }
                 }
