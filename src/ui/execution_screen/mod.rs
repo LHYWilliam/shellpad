@@ -129,6 +129,19 @@ impl ExecutionScreenState {
         }
     }
 
+    /// Transition from Follow/Browse to Free scrolling with delta line offset.
+    fn scroll_by(&mut self, delta: isize) {
+        let total = self.items_total();
+        let base = self.scroll_base();
+        let offset = if delta < 0 {
+            base.saturating_sub(delta.unsigned_abs())
+        } else {
+            base.saturating_add(delta as usize)
+        }
+        .min(total.saturating_sub(1));
+        self.scroll = ScrollMode::Free { offset };
+    }
+
     /// Find the nearest non-Pending command from `from` in direction `delta`.
     fn nearest_non_pending(&self, from: usize, delta: isize) -> Option<usize> {
         let len = self.cmd_states.len() as isize;
@@ -195,31 +208,19 @@ impl ExecutionScreenState {
                 AppAction::None
             }
             KeyCode::Up | KeyCode::Char('k') => {
-                let total = self.items_total();
-                let base = self.scroll_base();
-                let offset = base.saturating_sub(1).min(total.saturating_sub(1));
-                self.scroll = ScrollMode::Free { offset };
+                self.scroll_by(-1);
                 AppAction::None
             }
             KeyCode::Down | KeyCode::Char('j') => {
-                let total = self.items_total();
-                let base = self.scroll_base();
-                let offset = base.saturating_add(1).min(total.saturating_sub(1));
-                self.scroll = ScrollMode::Free { offset };
+                self.scroll_by(1);
                 AppAction::None
             }
             KeyCode::PageUp => {
-                let total = self.items_total();
-                let base = self.scroll_base();
-                let offset = base.saturating_sub(PAGE_SIZE).min(total.saturating_sub(1));
-                self.scroll = ScrollMode::Free { offset };
+                self.scroll_by(-(PAGE_SIZE as isize));
                 AppAction::None
             }
             KeyCode::PageDown => {
-                let total = self.items_total();
-                let base = self.scroll_base();
-                let offset = base.saturating_add(PAGE_SIZE).min(total.saturating_sub(1));
-                self.scroll = ScrollMode::Free { offset };
+                self.scroll_by(PAGE_SIZE as isize);
                 AppAction::None
             }
             KeyCode::Char('z') => {
