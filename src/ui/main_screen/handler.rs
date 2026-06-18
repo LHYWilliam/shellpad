@@ -7,6 +7,40 @@ use crate::ui::widget::text_input::handle_text_input;
 use crossterm::event::KeyEvent;
 
 impl MainScreenState {
+    fn reorder_active_panel(&self, data: &AppData, dir: isize) -> AppAction {
+        match self.active_panel {
+            Panel::Groups if let Some(gi) = self.selected_group_idx(data) => {
+                AppAction::Reorder(ReorderKind::Group(gi), dir)
+            }
+            Panel::Sets if let Some((gi, si)) = self.selected_set_idx(data) => {
+                AppAction::Reorder(ReorderKind::Set(gi, si), dir)
+            }
+            _ => AppAction::None,
+        }
+    }
+
+    fn navigate_list(&mut self, data: &AppData, forward: bool) {
+        match self.active_panel {
+            Panel::Groups => {
+                if forward {
+                    self.group_list.select_next(data.groups.len());
+                } else {
+                    self.group_list.select_previous();
+                }
+            }
+            Panel::Sets => {
+                let n = self.visible_sets(data).len();
+                if n == 0 {
+                    self.active_panel = Panel::Groups;
+                } else if forward {
+                    self.set_list.select_next(n);
+                } else {
+                    self.set_list.select_previous();
+                }
+            }
+        }
+    }
+
     /// Handle a key event, returning an action.
     pub fn handle_key(&mut self, key: KeyEvent, data: &AppData) -> AppAction {
         use crossterm::event::KeyCode;
@@ -74,58 +108,21 @@ impl MainScreenState {
                     .modifiers
                     .contains(crossterm::event::KeyModifiers::CONTROL) =>
             {
-                match self.active_panel {
-                    Panel::Groups if let Some(gi) = self.selected_group_idx(data) => {
-                        return AppAction::Reorder(ReorderKind::Group(gi), -1);
-                    }
-                    Panel::Sets if let Some((gi, si)) = self.selected_set_idx(data) => {
-                        return AppAction::Reorder(ReorderKind::Set(gi, si), -1);
-                    }
-                    _ => {}
-                }
-                AppAction::None
+                return self.reorder_active_panel(data, -1);
             }
             KeyCode::Down
                 if key
                     .modifiers
                     .contains(crossterm::event::KeyModifiers::CONTROL) =>
             {
-                match self.active_panel {
-                    Panel::Groups if let Some(gi) = self.selected_group_idx(data) => {
-                        return AppAction::Reorder(ReorderKind::Group(gi), 1);
-                    }
-                    Panel::Sets if let Some((gi, si)) = self.selected_set_idx(data) => {
-                        return AppAction::Reorder(ReorderKind::Set(gi, si), 1);
-                    }
-                    _ => {}
-                }
-                AppAction::None
+                return self.reorder_active_panel(data, 1);
             }
             KeyCode::Up | KeyCode::Char('k') | KeyCode::Char('K') => {
-                match self.active_panel {
-                    Panel::Groups => self.group_list.select_previous(),
-                    Panel::Sets => {
-                        if self.visible_sets(data).is_empty() {
-                            self.active_panel = Panel::Groups;
-                        } else {
-                            self.set_list.select_previous();
-                        }
-                    }
-                }
+                self.navigate_list(data, false);
                 AppAction::None
             }
             KeyCode::Down | KeyCode::Char('j') | KeyCode::Char('J') => {
-                match self.active_panel {
-                    Panel::Groups => self.group_list.select_next(data.groups.len()),
-                    Panel::Sets => {
-                        let n = self.visible_sets(data).len();
-                        if n == 0 {
-                            self.active_panel = Panel::Groups;
-                        } else {
-                            self.set_list.select_next(n);
-                        }
-                    }
-                }
+                self.navigate_list(data, true);
                 AppAction::None
             }
             KeyCode::Left => {
