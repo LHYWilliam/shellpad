@@ -22,11 +22,46 @@ pub enum DetailFocus {
     DeferredCommands,
 }
 
+/// Bundles the list and inline-editor for one editable list region.
+pub(crate) struct ListEditor {
+    pub list: ScrollableList,
+    pub edit: InlineEdit,
+}
+
+impl ListEditor {
+    fn new() -> Self {
+        Self {
+            list: ScrollableList::new(),
+            edit: InlineEdit::new(),
+        }
+    }
+}
+
+/// Exactly one editing operation can be active at a time.
+/// (To be adopted in a follow-up refactoring session.)
+#[allow(dead_code)]
+pub(crate) enum EditingState {
+    None,
+    Name(TextInput),
+    WorkDir(TextInput),
+    ListItem,
+}
+
 pub struct DetailScreenState {
     pub set: CommandSet,
     pub groups: Vec<Group>,
-    pub name_input: TextInput,
     pub focus: DetailFocus,
+    // New structured fields (future: eliminate old fields below)
+    #[allow(dead_code)]
+    editing: EditingState,
+    #[allow(dead_code)]
+    var_editor: ListEditor,
+    #[allow(dead_code)]
+    cmd_editor: ListEditor,
+    #[allow(dead_code)]
+    deferred_editor: ListEditor,
+    // Legacy fields — kept for compatibility, to be migrated in follow-up
+    pub name_input: TextInput,
     pub variable_list: ScrollableList,
     pub command_list: ScrollableList,
     pub editing_name: bool,
@@ -44,8 +79,12 @@ impl DetailScreenState {
         Self {
             set,
             groups,
-            name_input: TextInput::new(name),
             focus: DetailFocus::Name,
+            editing: EditingState::None,
+            var_editor: ListEditor::new(),
+            cmd_editor: ListEditor::new(),
+            deferred_editor: ListEditor::new(),
+            name_input: TextInput::new(name),
             variable_list: ScrollableList::new(),
             command_list: ScrollableList::new(),
             editing_name: false,
