@@ -108,14 +108,14 @@ impl MainScreenState {
                     .modifiers
                     .contains(crossterm::event::KeyModifiers::CONTROL) =>
             {
-                return self.reorder_active_panel(data, -1);
+                self.reorder_active_panel(data, -1)
             }
             KeyCode::Down
                 if key
                     .modifiers
                     .contains(crossterm::event::KeyModifiers::CONTROL) =>
             {
-                return self.reorder_active_panel(data, 1);
+                self.reorder_active_panel(data, 1)
             }
             KeyCode::Up | KeyCode::Char('k') | KeyCode::Char('K') => {
                 self.navigate_list(data, false);
