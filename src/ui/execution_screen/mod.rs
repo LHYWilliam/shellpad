@@ -1,4 +1,5 @@
 use crate::action::AppAction;
+use crate::ui::widget::TextInput;
 use std::collections::VecDeque;
 
 pub(crate) mod events;
@@ -41,6 +42,19 @@ pub(crate) struct CmdState {
     pub(crate) defer: bool,
 }
 
+/// Output search state — only active while the search bar is open.
+#[derive(Debug, Clone)]
+enum SearchState {
+    Inactive,
+    Active {
+        input: TextInput,
+        matches: Vec<usize>,
+        current: usize,
+        prev_scroll: ScrollMode,
+        prev_offset: usize,
+    },
+}
+
 pub struct ExecutionScreenState {
     pub set_name: String,
     pub(crate) cmd_states: Vec<CmdState>,
@@ -61,6 +75,7 @@ pub struct ExecutionScreenState {
     /// offset from content_height at render time).
     last_offset: usize,
     pub(crate) output_truncated: bool,
+    pub(crate) search: SearchState,
 }
 
 impl ExecutionScreenState {
@@ -94,6 +109,7 @@ impl ExecutionScreenState {
             scroll: ScrollMode::Follow,
             last_offset: 0,
             output_truncated: false,
+            search: SearchState::Inactive,
         }
     }
 

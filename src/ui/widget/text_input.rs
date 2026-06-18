@@ -9,7 +9,7 @@ use ratatui::widgets::{Block, Borders, Paragraph};
 /// Single-line text input with cursor tracking. Supports insert, delete,
 /// and cursor movement. Key events are processed by the dedicated
 /// `handle_text_input` function in this module.
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct TextInput {
     pub content: String,
     pub cursor: usize,
