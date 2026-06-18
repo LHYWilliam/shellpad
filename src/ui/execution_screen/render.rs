@@ -97,6 +97,23 @@ impl ExecutionScreenState {
         let thin_sep = "─".repeat(sep_width);
         let thick_sep = "═".repeat(sep_width);
 
+        let match_set: HashSet<usize> =
+            if let SearchState::Active { matches, .. } = &self.search {
+                matches.iter().copied().collect()
+            } else {
+                HashSet::new()
+            };
+
+        let current_match_idx: Option<usize> =
+            if let SearchState::Active {
+                current, matches, ..
+            } = &self.search
+            {
+                matches.get(*current).copied()
+            } else {
+                None
+            };
+
         for (i, state) in self.cmd_states.iter().enumerate() {
             // Command header
             let status_symbol = match (&state.status, state.exit_code) {
@@ -146,23 +163,6 @@ impl ExecutionScreenState {
                         .add_modifier(Modifier::DIM),
                 ))));
             }
-
-            let match_set: HashSet<usize> =
-                if let SearchState::Active { matches, .. } = &self.search {
-                    matches.iter().copied().collect()
-                } else {
-                    HashSet::new()
-                };
-
-            let current_match_idx: Option<usize> =
-                if let SearchState::Active {
-                    current, matches, ..
-                } = &self.search
-                {
-                    matches.get(*current).copied()
-                } else {
-                    None
-                };
 
             // Output lines (indented)
             for (li, line) in (items.len()..).zip(state.output_lines.iter()) {
