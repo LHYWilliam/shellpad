@@ -1,21 +1,41 @@
-use super::{CmdStatus, ExecutionScreenState, MAX_OUTPUT_LINES};
+use super::{CmdStatus, ExecutionScreenState, SearchState, MAX_OUTPUT_LINES};
 use crate::ui::render::bordered_block_primary_zone;
-use crate::ui::render::{empty_hint, list_scrollbar_areas, render_scrollbar, render_status_bar};
+use crate::ui::render::{
+    empty_hint, list_scrollbar_areas, render_scrollbar, render_status_bar,
+    set_cursor_after_prefix,
+};
 use crate::ui::theme::Theme;
 use ratatui::Frame;
 use ratatui::layout::{Constraint, Layout, Rect};
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Gauge, List, ListItem, Paragraph};
+use std::collections::HashSet;
+
+/// Pure function: build the search bar text from query + match state.
+fn search_bar_text(query: &str, matches: &[usize], current: usize) -> String {
+    let count_hint = if query.is_empty() {
+        String::new()
+    } else if matches.is_empty() {
+        " (no matches)".to_string()
+    } else {
+        format!(" ({}/{})", current + 1, matches.len())
+    };
+    format!(" Search: {}{} ", query, count_hint)
+}
 
 impl ExecutionScreenState {
     pub(crate) fn render(&mut self, frame: &mut Frame, area: Rect, theme: &Theme) {
+        let search_height: u16 =
+            if matches!(self.search, SearchState::Active { .. }) { 1 } else { 0 };
+
         let vertical = Layout::vertical([
             Constraint::Length(1),
             Constraint::Length(1),
+            Constraint::Length(search_height),
             Constraint::Min(1),
         ]);
-        let [header_area, gauge_area, body_area] = vertical.areas(area);
+        let [header_area, gauge_area, search_area, body_area] = vertical.areas(area);
 
         // Header
         let status_text = if self.completed {
@@ -60,6 +80,11 @@ impl ExecutionScreenState {
             .percent(pct)
             .label(gauge_label);
         frame.render_widget(gauge, gauge_area);
+
+        // Search bar (only visible when search is active)
+        if search_height > 0 {
+            self.render_search_bar(frame, search_area, theme);
+        }
 
         // Body: scrollable command output
         let mut items: Vec<ListItem> = Vec::new();
@@ -119,17 +144,54 @@ impl ExecutionScreenState {
                 ))));
             }
 
+            let match_set: HashSet<usize> =
+                if let SearchState::Active { matches, .. } = &self.search {
+                    matches.iter().copied().collect()
+                } else {
+                    HashSet::new()
+                };
+
+            let current_match_idx: Option<usize> =
+                if let SearchState::Active {
+                    current,
+                    matches,
+                    ..
+                } = &self.search
+                {
+                    matches.get(*current).copied()
+                } else {
+                    None
+                };
+
             // Output lines (indented)
+            let mut item_idx = items.len();
             for line in &state.output_lines {
                 let is_stderr = line.starts_with("[stderr]");
-                items.push(ListItem::new(Line::from(Span::styled(
-                    format!("   {}", line),
+                let is_match = match_set.contains(&item_idx);
+                let is_current_match = current_match_idx == Some(item_idx);
+
+                let line_style = if is_current_match {
+                    Style::default()
+                        .fg(theme.text_on_selected)
+                        .bg(theme.accent_primary)
+                        .add_modifier(Modifier::BOLD)
+                } else if is_match {
+                    Style::default()
+                        .fg(theme.accent_primary)
+                        .bg(theme.surface)
+                } else {
                     Style::default().fg(if is_stderr {
                         theme.accent_error
                     } else {
                         theme.text_primary
-                    }),
+                    })
+                };
+
+                items.push(ListItem::new(Line::from(Span::styled(
+                    format!("   {}", line),
+                    line_style,
                 ))));
+                item_idx += 1;
             }
 
             // Separator between commands
@@ -221,6 +283,47 @@ impl ExecutionScreenState {
         );
 
         render_status_bar(frame, footer_area, theme, footer_text);
+    }
+}
+
+impl ExecutionScreenState {
+    fn render_search_bar(&self, frame: &mut Frame, area: Rect, theme: &Theme) {
+        if let SearchState::Active {
+            input,
+            matches,
+            current,
+            ..
+        } = &self.search
+        {
+            let text = search_bar_text(&input.content, matches, *current);
+            let style = if matches.is_empty() && !input.content.is_empty() {
+                Style::default().fg(theme.accent_error)
+            } else {
+                Style::default().fg(theme.accent_info)
+            };
+            let para = Paragraph::new(Line::from(Span::styled(text, style)));
+            frame.render_widget(para, area);
+
+            let prefix_width = unicode_width::UnicodeWidthStr::width(" Search: ");
+            set_cursor_after_prefix(frame, &input.content, input.cursor, prefix_width as u16, area);
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_search_bar_text_no_matches() {
+        let text = search_bar_text("error", &[], 0);
+        assert!(text.contains("(no matches)"));
+    }
+
+    #[test]
+    fn test_search_bar_text_with_matches() {
+        let text = search_bar_text("line", &[1, 3, 5], 1);
+        assert!(text.contains("(2/3)"));
     }
 }
 
