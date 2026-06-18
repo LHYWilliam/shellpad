@@ -53,13 +53,13 @@ pub struct DetailScreenState {
     pub focus: DetailFocus,
     // New structured fields (future: eliminate old fields below)
     #[allow(dead_code)]
-    editing: EditingState,
+    pub(crate) editing: EditingState,
     #[allow(dead_code)]
-    var_editor: ListEditor,
+    pub(crate) var_editor: ListEditor,
     #[allow(dead_code)]
-    cmd_editor: ListEditor,
+    pub(crate) cmd_editor: ListEditor,
     #[allow(dead_code)]
-    deferred_editor: ListEditor,
+    pub(crate) deferred_editor: ListEditor,
     // Legacy fields — kept for compatibility, to be migrated in follow-up
     pub name_input: TextInput,
     pub variable_list: ScrollableList,

@@ -254,7 +254,7 @@ impl App {
                     && idx < ds.set.variables.len()
                 {
                     ds.set.variables.remove(idx);
-                    ds.variable_list.clamp_selected(ds.set.variables.len());
+                    ds.var_editor.list.clamp_selected(ds.set.variables.len());
                     if ds.set.variables.is_empty() {
                         ds.focus = crate::ui::detail_screen::DetailFocus::Name;
                     }
@@ -268,7 +268,7 @@ impl App {
                         ds.focus == crate::ui::detail_screen::DetailFocus::DeferredCommands;
                     if is_deferred && idx < ds.set.defer_commands.len() {
                         ds.set.defer_commands.remove(idx);
-                        ds.deferred_command_list
+                        ds.deferred_editor.list
                             .clamp_selected(ds.set.defer_commands.len());
                         if ds.set.defer_commands.is_empty() {
                             ds.focus = crate::ui::detail_screen::DetailFocus::Commands;
@@ -281,7 +281,7 @@ impl App {
                         for (i, c) in ds.set.commands.iter_mut().enumerate() {
                             c.position = i;
                         }
-                        ds.command_list.clamp_selected(ds.set.commands.len());
+                        ds.cmd_editor.list.clamp_selected(ds.set.commands.len());
                         if ds.set.commands.is_empty() {
                             ds.focus = crate::ui::detail_screen::DetailFocus::Name;
                         }
@@ -422,7 +422,7 @@ impl App {
                             && let Some(ni) = new_idx(idx, ds.set.variables.len())
                         {
                             ds.set.variables.swap(idx, ni);
-                            ds.variable_list.selected = ni;
+                            ds.var_editor.list.selected = ni;
                             self.auto_save();
                             self.toasts.add("Variable moved", ToastSeverity::Info);
                         }
@@ -434,7 +434,7 @@ impl App {
                             if is_deferred {
                                 if let Some(ni) = new_idx(idx, ds.set.defer_commands.len()) {
                                     ds.set.defer_commands.swap(idx, ni);
-                                    ds.deferred_command_list.selected = ni;
+                                    ds.deferred_editor.list.selected = ni;
                                     self.auto_save();
                                     self.toasts
                                         .add("Deferred command moved", ToastSeverity::Info);
@@ -444,7 +444,7 @@ impl App {
                                 for (i, c) in ds.set.commands.iter_mut().enumerate() {
                                     c.position = i;
                                 }
-                                ds.command_list.selected = ni;
+                                ds.cmd_editor.list.selected = ni;
                                 self.auto_save();
                                 self.toasts.add("Command moved", ToastSeverity::Info);
                             }
@@ -1245,7 +1245,7 @@ mod tests {
         let ds = app.detail_screen.as_ref().unwrap();
         assert_eq!(ds.set.variables[0].name, "b");
         assert_eq!(ds.set.variables[1].name, "a");
-        assert_eq!(ds.variable_list.selected, 0);
+        assert_eq!(ds.var_editor.list.selected, 0);
     }
 
     #[test]
@@ -1296,7 +1296,7 @@ mod tests {
         assert_eq!(ds.set.commands[0].position, 0);
         assert_eq!(ds.set.commands[1].command, "echo first");
         assert_eq!(ds.set.commands[1].position, 1);
-        assert_eq!(ds.command_list.selected, 0);
+        assert_eq!(ds.cmd_editor.list.selected, 0);
     }
 
     #[test]
@@ -1325,7 +1325,7 @@ mod tests {
         assert_eq!(ds.set.commands[0].position, 0);
         assert_eq!(ds.set.commands[1].command, "a");
         assert_eq!(ds.set.commands[1].position, 1);
-        assert_eq!(ds.command_list.selected, 1);
+        assert_eq!(ds.cmd_editor.list.selected, 1);
     }
 
     #[test]

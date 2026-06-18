@@ -409,27 +409,27 @@ impl DetailScreenState {
             &format!(" Variables ({}) ", count),
             self.focus == DetailFocus::Variables,
             count,
-            &self.variable_list,
+            &self.var_editor.list,
             ItemListEditCtx {
-                editing_item: self.var_edit.editing,
-                insert_at: self.var_edit.insert_at,
+                editing_item: self.var_editor.edit.editing,
+                insert_at: self.var_editor.edit.insert_at,
                 preview_label: self
                     .var_edit
                     .insert_at
                     .is_some()
-                    .then(|| format!("  ▶ {}", self.var_edit.edit_input.content)),
+                    .then(|| format!("  ▶ {}", self.var_editor.edit.edit_input.content)),
                 empty_text: " (empty — press a to add a variable) ",
             },
             |i, is_editing| {
                 let label = if is_editing {
-                    format!("  ▶ {}", self.var_edit.edit_input.content)
+                    format!("  ▶ {}", self.var_editor.edit.edit_input.content)
                 } else {
                     let v = &self.set.variables[i];
                     format!("  {} = {}", v.name, v.default_value)
                 };
-                let is_insert = self.var_edit.insert_at.is_some();
+                let is_insert = self.var_editor.edit.insert_at.is_some();
                 let is_selected = !is_insert
-                    && i == self.variable_list.selected
+                    && i == self.var_editor.list.selected
                     && self.focus == DetailFocus::Variables;
                 let style = list_item_style(is_editing, is_selected, theme);
                 (label, style)
@@ -440,7 +440,7 @@ impl DetailScreenState {
             frame,
             list_area,
             &self.var_edit,
-            &self.variable_list,
+            &self.var_editor.list,
             "  ▶ ",
         );
     }
@@ -454,47 +454,47 @@ impl DetailScreenState {
             &format!(" Commands ({}) ", count),
             self.focus == DetailFocus::Commands,
             count,
-            &self.command_list,
+            &self.cmd_editor.list,
             ItemListEditCtx {
-                editing_item: self.cmd_edit.editing,
-                insert_at: self.cmd_edit.insert_at,
-                preview_label: self.cmd_edit.insert_at.is_some().then(|| {
-                    let pos = self.cmd_edit.insert_at.unwrap_or(0);
-                    format!("  #{}▶ {}", pos, self.cmd_edit.edit_input.content)
+                editing_item: self.cmd_editor.edit.editing,
+                insert_at: self.cmd_editor.edit.insert_at,
+                preview_label: self.cmd_editor.edit.insert_at.is_some().then(|| {
+                    let pos = self.cmd_editor.edit.insert_at.unwrap_or(0);
+                    format!("  #{}▶ {}", pos, self.cmd_editor.edit.edit_input.content)
                 }),
                 empty_text: " (empty — press a to add a command) ",
             },
             |i, is_editing| {
                 let pos = self.set.commands[i].position;
-                let is_insert = self.cmd_edit.insert_at.is_some();
+                let is_insert = self.cmd_editor.edit.insert_at.is_some();
                 let display_pos = if is_editing {
-                    self.cmd_edit.insert_at.unwrap_or(pos)
-                } else if is_insert && i >= self.cmd_edit.insert_at.unwrap() {
+                    self.cmd_editor.edit.insert_at.unwrap_or(pos)
+                } else if is_insert && i >= self.cmd_editor.edit.insert_at.unwrap() {
                     pos + 1
                 } else {
                     pos
                 };
                 let content = if is_editing {
-                    self.cmd_edit.edit_input.content.as_str()
+                    self.cmd_editor.edit.edit_input.content.as_str()
                 } else {
                     self.set.commands[i].command.as_str()
                 };
                 let label = format!("  #{}  {}", display_pos, content);
                 let is_selected = !is_insert
-                    && i == self.command_list.selected
+                    && i == self.cmd_editor.list.selected
                     && self.focus == DetailFocus::Commands;
                 let style = list_item_style(is_editing, is_selected, theme);
                 (label, style)
             },
         );
 
-        if let Some(idx) = self.cmd_edit.editing {
-            let pos = self.cmd_edit.insert_at.unwrap_or(idx);
+        if let Some(idx) = self.cmd_editor.edit.editing {
+            let pos = self.cmd_editor.edit.insert_at.unwrap_or(idx);
             self.render_edit_cursor(
                 frame,
                 list_area,
                 &self.cmd_edit,
-                &self.command_list,
+                &self.cmd_editor.list,
                 &format!("  #{}▶ ", pos),
             );
         }
@@ -509,48 +509,48 @@ impl DetailScreenState {
             &format!(" Deferred ({}) ", count),
             self.focus == DetailFocus::DeferredCommands,
             count,
-            &self.deferred_command_list,
+            &self.deferred_editor.list,
             ItemListEditCtx {
-                editing_item: self.deferred_edit.editing,
-                insert_at: self.deferred_edit.insert_at,
+                editing_item: self.deferred_editor.edit.editing,
+                insert_at: self.deferred_editor.edit.insert_at,
                 preview_label: self
                     .deferred_edit
                     .insert_at
                     .is_some()
-                    .then(|| format!("  ▽ {}", self.deferred_edit.edit_input.content)),
+                    .then(|| format!("  ▽ {}", self.deferred_editor.edit.edit_input.content)),
                 empty_text: " (empty — press a to add a defer command) ",
             },
             |i, is_editing| {
                 let content = if is_editing {
-                    self.deferred_edit.edit_input.content.as_str()
+                    self.deferred_editor.edit.edit_input.content.as_str()
                 } else {
                     self.set.defer_commands[i].command.as_str()
                 };
                 let label = format!("  ▽ {}", content);
-                let is_insert = self.deferred_edit.insert_at.is_some();
+                let is_insert = self.deferred_editor.edit.insert_at.is_some();
                 let is_selected = !is_insert
-                    && i == self.deferred_command_list.selected
+                    && i == self.deferred_editor.list.selected
                     && self.focus == DetailFocus::DeferredCommands;
                 let style = list_item_style(is_editing, is_selected, theme);
                 (label, style)
             },
         );
 
-        if self.deferred_edit.editing.is_some() {
+        if self.deferred_editor.edit.editing.is_some() {
             self.render_edit_cursor(
                 frame,
                 list_area,
                 &self.deferred_edit,
-                &self.deferred_command_list,
+                &self.deferred_editor.list,
                 "  ▽ ",
             );
         }
     }
 
     pub(crate) fn render_status_bar(&self, frame: &mut Frame, area: Rect, theme: &Theme) {
-        let is_editing = self.var_edit.is_editing()
-            || self.cmd_edit.is_editing()
-            || self.deferred_edit.is_editing();
+        let is_editing = self.var_editor.edit.is_editing()
+            || self.cmd_editor.edit.is_editing()
+            || self.deferred_editor.edit.is_editing();
         let text = match (is_editing, self.focus) {
             (true, _) => "[Enter] Confirm  [Esc] Cancel",
             (false, DetailFocus::Name) => {
