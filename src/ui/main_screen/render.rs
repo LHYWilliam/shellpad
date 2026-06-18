@@ -250,14 +250,74 @@ impl MainScreenState {
         );
     }
 
-    pub(crate) fn render_status_bar(&self, frame: &mut Frame, area: Rect, theme: &Theme) {
-        let text = if matches!(self.mode, MainScreenMode::Renaming(_)) {
-            "[Enter] Confirm  [Esc] Cancel — renaming group"
+    fn status_bar_text(&self, trash_len: usize) -> String {
+        let base = if matches!(self.mode, MainScreenMode::Renaming(_)) {
+            "[Enter] Confirm  [Esc] Cancel — renaming group".to_string()
         } else if matches!(self.mode, MainScreenMode::Searching(_)) {
-            "[Enter] Confirm  [Esc] Cancel  [↑/↓] Nav — searching"
+            "[Enter] Confirm  [Esc] Cancel  [↑/↓] Nav — searching".to_string()
         } else {
-            "[↑/↓] Nav  [←/→] Panel  [Ctrl+↑/↓] Move  [Enter] Run  [e] Edit  [n] New  [R] Rename  [d] Del set  [D] Del group  [g] New group  [/] Search  [q] Quit"
+            "[↑/↓] Nav  [←/→] Panel  [Ctrl+↑/↓] Move  [Enter] Run  [e] Edit  [n] New  [R] Rename  [d] Del set  [D] Del group  [g] New group  [/] Search  [q] Quit".to_string()
         };
-        render_status_bar(frame, area, theme, text);
+
+        if trash_len > 0
+            && !matches!(self.mode, MainScreenMode::Renaming(_))
+            && !matches!(self.mode, MainScreenMode::Searching(_))
+        {
+            format!("({} to undo)  {}", trash_len, base)
+        } else {
+            base
+        }
+    }
+
+    pub(crate) fn render_status_bar(
+        &self,
+        frame: &mut Frame,
+        area: Rect,
+        theme: &Theme,
+        trash_len: usize,
+    ) {
+        let text = self.status_bar_text(trash_len);
+        render_status_bar(frame, area, theme, &text);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::ui::main_screen::MainScreenMode;
+
+    #[test]
+    fn test_status_bar_shows_undo_when_trash_nonempty() {
+        let state = MainScreenState::new();
+        let text = state.status_bar_text(1);
+        assert!(
+            text.contains("(1 to undo)"),
+            "expected undo hint, got: {text}"
+        );
+
+        let text = state.status_bar_text(3);
+        assert!(
+            text.contains("(3 to undo)"),
+            "expected undo hint, got: {text}"
+        );
+    }
+
+    #[test]
+    fn test_status_bar_no_undo_when_trash_empty() {
+        let state = MainScreenState::new();
+        let text = state.status_bar_text(0);
+        assert!(!text.contains("to undo"), "expected no undo hint, got: {text}");
+    }
+
+    #[test]
+    fn test_status_bar_no_undo_in_search_mode() {
+        let mut state = MainScreenState::new();
+        state.mode =
+            MainScreenMode::Searching(crate::ui::widget::TextInput::new(String::new()));
+        let text = state.status_bar_text(1);
+        assert!(
+            !text.contains("to undo"),
+            "search mode should not show undo, got: {text}"
+        );
     }
 }

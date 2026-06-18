@@ -84,7 +84,14 @@ impl MainScreenState {
         }
     }
 
-    pub fn render(&mut self, frame: &mut Frame, area: Rect, data: &AppData, theme: &Theme) {
+    pub fn render(
+        &mut self,
+        frame: &mut Frame,
+        area: Rect,
+        data: &AppData,
+        theme: &Theme,
+        trash_len: usize,
+    ) {
         let vertical = Layout::vertical([Constraint::Min(1), Constraint::Length(2)]);
         let [main_area, status_area] = vertical.areas(area);
 
@@ -119,6 +126,6 @@ impl MainScreenState {
         }
 
         // Status bar (key hints always visible)
-        self.render_status_bar(frame, status_area, theme);
+        self.render_status_bar(frame, status_area, theme, trash_len);
     }
 }
