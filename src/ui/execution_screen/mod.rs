@@ -105,6 +105,17 @@ impl ExecutionScreenState {
         }
     }
 
+    /// Current scroll position regardless of mode — used as the base offset
+    /// when transitioning to Free scrolling. For Follow mode, returns the
+    /// tail position (content end); for Browse, the command's header offset.
+    fn scroll_base(&self) -> usize {
+        match &self.scroll {
+            ScrollMode::Follow => self.items_total().saturating_sub(1),
+            ScrollMode::Browse { index } => self.items_offset_for_command(*index),
+            ScrollMode::Free { offset } => *offset,
+        }
+    }
+
     /// The command index currently being browsed, if any.
     fn browsing_index(&self) -> Option<usize> {
         match self.scroll {
@@ -168,34 +179,30 @@ impl ExecutionScreenState {
             }
             KeyCode::Up | KeyCode::Char('k') => {
                 let total = self.items_total();
-                let offset = self.scroll_offset(0).saturating_sub(1);
-                self.scroll = ScrollMode::Free {
-                    offset: offset.min(total.saturating_sub(1)),
-                };
+                let base = self.scroll_base();
+                let offset = base.saturating_sub(1).min(total.saturating_sub(1));
+                self.scroll = ScrollMode::Free { offset };
                 AppAction::None
             }
             KeyCode::Down | KeyCode::Char('j') => {
                 let total = self.items_total();
-                let offset = self.scroll_offset(0).saturating_add(1);
-                self.scroll = ScrollMode::Free {
-                    offset: offset.min(total.saturating_sub(1)),
-                };
+                let base = self.scroll_base();
+                let offset = base.saturating_add(1).min(total.saturating_sub(1));
+                self.scroll = ScrollMode::Free { offset };
                 AppAction::None
             }
             KeyCode::PageUp => {
                 let total = self.items_total();
-                let offset = self.scroll_offset(0).saturating_sub(PAGE_SIZE);
-                self.scroll = ScrollMode::Free {
-                    offset: offset.min(total.saturating_sub(1)),
-                };
+                let base = self.scroll_base();
+                let offset = base.saturating_sub(PAGE_SIZE).min(total.saturating_sub(1));
+                self.scroll = ScrollMode::Free { offset };
                 AppAction::None
             }
             KeyCode::PageDown => {
                 let total = self.items_total();
-                let offset = self.scroll_offset(0).saturating_add(PAGE_SIZE);
-                self.scroll = ScrollMode::Free {
-                    offset: offset.min(total.saturating_sub(1)),
-                };
+                let base = self.scroll_base();
+                let offset = base.saturating_add(PAGE_SIZE).min(total.saturating_sub(1));
+                self.scroll = ScrollMode::Free { offset };
                 AppAction::None
             }
             KeyCode::Char('z') => {
