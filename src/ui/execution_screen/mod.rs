@@ -11,6 +11,17 @@ pub(crate) const MAX_OUTPUT_LINES: usize = 10_000;
 /// Number of lines to scroll per PageUp/PageDown.
 const PAGE_SIZE: usize = 20;
 
+/// Scroll tracking mode — exactly one variant is active.
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum ScrollMode {
+    /// Tail-follow: auto-scrolls to show latest output at bottom (default).
+    Follow,
+    /// Browse: locked to a specific command's header line (←/→).
+    Browse { index: usize },
+    /// Free: user-scrolled to an arbitrary offset (↑/↓/PgUp/PgDn).
+    Free { offset: usize },
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CmdStatus {
     Pending,
@@ -43,9 +54,8 @@ pub struct ExecutionScreenState {
     pub deferring: bool,
     pub continue_from: Option<usize>,
     pub total_duration_ms: Option<u128>,
-    pub auto_scroll: bool,
-    pub scroll_offset: usize,
-    pub focus_index: Option<usize>,
+    /// Scroll mode — one of Follow / Browse{index} / Free{offset}.
+    scroll: ScrollMode,
     pub(crate) output_truncated: bool,
 }
 
@@ -77,10 +87,29 @@ impl ExecutionScreenState {
             deferring: false,
             continue_from: None,
             total_duration_ms: None,
-            auto_scroll: true,
-            scroll_offset: 0,
-            focus_index: None,
+            scroll: ScrollMode::Follow,
             output_truncated: false,
+        }
+    }
+
+    /// Current on-screen scroll offset, computed from the active mode.
+    fn scroll_offset(&self, content_height: u16) -> usize {
+        match &self.scroll {
+            ScrollMode::Follow => {
+                let total = self.items_total();
+                let vis = content_height as usize;
+                total.saturating_sub(vis)
+            }
+            ScrollMode::Browse { index } => self.items_offset_for_command(*index),
+            ScrollMode::Free { offset } => *offset,
+        }
+    }
+
+    /// The command index currently being browsed, if any.
+    fn browsing_index(&self) -> Option<usize> {
+        match self.scroll {
+            ScrollMode::Browse { index } => Some(index),
+            _ => None,
         }
     }
 
