@@ -212,20 +212,29 @@ impl DetailScreenState {
     fn handle_inline_edit(&mut self, key: KeyEvent) -> Option<AppAction> {
         if let Some(idx) = self.var_editor.edit.editing {
             return Some(handle_variable_edit(
-                &mut self.var_editor.edit, key, idx,
-                &mut self.set.variables, &mut self.var_editor.list,
+                &mut self.var_editor.edit,
+                key,
+                idx,
+                &mut self.set.variables,
+                &mut self.var_editor.list,
             ));
         }
         if let Some(idx) = self.cmd_editor.edit.editing {
             return Some(handle_command_edit(
-                &mut self.cmd_editor.edit, key, idx,
-                &mut self.set.commands, &mut self.cmd_editor.list,
+                &mut self.cmd_editor.edit,
+                key,
+                idx,
+                &mut self.set.commands,
+                &mut self.cmd_editor.list,
             ));
         }
         if let Some(idx) = self.deferred_editor.edit.editing {
             return Some(handle_command_edit(
-                &mut self.deferred_editor.edit, key, idx,
-                &mut self.set.defer_commands, &mut self.deferred_editor.list,
+                &mut self.deferred_editor.edit,
+                key,
+                idx,
+                &mut self.set.defer_commands,
+                &mut self.deferred_editor.list,
             ));
         }
         None
@@ -364,9 +373,12 @@ impl DetailScreenState {
                             ));
                         }
                     }
-                    _ if matches!(self.focus, DetailFocus::Variables
-                        | DetailFocus::Commands
-                        | DetailFocus::DeferredCommands) =>
+                    _ if matches!(
+                        self.focus,
+                        DetailFocus::Variables
+                            | DetailFocus::Commands
+                            | DetailFocus::DeferredCommands
+                    ) =>
                     {
                         self.edit_selected_item();
                     }
@@ -375,12 +387,12 @@ impl DetailScreenState {
             }
             KeyCode::Char('a' | 'A') => {
                 self.insert_at_focus();
-            },
+            }
             KeyCode::Char('d' | 'D') => {
                 if let Some(action) = self.request_delete_focused() {
                     return action;
                 }
-            },
+            }
             KeyCode::Char('s')
                 if key
                     .modifiers

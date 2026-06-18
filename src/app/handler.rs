@@ -1,8 +1,8 @@
 use crate::action::{AppAction, ConfirmChoice, DeleteKind, ReorderKind};
+use crate::app::execution::ExecutionManager;
 use crate::mode::AppMode;
 use crate::models::CommandSet;
 use crate::storage;
-use crate::app::execution::ExecutionManager;
 use crate::ui::detail_screen::DetailScreenState;
 use crate::ui::execution_screen::ExecutionScreenState;
 use crate::ui::main_screen::Panel;
@@ -102,10 +102,7 @@ impl App {
         }
     }
 
-    fn with_execution_mut(
-        &mut self,
-        f: impl FnOnce(&mut ExecutionScreenState, &ExecutionManager),
-    ) {
+    fn with_execution_mut(&mut self, f: impl FnOnce(&mut ExecutionScreenState, &ExecutionManager)) {
         if let ExecutionState::Running {
             ref mut screen,
             ref manager,

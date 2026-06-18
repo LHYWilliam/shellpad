@@ -1,5 +1,31 @@
 # Changelog
 
+## v0.3.1 (2026-06-18) — Scroll fixes & code quality
+
+### Fixes
+- Auto-scroll follows output tail, not command header
+- Gauge progress bar: clamp to `[0, 100]` to prevent Ctrl+C overflow panic
+- Ctrl+C double-count on defer commands fixed
+- Follow→Free scroll transition preserves visual position
+- ←/→ now works with single-command sets
+
+### Refactor
+- `ScrollMode` enum replaces auto_scroll/focus_index/scroll_offset fields
+- `ExecutionThread` struct bundles rx+handle
+- `MainScreenMode` enum replaces search/rename bools
+- `VariableOverlay` struct replaces active/inputs/names/focus/gi/si fields
+- `EditingState` + `ListEditor` replace 10 editing fields in DetailScreen
+- `scroll_by`, `browse_command`, `reorder_focused` and 6 other methods extracted
+  to eliminate handler duplication (~117 lines saved)
+- `execute_single_cmd` helper eliminates blocking executor duplication
+- `bordered_block_primary` API for self-documenting primary panels
+
+### Style
+- `flat_map` unification for Unicode case-folding in fuzzy search
+- `let-else` for early-return guard patterns in CLI
+- `impl Default` for ToastManager
+- `const fn` for ShellType::executable()
+
 ## v0.3.0 (2026-06-18) — Defer commands & execution redesign
 
 ### Features

@@ -4,16 +4,9 @@ use std::time::Duration;
 const TOAST_DURATION: Duration = Duration::from_secs(3);
 
 /// Manages toast notifications. Data-only — rendering happens in `app/render.rs`.
+#[derive(Default)]
 pub struct ToastManager {
     pub toasts: Vec<Toast>,
-}
-
-impl Default for ToastManager {
-    fn default() -> Self {
-        Self {
-            toasts: Vec::new(),
-        }
-    }
 }
 
 impl ToastManager {

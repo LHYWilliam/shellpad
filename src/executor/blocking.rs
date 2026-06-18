@@ -39,12 +39,10 @@ fn execute_single_cmd(
     if let Some(dir) = working_dir {
         cmd_builder.current_dir(dir);
     }
-    let mut child = cmd_builder
-        .spawn()
-        .map_err(|e| ExecuteError::SpawnFailed {
-            idx,
-            detail: e.to_string(),
-        })?;
+    let mut child = cmd_builder.spawn().map_err(|e| ExecuteError::SpawnFailed {
+        idx,
+        detail: e.to_string(),
+    })?;
     let status = child.wait().map_err(|e| ExecuteError::CommandFailed {
         idx,
         code: e.raw_os_error(),
