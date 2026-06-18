@@ -146,6 +146,24 @@ impl ExecutionScreenState {
         None
     }
 
+    /// Browse in direction `delta`, falling back to the current command
+    /// when there are no adjacent commands (e.g. single-command sets).
+    fn browse_command(&mut self, delta: isize) {
+        let browsing = self.browsing_index().unwrap_or(self.current_index);
+        let idx = self.nearest_non_pending(browsing, delta).or_else(|| {
+            if browsing < self.cmd_states.len()
+                && self.cmd_states[browsing].status != CmdStatus::Pending
+            {
+                Some(browsing)
+            } else {
+                None
+            }
+        });
+        if let Some(idx) = idx {
+            self.scroll = ScrollMode::Browse { index: idx };
+        }
+    }
+
     /// Handle key events.
     pub fn handle_key(&mut self, key: crossterm::event::KeyEvent) -> AppAction {
         use crossterm::event::KeyCode;
@@ -169,40 +187,11 @@ impl ExecutionScreenState {
             }
             KeyCode::Char('r') if self.completed => AppAction::ReExec,
             KeyCode::Left => {
-                let browsing = self.browsing_index().unwrap_or(self.current_index);
-                let idx = self
-                    .nearest_non_pending(browsing, -1)
-                    .or_else(|| {
-                        // Single command: no adjacent, browse current if it exists
-                        if browsing < self.cmd_states.len()
-                            && self.cmd_states[browsing].status != CmdStatus::Pending
-                        {
-                            Some(browsing)
-                        } else {
-                            None
-                        }
-                    });
-                if let Some(idx) = idx {
-                    self.scroll = ScrollMode::Browse { index: idx };
-                }
+                self.browse_command(-1);
                 AppAction::None
             }
             KeyCode::Right => {
-                let browsing = self.browsing_index().unwrap_or(self.current_index);
-                let idx = self
-                    .nearest_non_pending(browsing, 1)
-                    .or_else(|| {
-                        if browsing < self.cmd_states.len()
-                            && self.cmd_states[browsing].status != CmdStatus::Pending
-                        {
-                            Some(browsing)
-                        } else {
-                            None
-                        }
-                    });
-                if let Some(idx) = idx {
-                    self.scroll = ScrollMode::Browse { index: idx };
-                }
+                self.browse_command(1);
                 AppAction::None
             }
             KeyCode::Up | KeyCode::Char('k') => {
