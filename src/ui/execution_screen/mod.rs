@@ -782,4 +782,39 @@ mod tests {
         state.visible_height = 0;
         state.scroll_to_match(1);
     }
+
+    #[test]
+    fn test_items_offset_defer_boundary_known_undercount() {
+        // Known issue: render pushes an extra empty line before defer-boundary
+        // separators (2 items total), but items_offset_for_command counts only 1.
+        // This makes flat_output_index off by 1 for commands after defer boundaries.
+        let cmds: Vec<crate::models::Command> = vec![
+            crate::models::Command {
+                position: 0,
+                command: "normal".to_string(),
+            },
+            crate::models::Command {
+                position: 1,
+                command: "deferred".to_string(),
+            },
+        ];
+        let mut state = ExecutionScreenState::new("test".to_string(), &cmds);
+        state.cmd_states[1].defer = true;
+        state.cmd_states[0]
+            .output_lines
+            .push_back("line0".to_string());
+        state.cmd_states[1]
+            .output_lines
+            .push_back("line1".to_string());
+
+        // Real item layout for cmd0: [0]=hdr, [1]=line0, [2]=(empty), [3]=thick sep
+        // So items before cmd1 header = 4. But items_offset_for_command(1) returns 3.
+        // The correct value should be 4 — this test documents the current buggy value.
+        let offset = state.items_offset_for_command(1);
+        assert_eq!(offset, 3, "known bug: undercounts defer-boundary empty line");
+
+        // flat_output_index inherits the error:
+        // bug value: 3 + 1 + 0 + 0 = 4, correct value: 4 + 1 + 0 + 0 = 5
+        assert_eq!(state.flat_output_index(1, 0), 4);
+    }
 }
