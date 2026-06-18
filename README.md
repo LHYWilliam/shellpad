@@ -20,9 +20,11 @@ Inspired by task runners like `just` and `make`, but interactive.
 - **Import/Export** — CLI `export --all`/`--id` and `import --input` with pipe-friendly stdin/stdout
 - **Dual Execution Modes** — Stop on error or continue on error per command set
 - **Variables** — Template substitution with `{{var}}` syntax, configure per-execution
+- **Multi-Shell** — bash, zsh, fish, PowerShell, System Default, or custom shell path per command set
 - **Real-time Output** — Stream stdout/stderr with per-command status timing, auto-scroll
+- **Output Buffer** — 10,000-line ring buffer prevents runaway memory growth, drops oldest lines gracefully
 - **Working Directory** — Set a per-command-set working directory, defaults to shellpad CWD
-- **Three-layer Tab Navigation** — Tab cycles Properties → Variables → Commands → Deferred, ↑/↓ navigates
+- **Tab Navigation** — Tab/Shift+Tab cycles Properties ↔ Variables ↔ Commands ↔ Deferred Commands, ↑/↓ navigates within each region
 - **Reordering** — Ctrl+Up/Down reorder groups, sets, variables, and commands
 - **Delete Confirmation** — Modal confirmation dialog with Confirm/Cancel buttons
 - **Atomic Persistence** — Crash-safe JSON save at `~/.config/shellpad/sets.json`
@@ -43,6 +45,20 @@ cargo install --path .
 ```
 
 The binary is `shellpad`. It requires a terminal ≥ 80×24.
+
+## Quick Start
+
+New to shellpad? Clone the repo and load the demo data to see it in action:
+
+```bash
+git clone https://github.com/LHYWilliam/shellpad
+cd shellpad
+cp assets/demo.json ~/.config/shellpad/sets.json
+cargo run
+```
+
+Select a command set and press `Enter` to execute. Press `?` at any time for
+keyboard shortcuts.
 
 ## Usage
 
@@ -74,10 +90,10 @@ shellpad
 
 | Key | Action |
 |-----|--------|
-| `Tab` / `Shift+Tab` | Cycle between Properties / Variables / Commands |
+| `Tab` / `Shift+Tab` | Cycle focus regions (Properties, Variables, Commands, Deferred) |
 | `↑/↓` | Within Properties: cycle fields. Within lists: navigate items |
 | `←/→` | Change group, shell, or execution mode |
-| `Ctrl+↑/↓` | Reorder variable or command |
+| `Ctrl+↑/↓` | Reorder variable, command, or deferred command |
 | `Enter` | Edit focused field / item |
 | `a` | Add new variable or command |
 | `d` | Delete (with confirmation dialog) |
@@ -140,50 +156,23 @@ Data is stored at `~/.config/shellpad/sets.json`. The file is atomically updated
 
 ## Architecture
 
-```
-src/
-├── app/                    # App state machine
-│   ├── handler.rs          # Action dispatch
-│   ├── render.rs           # Main frame render
-│   ├── execution.rs        # ExecutionManager (thread lifecycle)
-│   └── toast.rs            # Toast notifications
-├── executor/               # Background thread execution
-│   ├── async_executor.rs   # TUI mode, mpsc streaming
-│   ├── blocking.rs         # CLI mode, synchronous
-│   └── events.rs           # Execution event types
-├── ui/                     # Terminal UI
-│   ├── main_screen/        # Dual-panel list (groups + sets), search
-│   ├── detail_screen/      # Full-screen form editor, option picker
-│   ├── execution_screen/   # Real-time command output
-│   ├── help_screen.rs      # Keyboard shortcuts overlay
-│   ├── variable_screen.rs  # Variable prompt dialog
-│   ├── confirm_dialog.rs   # Delete confirmation dialog
-│   ├── theme.rs            # Centralised colour palette
-│   ├── render.rs           # Shared rendering helpers
-│   └── widget/             # Reusable widgets (TextInput, List, etc.)
-├── models/                 # Data model (serde-serialised)
-├── cli.rs                  # Clap argument parsing
-├── storage.rs              # Atomic JSON persistence
-└── error.rs                # Error types (thiserror)
-```
-
-Data flow:
+shellpad is a single-threaded TUI application built on ratatui + crossterm.
+A 4-mode state machine (Main, Detail, Execution, Help) drives navigation, with
+overlay modes for delete confirmation and variable prompts. Commands execute on
+a background `std::thread` with `mpsc` channel streaming:
 
 ```
 User keypress → screen.handle_key() → AppAction
-  → app/handler.rs:handle_action() → mutate self.data
-  → auto_save() → frame redraw → screen.render()
+  → handler::handle_action() → mutate data → auto_save()
+  → frame redraw → screen.render()
+
+Execution: do_execute() → executor::execute_set() on background thread
+  → ExecutionEvent via mpsc → event loop polls every 100 ms
+  → screen.process_events() updates per-command status
 ```
 
-Execution runs on a background `std::thread` with `mpsc` channel streaming:
-
-```
-handler: confirm → do_execute()
-  → ExecutionManager::start() → executor::execute_set()
-  → spawn shell commands → pipe stdout/stderr
-  → send ExecutionEvent via mpsc → event loop polls each tick
-  → screen.process_events() updates command states
-```
+Key modules: `app/` (state machine, dispatch, toast), `ui/` (screens, widgets, theme),
+`executor/` (async + blocking), `models/` (data types), `storage.rs` (atomic JSON).
 
 ## Development
 
@@ -194,6 +183,10 @@ cargo test               # Run all 260 tests
 cargo check              # Fast compilation check
 cargo clippy             # Lint
 ```
+
+## Changelog
+
+See [CHANGELOG.md](CHANGELOG.md) for release history.
 
 ## License
 
