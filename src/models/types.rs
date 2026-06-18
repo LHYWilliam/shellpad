@@ -27,7 +27,7 @@ pub enum ShellType {
 }
 
 impl ShellType {
-    pub fn executable(&self) -> Option<&str> {
+    pub const fn executable(&self) -> Option<&str> {
         match self {
             ShellType::SystemDefault => None,
             ShellType::Bash => Some("bash"),

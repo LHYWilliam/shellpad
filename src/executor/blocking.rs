@@ -19,6 +19,39 @@ pub struct ExecuteResult {
     pub failed: usize,
 }
 
+/// Spawn, wait, print status. Returns `Err` on spawn/wait failure,
+/// `Ok(true)` on success, `Ok(false)` on non-zero exit.
+fn execute_single_cmd(
+    shell_cmd: &ShellCommand,
+    resolved: &str,
+    working_dir: Option<&str>,
+    idx: usize,
+    total: usize,
+) -> Result<bool, ExecuteError> {
+    eprintln!("[{}/{}] $ {}", idx, total, resolved);
+
+    let mut cmd_builder = Command::new(&shell_cmd.program);
+    cmd_builder
+        .arg(&shell_cmd.flag)
+        .arg(resolved)
+        .stdout(Stdio::inherit())
+        .stderr(Stdio::inherit());
+    if let Some(dir) = working_dir {
+        cmd_builder.current_dir(dir);
+    }
+    let mut child = cmd_builder
+        .spawn()
+        .map_err(|e| ExecuteError::SpawnFailed {
+            idx,
+            detail: e.to_string(),
+        })?;
+    let status = child.wait().map_err(|e| ExecuteError::CommandFailed {
+        idx,
+        code: e.raw_os_error(),
+    })?;
+    Ok(status.success())
+}
+
 /// Execute a command set synchronously, piping output directly to stdout/stderr.
 pub fn execute_set_blocking(
     set: &CommandSet,
@@ -28,83 +61,36 @@ pub fn execute_set_blocking(
 ) -> Result<ExecuteResult, ExecuteError> {
     let mut succeeded = 0usize;
     let mut failed = 0usize;
-    let total = set.commands.len();
+    let normal_count = set.commands.len();
 
+    // Phase 1: normal commands
     for (idx, cmd) in set.commands.iter().enumerate() {
         let resolved = substitute_variables_from_map(&cmd.command, vars);
-
-        eprintln!("[{}/{}] $ {}", idx + 1, total, resolved);
-
-        let mut cmd_builder = Command::new(&shell_cmd.program);
-        cmd_builder
-            .arg(&shell_cmd.flag)
-            .arg(&resolved)
-            .stdout(Stdio::inherit())
-            .stderr(Stdio::inherit());
-        if let Some(dir) = working_dir {
-            cmd_builder.current_dir(dir);
-        }
-        let mut child = cmd_builder.spawn().map_err(|e| ExecuteError::SpawnFailed {
-            idx: idx + 1,
-            detail: e.to_string(),
-        })?;
-
-        let status = child.wait().map_err(|e| ExecuteError::CommandFailed {
-            idx: idx + 1,
-            code: e.raw_os_error(),
-        })?;
-
-        if status.success() {
-            succeeded += 1;
-        } else {
-            failed += 1;
-            eprintln!("Command {} exited with code {:?}", idx + 1, status.code());
-            if matches!(set.exec_mode, ExecMode::StopOnError) {
-                return Err(ExecuteError::CommandFailed {
-                    idx: idx + 1,
-                    code: status.code(),
-                });
+        match execute_single_cmd(shell_cmd, &resolved, working_dir, idx + 1, normal_count)? {
+            true => succeeded += 1,
+            false => {
+                failed += 1;
+                if matches!(set.exec_mode, ExecMode::StopOnError) {
+                    return Err(ExecuteError::CommandFailed {
+                        idx: idx + 1,
+                        code: None,
+                    });
+                }
             }
         }
     }
 
     // Phase 2: defer commands
+    let total = normal_count + set.defer_commands.len();
     for (di, cmd) in set.defer_commands.iter().enumerate() {
         let resolved = substitute_variables_from_map(&cmd.command, vars);
-        let label = total + di + 1;
-        eprintln!(
-            "[{}/{}] $ {}",
-            label,
-            total + set.defer_commands.len(),
-            resolved
-        );
-
-        let mut cmd_builder = Command::new(&shell_cmd.program);
-        cmd_builder
-            .arg(&shell_cmd.flag)
-            .arg(&resolved)
-            .stdout(Stdio::inherit())
-            .stderr(Stdio::inherit());
-        if let Some(dir) = working_dir {
-            cmd_builder.current_dir(dir);
-        }
-        let mut child = cmd_builder.spawn().map_err(|e| ExecuteError::SpawnFailed {
-            idx: label,
-            detail: e.to_string(),
-        })?;
-        let status = child.wait().map_err(|e| ExecuteError::CommandFailed {
-            idx: label,
-            code: e.raw_os_error(),
-        })?;
-
-        if status.success() {
-            succeeded += 1;
-        } else {
-            failed += 1;
+        let idx = normal_count + di + 1;
+        match execute_single_cmd(shell_cmd, &resolved, working_dir, idx, total)? {
+            true => succeeded += 1,
+            false => failed += 1,
         }
     }
 
-    let total = total + set.defer_commands.len();
     Ok(ExecuteResult {
         total,
         succeeded,
