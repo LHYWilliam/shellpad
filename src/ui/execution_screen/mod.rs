@@ -303,6 +303,66 @@ impl ExecutionScreenState {
         }
 
         match key.code {
+            KeyCode::Enter => {
+                let target = if let SearchState::Active {
+                    ref matches, current, ..
+                } = self.search
+                {
+                    if !matches.is_empty() && current < matches.len() {
+                        Some(matches[current])
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                };
+                if let Some(t) = target {
+                    self.scroll = ScrollMode::Free { offset: t };
+                    self.last_offset = t;
+                }
+                self.search = SearchState::Inactive;
+                AppAction::None
+            }
+            KeyCode::Up => {
+                let has_prev = match &self.search {
+                    SearchState::Active { current, .. } => *current > 0,
+                    _ => false,
+                };
+                if has_prev {
+                    if let SearchState::Active { current, .. } = &mut self.search {
+                        *current -= 1;
+                    }
+                    self.scroll_to_match(
+                        if let SearchState::Active { current, .. } = &self.search {
+                            *current
+                        } else {
+                            0
+                        },
+                    );
+                }
+                AppAction::None
+            }
+            KeyCode::Down => {
+                let has_next = match &self.search {
+                    SearchState::Active {
+                        matches, current, ..
+                    } => *current + 1 < matches.len(),
+                    _ => false,
+                };
+                if has_next {
+                    if let SearchState::Active { current, .. } = &mut self.search {
+                        *current += 1;
+                    }
+                    self.scroll_to_match(
+                        if let SearchState::Active { current, .. } = &self.search {
+                            *current
+                        } else {
+                            0
+                        },
+                    );
+                }
+                AppAction::None
+            }
             KeyCode::Esc => {
                 let (prev_scroll, prev_offset) =
                     if let SearchState::Active {
@@ -329,22 +389,63 @@ impl ExecutionScreenState {
             SearchState::Active { input, .. } => input.content.clone(),
             SearchState::Inactive => return,
         };
-
-        let (matches, current) = match &mut self.search {
-            SearchState::Active {
-                matches, current, ..
-            } => (matches, current),
-            SearchState::Inactive => return,
-        };
-
-        matches.clear();
-        *current = 0;
-
         if query.is_empty() {
+            if let SearchState::Active {
+                matches, current, ..
+            } = &mut self.search
+            {
+                matches.clear();
+                *current = 0;
+            }
             return;
         }
 
-        let _ = query;
+        // Collect match indices first (borrows self immutably via cmd_states)
+        let new_matches: Vec<usize> = {
+            let mut v = Vec::new();
+            for (i, state) in self.cmd_states.iter().enumerate() {
+                for (li, line) in state.output_lines.iter().enumerate() {
+                    if line.contains(query.as_str()) {
+                        v.push(self.flat_output_index(i, li));
+                    }
+                }
+            }
+            v
+        };
+
+        // Update search state
+        let has_matches = !new_matches.is_empty();
+        if let SearchState::Active {
+            matches, current, ..
+        } = &mut self.search
+        {
+            *matches = new_matches;
+            *current = 0;
+        }
+
+        if has_matches {
+            self.scroll_to_match(0);
+        }
+    }
+
+    fn flat_output_index(&self, cmd_idx: usize, line_idx: usize) -> usize {
+        self.items_offset_for_command(cmd_idx)
+            + 1 // command header line
+            + if self.cmd_states[cmd_idx].truncated { 1 } else { 0 }
+            + line_idx
+    }
+
+    fn scroll_to_match(&mut self, match_idx: usize) {
+        let target = match &self.search {
+            SearchState::Active { matches, .. } if match_idx < matches.len() => {
+                Some(matches[match_idx])
+            }
+            _ => None,
+        };
+        if let Some(t) = target {
+            self.scroll = ScrollMode::Free { offset: t };
+            self.last_offset = t;
+        }
     }
 
     /// Total rendered items including summary footer.
@@ -505,11 +606,132 @@ mod tests {
         let _ = state.handle_key(make_key(KeyCode::Char('b')));
         // Move left
         let _ = state.handle_key(make_key(KeyCode::Left));
-        if let SearchState::Active { ref input, .. } = state.search {
+        if let SearchState::Active { input, .. } = state.search {
             assert_eq!(input.content, "ab");
             assert_eq!(input.cursor, 1);
         } else {
             panic!("expected Active");
+        }
+    }
+
+    fn make_state_with_output() -> ExecutionScreenState {
+        let cmds: Vec<crate::models::Command> = vec![crate::models::Command {
+            position: 0,
+            command: "cmd1".to_string(),
+        }];
+        let mut state = ExecutionScreenState::new("test".to_string(), &cmds);
+        state.cmd_states[0]
+            .output_lines
+            .push_back("line one".to_string());
+        state.cmd_states[0]
+            .output_lines
+            .push_back("error: something failed".to_string());
+        state.cmd_states[0]
+            .output_lines
+            .push_back("line three".to_string());
+        state
+    }
+
+    #[test]
+    fn test_enter_with_matches_enters_free_mode() {
+        let mut state = make_state_with_output();
+        enter_search(&mut state);
+        let _ = state.handle_key(make_key(KeyCode::Char('e')));
+        let _ = state.handle_key(make_key(KeyCode::Char('r')));
+        let action = state.handle_key(make_key(KeyCode::Enter));
+        assert!(matches!(action, AppAction::None));
+        assert!(matches!(state.search, SearchState::Inactive));
+        assert_eq!(state.scroll, ScrollMode::Free { offset: 2 });
+    }
+
+    #[test]
+    fn test_enter_with_no_matches_just_exits() {
+        let mut state = make_state_with_output();
+        enter_search(&mut state);
+        let _ = state.handle_key(make_key(KeyCode::Char('z')));
+        let _ = state.handle_key(make_key(KeyCode::Char('z')));
+        let action = state.handle_key(make_key(KeyCode::Enter));
+        assert!(matches!(action, AppAction::None));
+        assert!(matches!(state.search, SearchState::Inactive));
+        assert!(!matches!(state.scroll, ScrollMode::Free { .. }));
+    }
+
+    #[test]
+    fn test_flat_output_index_calculates_correctly() {
+        let state = make_state_with_output();
+        assert_eq!(state.flat_output_index(0, 0), 1);
+        assert_eq!(state.flat_output_index(0, 1), 2);
+        assert_eq!(state.flat_output_index(0, 2), 3);
+    }
+
+    #[test]
+    fn test_empty_query_produces_no_matches() {
+        let mut state = make_state_with_output();
+        enter_search(&mut state);
+        let _ = state.handle_key(make_key(KeyCode::Char('x')));
+        let _ = state.handle_key(make_key(KeyCode::Backspace));
+        if let SearchState::Active { matches, .. } = state.search {
+            assert!(matches.is_empty());
+        } else {
+            panic!("expected Active");
+        }
+    }
+
+    #[test]
+    fn test_up_down_navigates_matches() {
+        let mut state = make_state_with_output();
+        enter_search(&mut state);
+        let _ = state.handle_key(make_key(KeyCode::Char('l')));
+        let _ = state.handle_key(make_key(KeyCode::Char('i')));
+        let _ = state.handle_key(make_key(KeyCode::Char('n')));
+        let _ = state.handle_key(make_key(KeyCode::Char('e')));
+        if let SearchState::Active {
+            matches, current, ..
+        } = &state.search
+        {
+            assert_eq!(matches.len(), 2);
+            assert_eq!(*current, 0);
+        } else {
+            panic!("expected Active");
+        }
+
+        let _ = state.handle_key(make_key(KeyCode::Down));
+        if let SearchState::Active { current, .. } = &state.search {
+            assert_eq!(*current, 1);
+        }
+
+        let _ = state.handle_key(make_key(KeyCode::Up));
+        if let SearchState::Active { current, .. } = &state.search {
+            assert_eq!(*current, 0);
+        }
+    }
+
+    #[test]
+    fn test_up_at_first_down_at_last_match_clamps() {
+        let mut state = make_state_with_output();
+        enter_search(&mut state);
+        let _ = state.handle_key(make_key(KeyCode::Char('l')));
+        let _ = state.handle_key(make_key(KeyCode::Char('i')));
+        let _ = state.handle_key(make_key(KeyCode::Char('n')));
+        let _ = state.handle_key(make_key(KeyCode::Char('e')));
+
+        let _ = state.handle_key(make_key(KeyCode::Up));
+        if let SearchState::Active { current, .. } = &state.search {
+            assert_eq!(*current, 0);
+        }
+
+        let _ = state.handle_key(make_key(KeyCode::Down));
+        let last = if let SearchState::Active { matches, current, .. } = &state.search {
+            let l = matches.len() - 1;
+            assert_eq!(*current, l);
+            l
+        } else {
+            return;
+        };
+
+        let _ = state.handle_key(make_key(KeyCode::Down));
+        if let SearchState::Active { current, .. } = &state.search {
+            assert_eq!(*current, last);
         }
     }
 }
