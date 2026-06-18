@@ -1,5 +1,6 @@
 use super::{CmdStatus, ExecutionScreenState, MAX_OUTPUT_LINES, SearchState};
 use crate::ui::render::bordered_block_primary_zone;
+use crate::ui::render::bordered_block_zone;
 use crate::ui::render::{
     empty_hint, list_scrollbar_areas, render_scrollbar, render_status_bar, set_cursor_after_prefix,
 };
@@ -26,7 +27,7 @@ fn search_bar_text(query: &str, matches: &[usize], current: usize) -> String {
 impl ExecutionScreenState {
     pub(crate) fn render(&mut self, frame: &mut Frame, area: Rect, theme: &Theme) {
         let search_height: u16 = if matches!(self.search, SearchState::Active { .. }) {
-            1
+            3
         } else {
             0
         };
@@ -291,6 +292,7 @@ impl ExecutionScreenState {
             ..
         } = &self.search
         {
+            let inner = bordered_block_zone(frame, area, theme, " Search ", true);
             let text = search_bar_text(&input.content, matches, *current);
             let style = if matches.is_empty() && !input.content.is_empty() {
                 Style::default().fg(theme.accent_error)
@@ -298,7 +300,7 @@ impl ExecutionScreenState {
                 Style::default().fg(theme.accent_info)
             };
             let para = Paragraph::new(Line::from(Span::styled(text, style)));
-            frame.render_widget(para, area);
+            frame.render_widget(para, inner);
 
             let prefix_width = unicode_width::UnicodeWidthStr::width(" Search: ");
             set_cursor_after_prefix(
@@ -306,7 +308,7 @@ impl ExecutionScreenState {
                 &input.content,
                 input.cursor,
                 prefix_width as u16,
-                area,
+                inner,
             );
         }
     }
