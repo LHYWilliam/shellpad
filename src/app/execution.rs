@@ -4,10 +4,15 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc;
 use std::thread;
 
+/// Bundles the receiver and join handle for a running execution thread.
+pub(crate) struct ExecutionThread {
+    pub(crate) rx: mpsc::Receiver<ExecutionEvent>,
+    pub(crate) handle: thread::JoinHandle<()>,
+}
+
 /// Manages the lifecycle of a background execution thread.
 pub struct ExecutionManager {
-    pub rx: Option<mpsc::Receiver<ExecutionEvent>>,
-    pub handle: Option<thread::JoinHandle<()>>,
+    pub thread: Option<ExecutionThread>,
     pub kill_signal: Arc<AtomicBool>, // Ctrl+C — abort normals
     pub skip_signal: Arc<AtomicBool>, // s/n — skip/pause
 }
@@ -15,8 +20,7 @@ pub struct ExecutionManager {
 impl ExecutionManager {
     pub fn new() -> Self {
         Self {
-            rx: None,
-            handle: None,
+            thread: None,
             kill_signal: Arc::new(AtomicBool::new(false)),
             skip_signal: Arc::new(AtomicBool::new(false)),
         }
@@ -49,8 +53,7 @@ impl ExecutionManager {
             index_offset,
             working_dir,
         );
-        self.rx = Some(rx);
-        self.handle = Some(handle);
+        self.thread = Some(ExecutionThread { rx, handle });
     }
 
     /// Skip the current command and pause (s key).
@@ -75,9 +78,8 @@ impl ExecutionManager {
     /// Kill the running execution thread (drop channel, wait for exit).
     pub fn kill(&mut self) {
         self.kill_signal.store(true, Ordering::Relaxed);
-        self.rx = None;
-        if let Some(h) = self.handle.take() {
-            let _ = h.join();
+        if let Some(t) = self.thread.take() {
+            let _ = t.handle.join();
         }
     }
 }
@@ -110,8 +112,8 @@ mod tests {
             None,
         );
 
-        assert!(mgr.rx.is_some());
-        assert!(mgr.handle.is_some());
+        assert!(mgr.thread.is_some());
+        assert!(mgr.thread.is_some());
         assert!(!mgr.kill_signal.load(std::sync::atomic::Ordering::Relaxed));
     }
 
@@ -134,7 +136,7 @@ mod tests {
         mgr.kill();
 
         assert!(mgr.kill_signal.load(std::sync::atomic::Ordering::Relaxed));
-        assert!(mgr.rx.is_none());
+        assert!(mgr.thread.is_none());
     }
 
     #[test]
@@ -156,6 +158,6 @@ mod tests {
         mgr.kill();
         mgr.kill(); // should not panic
 
-        assert!(mgr.rx.is_none());
+        assert!(mgr.thread.is_none());
     }
 }
