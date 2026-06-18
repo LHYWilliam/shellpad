@@ -269,6 +269,39 @@ impl ExecutionScreenState {
     fn handle_search_key(&mut self, key: crossterm::event::KeyEvent) -> AppAction {
         use crossterm::event::KeyCode;
 
+        // Snapshot query before editing
+        let before = match &self.search {
+            SearchState::Active { input, .. } => input.content.clone(),
+            SearchState::Inactive => return AppAction::None,
+        };
+
+        // Text editing keys → delegate to handle_text_input
+        let is_edit_key = matches!(
+            key.code,
+            KeyCode::Char(_)
+                | KeyCode::Backspace
+                | KeyCode::Delete
+                | KeyCode::Left
+                | KeyCode::Right
+                | KeyCode::Home
+                | KeyCode::End
+        );
+        if is_edit_key {
+            if let SearchState::Active { ref mut input, .. } = self.search {
+                crate::ui::widget::text_input::handle_text_input(input, key);
+            }
+        }
+
+        // If query changed, recalculate matches
+        let query_changed = match &self.search {
+            SearchState::Active { input, .. } => input.content != before,
+            SearchState::Inactive => false,
+        };
+        if query_changed {
+            self.refresh_matches();
+            return AppAction::None;
+        }
+
         match key.code {
             KeyCode::Esc => {
                 let (prev_scroll, prev_offset) =
@@ -289,6 +322,29 @@ impl ExecutionScreenState {
             }
             _ => AppAction::None,
         }
+    }
+
+    fn refresh_matches(&mut self) {
+        let query = match &self.search {
+            SearchState::Active { input, .. } => input.content.clone(),
+            SearchState::Inactive => return,
+        };
+
+        let (matches, current) = match &mut self.search {
+            SearchState::Active {
+                matches, current, ..
+            } => (matches, current),
+            SearchState::Inactive => return,
+        };
+
+        matches.clear();
+        *current = 0;
+
+        if query.is_empty() {
+            return;
+        }
+
+        let _ = query;
     }
 
     /// Total rendered items including summary footer.
@@ -392,5 +448,68 @@ mod tests {
         assert!(matches!(action, AppAction::None));
         assert!(matches!(state.search, SearchState::Inactive));
         assert_eq!(state.scroll, ScrollMode::Free { offset: 5 });
+    }
+
+    fn enter_search(state: &mut ExecutionScreenState) {
+        let _ = state.handle_key(make_key(KeyCode::Char('/')));
+    }
+
+    #[test]
+    fn test_char_input_updates_query() {
+        let mut state = make_test_state();
+        enter_search(&mut state);
+        let action = state.handle_key(make_key(KeyCode::Char('e')));
+        assert!(matches!(action, AppAction::None));
+        if let SearchState::Active { ref input, .. } = state.search {
+            assert_eq!(input.content, "e");
+        } else {
+            panic!("expected Active");
+        }
+    }
+
+    #[test]
+    fn test_backspace_removes_last_char() {
+        let mut state = make_test_state();
+        enter_search(&mut state);
+        let _ = state.handle_key(make_key(KeyCode::Char('a')));
+        let _ = state.handle_key(make_key(KeyCode::Char('b')));
+        let _ = state.handle_key(make_key(KeyCode::Backspace));
+        if let SearchState::Active { ref input, .. } = state.search {
+            assert_eq!(input.content, "a");
+        } else {
+            panic!("expected Active");
+        }
+    }
+
+    #[test]
+    fn test_delete_removes_at_cursor() {
+        let mut state = make_test_state();
+        enter_search(&mut state);
+        let _ = state.handle_key(make_key(KeyCode::Char('a')));
+        let _ = state.handle_key(make_key(KeyCode::Char('b')));
+        // Move cursor left, then delete the character at cursor
+        let _ = state.handle_key(make_key(KeyCode::Left));
+        let _ = state.handle_key(make_key(KeyCode::Delete));
+        if let SearchState::Active { ref input, .. } = state.search {
+            assert_eq!(input.content, "a");
+        } else {
+            panic!("expected Active");
+        }
+    }
+
+    #[test]
+    fn test_cursor_keys_move_without_changing_content() {
+        let mut state = make_test_state();
+        enter_search(&mut state);
+        let _ = state.handle_key(make_key(KeyCode::Char('a')));
+        let _ = state.handle_key(make_key(KeyCode::Char('b')));
+        // Move left
+        let _ = state.handle_key(make_key(KeyCode::Left));
+        if let SearchState::Active { ref input, .. } = state.search {
+            assert_eq!(input.content, "ab");
+            assert_eq!(input.cursor, 1);
+        } else {
+            panic!("expected Active");
+        }
     }
 }
