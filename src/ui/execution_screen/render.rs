@@ -206,10 +206,15 @@ impl ExecutionScreenState {
         // Split list inner into content + scrollbar
         let (content_area, scrollbar_area) = list_scrollbar_areas(list_inner);
 
-        // Scroll to focused command, or use auto-scroll offset
-        let target_cmd = self.focus_index.unwrap_or(self.current_index);
-        if self.focus_index.is_some() || self.auto_scroll {
-            self.scroll_offset = self.items_offset_for_command(target_cmd);
+        // Browse mode (←/→): jump to the selected command's header
+        if let Some(idx) = self.focus_index {
+            self.scroll_offset = self.items_offset_for_command(idx);
+        }
+        // Follow mode (z): keep latest output at the bottom of the viewport
+        if self.auto_scroll {
+            let total = self.items_total();
+            let vis = content_area.height.saturating_sub(2) as usize;
+            self.scroll_offset = total.saturating_sub(vis);
         }
         let scroll_offset = self.scroll_offset;
         let mut list_state = ratatui::widgets::ListState::default().with_offset(scroll_offset);
