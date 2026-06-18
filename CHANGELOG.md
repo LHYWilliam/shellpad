@@ -1,5 +1,19 @@
 # Changelog
 
+## v0.3.2 (2026-06-18) — Undo delete & output search
+
+### Features
+- **Undo Delete** — Ctrl+Z restores deleted groups/sets (multi-level LIFO stack, status bar hint)
+- **Output Search** — `/` in execution screen to search output lines, real-time substring highlighting, ↑/↓ jump between matches
+
+### Fixes
+- Search match navigation: smart scrolling avoids unnecessary viewport jumps
+- Enter exits search without resetting scroll position
+- Perf: search match highlighting computes once per frame instead of per-command
+
+### Refactor
+- `items_offset_for_command` documented off-by-one bug at defer boundaries (test only)
+
 ## v0.3.1 (2026-06-18) — Scroll fixes & code quality
 
 ### Fixes
