@@ -11,7 +11,7 @@ use super::{App, ExecutionState};
 
 impl App {
     pub fn handle_key(&mut self, key: crossterm::event::KeyEvent) {
-        if self.variable_screen.active {
+        if self.variable_screen.overlay.is_some() {
             let action = self.variable_screen.handle_key(key);
             self.handle_action(action);
             return;
@@ -367,11 +367,12 @@ impl App {
             }
             // ---- Variable overlay ----
             AppAction::ConfirmVariables => {
-                let gi = self.variable_screen.gi;
-                let si = self.variable_screen.si;
+                let overlay = self.variable_screen.overlay.as_ref().unwrap();
+                let gi = overlay.gi;
+                let si = overlay.si;
                 if gi < self.data.groups.len() && si < self.data.groups[gi].sets.len() {
                     let set = &mut self.data.groups[gi].sets[si];
-                    for (i, input) in self.variable_screen.inputs.iter().enumerate() {
+                    for (i, input) in overlay.inputs.iter().enumerate() {
                         if i < set.variables.len() {
                             set.variables[i].default_value = input.content.clone();
                         }
@@ -767,15 +768,19 @@ mod tests {
     #[test]
     fn test_handler_cancel_variables() {
         let mut app = make_app();
-        app.variable_screen.active = true;
-        app.variable_screen.gi = 0;
-        app.variable_screen.si = 0;
+        app.variable_screen.overlay = Some(crate::ui::variable_screen::VariableOverlay {
+            inputs: vec![],
+            names: vec![],
+            focus: 0,
+            gi: 0,
+            si: 0,
+        });
         app.execution_state = ExecutionState::Idle {
             pending_set: Some((0, 0)),
         };
 
         app.handle_action(AppAction::CancelVariables);
-        assert!(!app.variable_screen.active);
+        assert!(app.variable_screen.overlay.is_none());
         assert!(matches!(
             app.execution_state,
             ExecutionState::Idle { pending_set: None }
@@ -788,7 +793,8 @@ mod tests {
         app.data = make_data_with_vars_and_cmds();
         app.variable_screen
             .activate(&app.data.groups[0].sets[0], 0, 0);
-        app.variable_screen.inputs[0].content = "prod.example.com".to_string();
+        app.variable_screen.overlay.as_mut().unwrap().inputs[0].content =
+            "prod.example.com".to_string();
 
         app.handle_action(AppAction::ConfirmVariables);
         assert_eq!(

@@ -11,14 +11,17 @@ use ratatui::style::Style;
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Clear, Paragraph};
 
-pub struct VariableScreenState {
-    pub active: bool,
+/// Active variable-editing overlay — present only when prompting for variables.
+pub struct VariableOverlay {
     pub inputs: Vec<TextInput>,
     pub names: Vec<String>,
     pub focus: usize,
-    /// Copies of the original group/set indices (not owned by pending_set)
     pub gi: usize,
     pub si: usize,
+}
+
+pub struct VariableScreenState {
+    pub overlay: Option<VariableOverlay>,
 }
 
 impl Default for VariableScreenState {
@@ -29,51 +32,49 @@ impl Default for VariableScreenState {
 
 impl VariableScreenState {
     pub fn new() -> Self {
-        Self {
-            active: false,
-            inputs: Vec::new(),
-            names: Vec::new(),
-            focus: 0,
-            gi: 0,
-            si: 0,
-        }
+        Self { overlay: None }
     }
 
     pub fn activate(&mut self, set: &CommandSet, gi: usize, si: usize) {
-        self.active = true;
-        self.inputs = set
-            .variables
-            .iter()
-            .map(|v| TextInput::new(v.default_value.clone()))
-            .collect();
-        self.names = set.variables.iter().map(|v| v.name.clone()).collect();
-        self.focus = 0;
-        self.gi = gi;
-        self.si = si;
+        self.overlay = Some(VariableOverlay {
+            inputs: set
+                .variables
+                .iter()
+                .map(|v| TextInput::new(v.default_value.clone()))
+                .collect(),
+            names: set.variables.iter().map(|v| v.name.clone()).collect(),
+            focus: 0,
+            gi,
+            si,
+        });
     }
 
     pub fn handle_key(&mut self, key: KeyEvent) -> AppAction {
+        let overlay = match &mut self.overlay {
+            Some(o) => o,
+            None => return AppAction::None,
+        };
         match key.code {
             KeyCode::Enter => AppAction::ConfirmVariables,
             KeyCode::Esc => AppAction::CancelVariables,
             KeyCode::Tab | KeyCode::Down => {
-                let n = self.inputs.len();
+                let n = overlay.inputs.len();
                 if n > 0 {
-                    self.focus = (self.focus + 1) % n;
+                    overlay.focus = (overlay.focus + 1) % n;
                 }
                 AppAction::None
             }
             KeyCode::Up => {
-                let n = self.inputs.len();
+                let n = overlay.inputs.len();
                 if n > 0 {
-                    self.focus = (self.focus + n - 1) % n;
+                    overlay.focus = (overlay.focus + n - 1) % n;
                 }
                 AppAction::None
             }
             _ => {
-                let n = self.inputs.len();
-                if n > 0 && self.focus < n {
-                    handle_text_input(&mut self.inputs[self.focus], key);
+                let n = overlay.inputs.len();
+                if n > 0 && overlay.focus < n {
+                    handle_text_input(&mut overlay.inputs[overlay.focus], key);
                 }
                 AppAction::None
             }
@@ -81,10 +82,11 @@ impl VariableScreenState {
     }
 
     pub fn render(&self, frame: &mut Frame, area: Rect, theme: &Theme) {
-        if !self.active {
-            return;
-        }
-        let count = self.inputs.len();
+        let overlay = match &self.overlay {
+            Some(o) => o,
+            None => return,
+        };
+        let count = overlay.inputs.len();
         if count == 0 {
             return;
         }
@@ -99,14 +101,14 @@ impl VariableScreenState {
         let inner = block.inner(dialog);
 
         for i in 0..count {
-            let focused = i == self.focus;
+            let focused = i == overlay.focus;
             let row_style = if focused {
                 theme.selected_style()
             } else {
                 theme.normal_style()
             };
             let row = Rect::new(inner.x, inner.y + i as u16, inner.width, 1);
-            let display = format!(" {} = {}", self.names[i], self.inputs[i].content);
+            let display = format!(" {} = {}", overlay.names[i], overlay.inputs[i].content);
             let var_line = fill_row(
                 Line::from(Span::styled(display, row_style)),
                 row_style,
@@ -114,13 +116,13 @@ impl VariableScreenState {
             );
             frame.render_widget(Paragraph::new(var_line), row);
             if focused {
-                let prefix_w = unicode_width::UnicodeWidthStr::width(" ") // leading space
-                    + unicode_width::UnicodeWidthStr::width(self.names[i].as_str())
+                let prefix_w = unicode_width::UnicodeWidthStr::width(" ")
+                    + unicode_width::UnicodeWidthStr::width(overlay.names[i].as_str())
                     + unicode_width::UnicodeWidthStr::width(" = ");
                 set_cursor_after_prefix(
                     frame,
-                    &self.inputs[i].content,
-                    self.inputs[i].cursor,
+                    &overlay.inputs[i].content,
+                    overlay.inputs[i].cursor,
                     prefix_w as u16,
                     Rect::new(inner.x, inner.y + i as u16, inner.width, 1),
                 );
@@ -152,17 +154,19 @@ mod tests {
         let set = CommandSet::new("test".to_string(), uuid::Uuid::new_v4());
         state.activate(&set, 0, 0);
         let _ = state.handle_key(make_key(KeyCode::Tab));
-        assert_eq!(state.focus, 0); // no variables to navigate
+        assert_eq!(state.overlay.as_ref().unwrap().focus, 0);
     }
 
     #[test]
     fn test_enter_with_variables_returns_confirm() {
         let mut state = VariableScreenState::new();
-        state.active = true;
-        state.inputs.push(TextInput::new("val".to_string()));
-        state.names.push("x".to_string());
-        state.gi = 0;
-        state.si = 0;
+        state.overlay = Some(VariableOverlay {
+            inputs: vec![TextInput::new("val".to_string())],
+            names: vec!["x".to_string()],
+            focus: 0,
+            gi: 0,
+            si: 0,
+        });
         let action = state.handle_key(make_key(KeyCode::Enter));
         assert!(matches!(action, AppAction::ConfirmVariables));
     }
@@ -170,7 +174,13 @@ mod tests {
     #[test]
     fn test_esc_returns_cancel_variables() {
         let mut state = VariableScreenState::new();
-        state.active = true;
+        state.overlay = Some(VariableOverlay {
+            inputs: vec![],
+            names: vec![],
+            focus: 0,
+            gi: 0,
+            si: 0,
+        });
         let action = state.handle_key(make_key(KeyCode::Esc));
         assert!(matches!(action, AppAction::CancelVariables));
     }
