@@ -15,6 +15,7 @@ use crate::tui::TuiTerminal;
 use crate::ui::detail_screen::DetailScreenState;
 use crate::ui::execution_screen::ExecutionScreenState;
 use crate::ui::main_screen::MainScreenState;
+use crate::ui::main_screen::Panel;
 use crate::ui::theme::Theme;
 use crate::ui::toast::ToastSeverity;
 use crate::ui::variable_screen::VariableScreenState;
@@ -226,6 +227,43 @@ impl App {
         }
         if !keep_screen {
             self.execution_state = ExecutionState::Idle { pending_set: None };
+        }
+    }
+
+    fn undo_last_trash(&mut self) {
+        let Some(entry) = self.trash.pop() else {
+            return;
+        };
+
+        match entry.item {
+            crate::app::TrashedItem::Group { group, index } => {
+                let pos = index.min(self.data.groups.len());
+                self.data.groups.insert(pos, group);
+                self.main_screen.group_list.selected = pos;
+                self.main_screen.set_list.reset();
+                self.auto_save();
+                self.toasts.add("Group restored", ToastSeverity::Info);
+            }
+            crate::app::TrashedItem::Set {
+                set,
+                group_index,
+                set_index,
+            } => {
+                if group_index >= self.data.groups.len() {
+                    self.toasts.add(
+                        "Cannot restore: group no longer exists",
+                        ToastSeverity::Error,
+                    );
+                    return;
+                }
+                let pos = set_index.min(self.data.groups[group_index].sets.len());
+                self.data.groups[group_index].sets.insert(pos, set);
+                self.main_screen.group_list.selected = group_index;
+                self.main_screen.set_list.selected = pos;
+                self.main_screen.active_panel = Panel::Sets;
+                self.auto_save();
+                self.toasts.add("Set restored", ToastSeverity::Info);
+            }
         }
     }
 }

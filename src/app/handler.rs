@@ -7,7 +7,7 @@ use crate::ui::detail_screen::DetailScreenState;
 use crate::ui::execution_screen::ExecutionScreenState;
 use crate::ui::main_screen::Panel;
 use crate::ui::toast::ToastSeverity;
-use crossterm::event::KeyCode;
+use crossterm::event::{KeyCode, KeyModifiers};
 
 use super::{App, ExecutionState};
 
@@ -27,6 +27,13 @@ impl App {
 
         match &self.mode {
             AppMode::Main => {
+                if key.code == KeyCode::Char('z')
+                    && key.modifiers.contains(KeyModifiers::CONTROL)
+                    && !self.trash.is_empty()
+                {
+                    self.undo_last_trash();
+                    return;
+                }
                 let action = self.main_screen.handle_key(key, &self.data);
                 self.handle_action(action);
             }
@@ -482,7 +489,7 @@ impl App {
         }
     }
 
-    fn auto_save(&mut self) {
+    pub(crate) fn auto_save(&mut self) {
         if let Err(e) = storage::save_app_data(&self.data) {
             self.toasts
                 .add(format!("Save failed: {}", e), ToastSeverity::Error);
@@ -1414,5 +1421,96 @@ mod tests {
         } else {
             panic!("expected TrashedItem::Set");
         }
+    }
+
+    // ---- Undo ----
+    #[test]
+    fn test_undo_restores_deleted_group() {
+        let mut app = make_app();
+        app.data = make_data_with_one_group();
+        app.handle_action(AppAction::DeleteGroup(0));
+        assert_eq!(app.trash.len(), 1);
+        assert!(app.data.groups.is_empty());
+
+        app.undo_last_trash();
+
+        assert!(app.trash.is_empty());
+        assert_eq!(app.data.groups.len(), 1);
+        assert_eq!(app.data.groups[0].name, "Deploy");
+        assert_eq!(app.main_screen.group_list.selected, 0);
+    }
+
+    #[test]
+    fn test_undo_restores_deleted_set() {
+        let mut app = make_app();
+        app.data = make_data_with_one_group();
+        app.handle_action(AppAction::DeleteSet(0, 0));
+        assert_eq!(app.trash.len(), 1);
+        assert!(app.data.groups[0].sets.is_empty());
+
+        app.undo_last_trash();
+
+        assert!(app.trash.is_empty());
+        assert_eq!(app.data.groups[0].sets.len(), 1);
+        assert_eq!(app.data.groups[0].sets[0].name, "Prod");
+        assert_eq!(app.main_screen.group_list.selected, 0);
+        assert_eq!(app.main_screen.set_list.selected, 0);
+    }
+
+    #[test]
+    fn test_undo_set_with_gone_parent_group_shows_error() {
+        let mut app = make_app();
+        app.data = make_data_with_one_group();
+        let set = app.data.groups[0].sets[0].clone();
+        // Manually push a set whose group_index points to a non-existent group
+        app.trash.push(crate::app::TrashEntry {
+            timestamp: chrono::Local::now(),
+            item: crate::app::TrashedItem::Set {
+                set,
+                group_index: 5, // out of bounds
+                set_index: 0,
+            },
+        });
+
+        app.undo_last_trash();
+
+        // Trash entry should be consumed (popped), but no set added
+        assert!(app.trash.is_empty());
+        assert_eq!(app.data.groups[0].sets.len(), 1); // unchanged
+        let has_error = app
+            .toasts
+            .toasts
+            .iter()
+            .any(|t| t.message.contains("group no longer exists"));
+        assert!(has_error, "expected error toast about missing parent group");
+    }
+
+    #[test]
+    fn test_undo_lifo_multiple_deletes() {
+        let mut app = make_app();
+        // Group with two sets
+        let mut g = Group::new("Deploy".to_string());
+        let set1 = CommandSet::new("Prod".to_string(), g.id);
+        let set2 = CommandSet::new("Staging".to_string(), g.id);
+        g.sets.push(set1);
+        g.sets.push(set2);
+        app.data = AppData { groups: vec![g] };
+
+        // Delete set2 (index 1), then set1 (index 0)
+        app.handle_action(AppAction::DeleteSet(0, 1));
+        app.handle_action(AppAction::DeleteSet(0, 0));
+        assert_eq!(app.trash.len(), 2);
+
+        // Undo set1 first (LIFO)
+        app.undo_last_trash();
+        assert_eq!(app.trash.len(), 1);
+        assert_eq!(app.data.groups[0].sets.len(), 1);
+        assert_eq!(app.data.groups[0].sets[0].name, "Prod");
+
+        // Undo set2
+        app.undo_last_trash();
+        assert!(app.trash.is_empty());
+        assert_eq!(app.data.groups[0].sets.len(), 2);
+        assert_eq!(app.data.groups[0].sets[1].name, "Staging");
     }
 }
