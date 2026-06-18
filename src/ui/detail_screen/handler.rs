@@ -70,6 +70,145 @@ impl DetailScreenState {
         }
     }
 
+    fn reorder_focused(&self, dir: isize) -> Option<AppAction> {
+        match self.focus {
+            DetailFocus::Variables if !self.set.variables.is_empty() => {
+                let idx = self
+                    .var_editor
+                    .list
+                    .selected
+                    .min(self.set.variables.len().saturating_sub(1));
+                Some(AppAction::Reorder(ReorderKind::Variable(idx), dir))
+            }
+            DetailFocus::Commands if !self.set.commands.is_empty() => {
+                let idx = self
+                    .cmd_editor
+                    .list
+                    .selected
+                    .min(self.set.commands.len().saturating_sub(1));
+                Some(AppAction::Reorder(ReorderKind::Command(idx), dir))
+            }
+            DetailFocus::DeferredCommands if !self.set.defer_commands.is_empty() => {
+                let idx = self
+                    .deferred_editor
+                    .list
+                    .selected
+                    .min(self.set.defer_commands.len().saturating_sub(1));
+                Some(AppAction::Reorder(ReorderKind::Command(idx), dir))
+            }
+            _ => None,
+        }
+    }
+
+    fn edit_selected_item(&mut self) {
+        match self.focus {
+            DetailFocus::Variables if !self.set.variables.is_empty() => {
+                let idx = self
+                    .var_editor
+                    .list
+                    .selected
+                    .min(self.set.variables.len() - 1);
+                let text = format!(
+                    "{}={}",
+                    self.set.variables[idx].name, self.set.variables[idx].default_value
+                );
+                Self::list_edit_begin(
+                    &mut self.var_editor.edit,
+                    &self.var_editor.list,
+                    text,
+                    self.set.variables.len(),
+                );
+            }
+            DetailFocus::Commands if !self.set.commands.is_empty() => {
+                let idx = self
+                    .cmd_editor
+                    .list
+                    .selected
+                    .min(self.set.commands.len() - 1);
+                Self::list_edit_begin(
+                    &mut self.cmd_editor.edit,
+                    &self.cmd_editor.list,
+                    self.set.commands[idx].command.clone(),
+                    self.set.commands.len(),
+                );
+            }
+            DetailFocus::DeferredCommands if !self.set.defer_commands.is_empty() => {
+                let idx = self
+                    .deferred_editor
+                    .list
+                    .selected
+                    .min(self.set.defer_commands.len() - 1);
+                Self::list_edit_begin(
+                    &mut self.deferred_editor.edit,
+                    &self.deferred_editor.list,
+                    self.set.defer_commands[idx].command.clone(),
+                    self.set.defer_commands.len(),
+                );
+            }
+            _ => {}
+        }
+    }
+
+    fn insert_at_focus(&mut self) {
+        match self.focus {
+            DetailFocus::Variables => Self::list_insert_begin(
+                &mut self.var_editor.edit,
+                &mut self.var_editor.list,
+                self.set.variables.len(),
+            ),
+            DetailFocus::Commands => Self::list_insert_begin(
+                &mut self.cmd_editor.edit,
+                &mut self.cmd_editor.list,
+                self.set.commands.len(),
+            ),
+            DetailFocus::DeferredCommands => Self::list_insert_begin(
+                &mut self.deferred_editor.edit,
+                &mut self.deferred_editor.list,
+                self.set.defer_commands.len(),
+            ),
+            _ => {}
+        }
+    }
+
+    fn request_delete_focused(&self) -> Option<AppAction> {
+        match self.focus {
+            DetailFocus::Variables if !self.set.variables.is_empty() => {
+                let idx = self
+                    .var_editor
+                    .list
+                    .selected
+                    .min(self.set.variables.len().saturating_sub(1));
+                Some(AppAction::RequestDelete(DeleteKind::Variable {
+                    var_index: idx,
+                    var_name: self.set.variables[idx].name.clone(),
+                }))
+            }
+            DetailFocus::Commands if !self.set.commands.is_empty() => {
+                let idx = self
+                    .cmd_editor
+                    .list
+                    .selected
+                    .min(self.set.commands.len().saturating_sub(1));
+                Some(AppAction::RequestDelete(DeleteKind::Command {
+                    cmd_index: idx,
+                    cmd_preview: self.set.commands[idx].command.clone(),
+                }))
+            }
+            DetailFocus::DeferredCommands if !self.set.defer_commands.is_empty() => {
+                let idx = self
+                    .deferred_editor
+                    .list
+                    .selected
+                    .min(self.set.defer_commands.len().saturating_sub(1));
+                Some(AppAction::RequestDelete(DeleteKind::Command {
+                    cmd_index: idx,
+                    cmd_preview: self.set.defer_commands[idx].command.clone(),
+                }))
+            }
+            _ => None,
+        }
+    }
+
     fn handle_inline_edit(&mut self, key: KeyEvent) -> Option<AppAction> {
         if let Some(idx) = self.var_editor.edit.editing {
             return Some(handle_variable_edit(
@@ -112,32 +251,8 @@ impl DetailScreenState {
                     .modifiers
                     .contains(crossterm::event::KeyModifiers::CONTROL) =>
             {
-                match self.focus {
-                    DetailFocus::Variables if !self.set.variables.is_empty() => {
-                        let idx = self
-                            .var_editor
-                            .list
-                            .selected
-                            .min(self.set.variables.len().saturating_sub(1));
-                        return AppAction::Reorder(ReorderKind::Variable(idx), -1);
-                    }
-                    DetailFocus::Commands if !self.set.commands.is_empty() => {
-                        let idx = self
-                            .cmd_editor
-                            .list
-                            .selected
-                            .min(self.set.commands.len().saturating_sub(1));
-                        return AppAction::Reorder(ReorderKind::Command(idx), -1);
-                    }
-                    DetailFocus::DeferredCommands if !self.set.defer_commands.is_empty() => {
-                        let idx = self
-                            .deferred_editor
-                            .list
-                            .selected
-                            .min(self.set.defer_commands.len().saturating_sub(1));
-                        return AppAction::Reorder(ReorderKind::Command(idx), -1);
-                    }
-                    _ => {}
+                if let Some(action) = self.reorder_focused(-1) {
+                    return action;
                 }
             }
             KeyCode::Up => match self.region() {
@@ -168,32 +283,8 @@ impl DetailScreenState {
                     .modifiers
                     .contains(crossterm::event::KeyModifiers::CONTROL) =>
             {
-                match self.focus {
-                    DetailFocus::Variables if !self.set.variables.is_empty() => {
-                        let idx = self
-                            .var_editor
-                            .list
-                            .selected
-                            .min(self.set.variables.len().saturating_sub(1));
-                        return AppAction::Reorder(ReorderKind::Variable(idx), 1);
-                    }
-                    DetailFocus::Commands if !self.set.commands.is_empty() => {
-                        let idx = self
-                            .cmd_editor
-                            .list
-                            .selected
-                            .min(self.set.commands.len().saturating_sub(1));
-                        return AppAction::Reorder(ReorderKind::Command(idx), 1);
-                    }
-                    DetailFocus::DeferredCommands if !self.set.defer_commands.is_empty() => {
-                        let idx = self
-                            .deferred_editor
-                            .list
-                            .selected
-                            .min(self.set.defer_commands.len().saturating_sub(1));
-                        return AppAction::Reorder(ReorderKind::Command(idx), 1);
-                    }
-                    _ => {}
+                if let Some(action) = self.reorder_focused(1) {
+                    return action;
                 }
             }
             KeyCode::Down => match self.region() {
@@ -273,116 +364,22 @@ impl DetailScreenState {
                             ));
                         }
                     }
-                    DetailFocus::Variables if !self.set.variables.is_empty() => {
-                        let idx = self
-                            .var_editor
-                            .list
-                            .selected
-                            .min(self.set.variables.len() - 1);
-                        let text = format!(
-                            "{}={}",
-                            self.set.variables[idx].name, self.set.variables[idx].default_value
-                        );
-                        Self::list_edit_begin(
-                            &mut self.var_editor.edit,
-                            &self.var_editor.list,
-                            text,
-                            self.set.variables.len(),
-                        );
-                    }
-                    DetailFocus::Commands if !self.set.commands.is_empty() => {
-                        let idx = self
-                            .cmd_editor
-                            .list
-                            .selected
-                            .min(self.set.commands.len() - 1);
-                        let text = self.set.commands[idx].command.clone();
-                        Self::list_edit_begin(
-                            &mut self.cmd_editor.edit,
-                            &self.cmd_editor.list,
-                            text,
-                            self.set.commands.len(),
-                        );
-                    }
-                    DetailFocus::DeferredCommands if !self.set.defer_commands.is_empty() => {
-                        let idx = self
-                            .deferred_editor
-                            .list
-                            .selected
-                            .min(self.set.defer_commands.len() - 1);
-                        let text = self.set.defer_commands[idx].command.clone();
-                        Self::list_edit_begin(
-                            &mut self.deferred_editor.edit,
-                            &self.deferred_editor.list,
-                            text,
-                            self.set.defer_commands.len(),
-                        );
+                    _ if matches!(self.focus, DetailFocus::Variables
+                        | DetailFocus::Commands
+                        | DetailFocus::DeferredCommands) =>
+                    {
+                        self.edit_selected_item();
                     }
                     _ => {}
                 }
             }
-            KeyCode::Char('a' | 'A') => match self.focus {
-                DetailFocus::Variables => {
-                    Self::list_insert_begin(
-                        &mut self.var_editor.edit,
-                        &mut self.var_editor.list,
-                        self.set.variables.len(),
-                    );
-                }
-                DetailFocus::Commands => {
-                    Self::list_insert_begin(
-                        &mut self.cmd_editor.edit,
-                        &mut self.cmd_editor.list,
-                        self.set.commands.len(),
-                    );
-                }
-                DetailFocus::DeferredCommands => {
-                    Self::list_insert_begin(
-                        &mut self.deferred_editor.edit,
-                        &mut self.deferred_editor.list,
-                        self.set.defer_commands.len(),
-                    );
-                }
-                _ => {}
+            KeyCode::Char('a' | 'A') => {
+                self.insert_at_focus();
             },
-            KeyCode::Char('d' | 'D') => match self.focus {
-                DetailFocus::Variables if !self.set.variables.is_empty() => {
-                    let idx = self
-                        .var_editor
-                        .list
-                        .selected
-                        .min(self.set.variables.len().saturating_sub(1));
-                    let var_name = self.set.variables[idx].name.clone();
-                    return AppAction::RequestDelete(DeleteKind::Variable {
-                        var_index: idx,
-                        var_name,
-                    });
+            KeyCode::Char('d' | 'D') => {
+                if let Some(action) = self.request_delete_focused() {
+                    return action;
                 }
-                DetailFocus::Commands if !self.set.commands.is_empty() => {
-                    let idx = self
-                        .cmd_editor
-                        .list
-                        .selected
-                        .min(self.set.commands.len().saturating_sub(1));
-                    let cmd_preview = self.set.commands[idx].command.clone();
-                    return AppAction::RequestDelete(DeleteKind::Command {
-                        cmd_index: idx,
-                        cmd_preview,
-                    });
-                }
-                DetailFocus::DeferredCommands if !self.set.defer_commands.is_empty() => {
-                    let idx = self
-                        .deferred_editor
-                        .list
-                        .selected
-                        .min(self.set.defer_commands.len().saturating_sub(1));
-                    let cmd_preview = self.set.defer_commands[idx].command.clone();
-                    return AppAction::RequestDelete(DeleteKind::Command {
-                        cmd_index: idx,
-                        cmd_preview,
-                    });
-                }
-                _ => {}
             },
             KeyCode::Char('s')
                 if key
