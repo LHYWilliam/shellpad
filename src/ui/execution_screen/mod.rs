@@ -56,6 +56,10 @@ pub struct ExecutionScreenState {
     pub total_duration_ms: Option<u128>,
     /// Scroll mode — one of Follow / Browse{index} / Free{offset}.
     scroll: ScrollMode,
+    /// Cached offset from the last render frame — used to preserve visual
+    /// position when transitioning from Follow mode (which computes its
+    /// offset from content_height at render time).
+    last_offset: usize,
     pub(crate) output_truncated: bool,
 }
 
@@ -88,6 +92,7 @@ impl ExecutionScreenState {
             continue_from: None,
             total_duration_ms: None,
             scroll: ScrollMode::Follow,
+            last_offset: 0,
             output_truncated: false,
         }
     }
@@ -110,7 +115,7 @@ impl ExecutionScreenState {
     /// tail position (content end); for Browse, the command's header offset.
     fn scroll_base(&self) -> usize {
         match &self.scroll {
-            ScrollMode::Follow => self.items_total().saturating_sub(1),
+            ScrollMode::Follow => self.last_offset,
             ScrollMode::Browse { index } => self.items_offset_for_command(*index),
             ScrollMode::Free { offset } => *offset,
         }

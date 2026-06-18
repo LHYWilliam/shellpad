@@ -207,6 +207,7 @@ impl ExecutionScreenState {
         let (content_area, scrollbar_area) = list_scrollbar_areas(list_inner);
 
         let scroll_offset = self.scroll_offset(content_area.height);
+        self.last_offset = scroll_offset;
         let mut list_state = ratatui::widgets::ListState::default().with_offset(scroll_offset);
         frame.render_stateful_widget(List::new(items), content_area, &mut list_state);
 
