@@ -97,22 +97,20 @@ impl ExecutionScreenState {
         let thin_sep = "─".repeat(sep_width);
         let thick_sep = "═".repeat(sep_width);
 
-        let match_set: HashSet<usize> =
-            if let SearchState::Active { matches, .. } = &self.search {
-                matches.iter().copied().collect()
-            } else {
-                HashSet::new()
-            };
+        let match_set: HashSet<usize> = if let SearchState::Active { matches, .. } = &self.search {
+            matches.iter().copied().collect()
+        } else {
+            HashSet::new()
+        };
 
-        let current_match_idx: Option<usize> =
-            if let SearchState::Active {
-                current, matches, ..
-            } = &self.search
-            {
-                matches.get(*current).copied()
-            } else {
-                None
-            };
+        let current_match_idx: Option<usize> = if let SearchState::Active {
+            current, matches, ..
+        } = &self.search
+        {
+            matches.get(*current).copied()
+        } else {
+            None
+        };
 
         for (i, state) in self.cmd_states.iter().enumerate() {
             // Command header
@@ -247,19 +245,19 @@ impl ExecutionScreenState {
                 self.deferring,
                 self.completed,
             ) {
-            (Some(_), _, _, _) => {
-                "[←/→] Browse  [↑/↓] Scroll  [PgUp/PgDn] Page  [z] Follow  [q] Back"
+                (Some(_), _, _, _) => {
+                    "[←/→] Browse  [↑/↓] Scroll  [PgUp/PgDn] Page  [z] Follow  [q] Back"
+                }
+                (None, _, true, false) => {
+                    "[←/→] Browse                                    Deferred commands running..."
+                }
+                (None, true, false, false) => "[n] Continue  [Ctrl+C] Abort  [←/→] Browse",
+                (None, false, false, false) => "[s] Skip  [Ctrl+C] Abort  [←/→] Browse  [z] Follow",
+                (None, _, _, true) => {
+                    "[←/→] Browse  [↑/↓] Scroll  [PgUp/PgDn] Page  [r] Re-execute  [q] Back"
+                }
             }
-            (None, _, true, false) => {
-                "[←/→] Browse                                    Deferred commands running..."
-            }
-            (None, true, false, false) => "[n] Continue  [Ctrl+C] Abort  [←/→] Browse",
-            (None, false, false, false) => "[s] Skip  [Ctrl+C] Abort  [←/→] Browse  [z] Follow",
-            (None, _, _, true) => {
-                "[←/→] Browse  [↑/↓] Scroll  [PgUp/PgDn] Page  [r] Re-execute  [q] Back"
-            }
-        }
-    };
+        };
 
         let body_layout = Layout::vertical([Constraint::Min(1), Constraint::Length(2)]);
         let [list_area, footer_area] = body_layout.areas(body_area);

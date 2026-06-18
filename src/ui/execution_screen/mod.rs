@@ -811,7 +811,10 @@ mod tests {
         // So items before cmd1 header = 4. But items_offset_for_command(1) returns 3.
         // The correct value should be 4 — this test documents the current buggy value.
         let offset = state.items_offset_for_command(1);
-        assert_eq!(offset, 3, "known bug: undercounts defer-boundary empty line");
+        assert_eq!(
+            offset, 3,
+            "known bug: undercounts defer-boundary empty line"
+        );
 
         // flat_output_index inherits the error:
         // bug value: 3 + 1 + 0 + 0 = 4, correct value: 4 + 1 + 0 + 0 = 5
