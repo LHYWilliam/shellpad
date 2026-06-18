@@ -74,6 +74,8 @@ pub struct ExecutionScreenState {
     /// position when transitioning from Follow mode (which computes its
     /// offset from content_height at render time).
     last_offset: usize,
+    /// Visible content height from last render frame — used by scroll_to_match.
+    visible_height: usize,
     pub(crate) output_truncated: bool,
     pub(crate) search: SearchState,
 }
@@ -108,6 +110,7 @@ impl ExecutionScreenState {
             total_duration_ms: None,
             scroll: ScrollMode::Follow,
             last_offset: 0,
+            visible_height: 0,
             output_truncated: false,
             search: SearchState::Inactive,
         }
@@ -441,10 +444,25 @@ impl ExecutionScreenState {
             }
             _ => None,
         };
-        if let Some(t) = target {
-            self.scroll = ScrollMode::Free { offset: t };
-            self.last_offset = t;
+        let Some(target) = target else { return };
+
+        let vis = self.visible_height.max(1);
+        let top = self.last_offset;
+        let bottom = top.saturating_add(vis).saturating_sub(1);
+
+        if target >= top && target <= bottom {
+            // Already visible — don't scroll
+            return;
         }
+
+        let new_offset = if target < top {
+            target
+        } else {
+            target.saturating_sub(vis.saturating_sub(1))
+        };
+
+        self.scroll = ScrollMode::Free { offset: new_offset };
+        self.last_offset = new_offset;
     }
 
     /// Total rendered items including summary footer.
@@ -735,5 +753,51 @@ mod tests {
         if let SearchState::Active { current, .. } = &state.search {
             assert_eq!(*current, last);
         }
+    }
+
+    fn make_search_state_with_matches() -> ExecutionScreenState {
+        let mut state = make_state_with_output();
+        state.search = SearchState::Active {
+            input: TextInput::new("line".to_string()),
+            matches: vec![1, 3],
+            current: 0,
+            prev_scroll: ScrollMode::Follow,
+            prev_offset: 0,
+        };
+        state.last_offset = 0;
+        state.visible_height = 10;
+        state.scroll = ScrollMode::Free { offset: 0 };
+        state
+    }
+
+    #[test]
+    fn test_scroll_to_match_visible_no_scroll() {
+        let mut state = make_search_state_with_matches();
+        state.scroll_to_match(0);
+        assert_eq!(state.scroll, ScrollMode::Free { offset: 0 });
+    }
+
+    #[test]
+    fn test_scroll_to_match_above_viewport() {
+        let mut state = make_search_state_with_matches();
+        state.last_offset = 5;
+        state.scroll_to_match(0);
+        assert_eq!(state.scroll, ScrollMode::Free { offset: 1 });
+    }
+
+    #[test]
+    fn test_scroll_to_match_below_viewport() {
+        let mut state = make_search_state_with_matches();
+        state.last_offset = 0;
+        state.visible_height = 3;
+        state.scroll_to_match(1);
+        assert_eq!(state.scroll, ScrollMode::Free { offset: 1 });
+    }
+
+    #[test]
+    fn test_scroll_to_match_zero_height_no_panic() {
+        let mut state = make_search_state_with_matches();
+        state.visible_height = 0;
+        state.scroll_to_match(1);
     }
 }
