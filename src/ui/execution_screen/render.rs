@@ -213,7 +213,7 @@ impl ExecutionScreenState {
         // Follow mode (z): keep latest output at the bottom of the viewport
         if self.auto_scroll {
             let total = self.items_total();
-            let vis = content_area.height.saturating_sub(2) as usize;
+            let vis = content_area.height as usize;
             self.scroll_offset = total.saturating_sub(vis);
         }
         let scroll_offset = self.scroll_offset;
