@@ -305,24 +305,6 @@ impl ExecutionScreenState {
 
         match key.code {
             KeyCode::Enter => {
-                let target = if let SearchState::Active {
-                    ref matches,
-                    current,
-                    ..
-                } = self.search
-                {
-                    if !matches.is_empty() && current < matches.len() {
-                        Some(matches[current])
-                    } else {
-                        None
-                    }
-                } else {
-                    None
-                };
-                if let Some(t) = target {
-                    self.scroll = ScrollMode::Free { offset: t };
-                    self.last_offset = t;
-                }
                 self.search = SearchState::Inactive;
                 AppAction::None
             }
